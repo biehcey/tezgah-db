@@ -56,6 +56,9 @@ Label: wayfinder:map
 ### 1.7 "Bekletiyorsun" göstergesi
 - (Q17) Transaction'da karar beklerken ve Okuma'da transaction açıkken, ayrı kısa süreli pool client'ı 5 sn'de bir `pg_stat_activity` + `$1 = ANY(pg_blocking_pids(pid))` (pid, usename, application_name, wait_event_type, `left(query,200)`, süre). Karar kartında "⚠ N oturumu bekletiyorsun", üzerine gelince liste; yetkiden NULL gelenler "görünmüyor". İptal/sonlandırma yok (araştırma 3.2).
 
+### Tablo ekranı yerleşimi
+- [03 Tablo ekranı yerleşimi](issues/03-tablo-ekrani-yerlesimi.md) (prototip D, branch `prototype/03-tablo-ekrani-yerlesimi`): kenar çubuğu tek gezgin ağacı (Ctrl/Cmd+B), tek satırlık üst çubuk, sağ sütun yerine alt çekmece, satır no + tip başlıkta, Tab düzenlemeyi sonraki hücrede açık tutar, Ctrl/Cmd+Enter / +Shift / +Alt kısayolları, Shift+Enter satır görünümü. Q13 tablo açma yolu ve 02 Q3/Q4 buna göre değişti. Uygulama: 16, 17.
+
 ### Doküman
 - (Q23) ADR-0003 (konsol = sekmeli Script editörü), ADR-0004 (Okuma modu). Literal SQL ve "tam 1 satır" spec'te.
 - (Q24) GLOSSARY: Sekme, Okuma modu (Çalıştırma modu içinde), Tablo sekmesi, Bekleyen değişiklik, Katalog önbelleği; Yazma kilidi "sekme ve hedef başına".
