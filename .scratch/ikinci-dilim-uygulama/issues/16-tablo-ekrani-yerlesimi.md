@@ -8,7 +8,7 @@ Prototip (birincil kaynak): `prototype/03-tablo-ekrani-yerlesimi` branch'i, `.sc
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done (cb34efe)
 
 - [x] Kenar çubuğu: klasör › bağlantı › veritabanı › şema › tablo ağacı, üstte tek arama kutusu.
   - Bağlantı listesi, `VeritabaniPaneli` ve şema çipleri bu ağaca dönüşür.
