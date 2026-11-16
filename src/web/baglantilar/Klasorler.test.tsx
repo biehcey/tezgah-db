@@ -6,10 +6,8 @@ import { connection, createFakeConnections, folder, renderWithApi, type FakeConn
 
 const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
 const section = (name: string) => within(nav()).getByRole('region', { name });
-const rowNames = (region: HTMLElement) =>
-  within(region)
-    .queryAllByRole('listitem')
-    .map((li) => li.querySelector('.baglanti-adi')?.textContent);
+/** Bölümdeki bağlantıların adları (açık bağlantının veritabanı satırları hariç). */
+const rowNames = (region: HTMLElement) => [...region.querySelectorAll('.baglanti-adi')].map((el) => el.textContent);
 
 /** Satırdaki ⋯ düğmesi. */
 const menuButton = (name: string) =>

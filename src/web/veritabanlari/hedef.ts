@@ -1,4 +1,4 @@
-/** Bir bağlantının sunucu oturumu (Veritabanı paneli ve liste satırındaki durum). */
+/** Bir bağlantının sunucu oturumu (gezgin ağacındaki bağlantı ve veritabanı durumu). */
 export type ConnectionSession =
   | { durum: 'baglaniyor' }
   | { durum: 'bagli'; veritabanlari: string[] }

@@ -218,7 +218,7 @@ describe('SSH tüneli bölümü', () => {
 
 describe('Listeden tünelle bağlanma', () => {
   const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
-  const panel = () => screen.getByRole('region', { name: 'Veritabanları' });
+  const panel = () => screen.getByRole('region', { name: 'Uzak veritabanları' });
 
   async function open(ssh: SshSettings, setupFake?: (fake: ReturnType<typeof createFakeConnections>) => void) {
     const user = userEvent.setup();

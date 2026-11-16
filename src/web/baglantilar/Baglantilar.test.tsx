@@ -11,23 +11,25 @@ function renderApp(fake = createFakeConnections()) {
 }
 
 const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
+/** Gezgindeki bağlantı satırları (adres ipucunda). */
+const connectionRows = () => [...nav().querySelectorAll<HTMLElement>('.baglanti-satiri')];
 
 describe('bağlantı listesi', () => {
-  it('her satırda ortam rengi, ad ve kullanıcı@host[:port] görünür', async () => {
+  it('her satırda ortam rengi ve ad görünür, kullanıcı@host[:port] ipucunda', async () => {
     renderApp(
       createFakeConnections([
         connection({ id: 'a', name: 'Yerel', user: 'postgres', host: 'localhost', envTag: 'local', color: '#64748b' }),
         connection({ id: 'b', name: 'Analitik', user: 'app', host: 'db.example', port: 6432 }),
       ]),
     );
-    const rows = await within(nav()).findAllByRole('button', { name: /@/ });
+    await within(nav()).findByText('Analitik');
+    const rows = connectionRows();
     expect(rows.map((r) => r.textContent)).toEqual([
       expect.stringContaining('Yerel'),
       expect.stringContaining('Analitik'),
     ]);
-    expect(rows[0]).toHaveTextContent('postgres@localhost');
-    expect(rows[0]).not.toHaveTextContent(':5432');
-    expect(rows[1]).toHaveTextContent('app@db.example:6432');
+    expect(rows[0]).toHaveAttribute('title', 'postgres@localhost');
+    expect(rows[1]).toHaveAttribute('title', 'app@db.example:6432');
     expect(within(rows[0]!).getByTestId('ortam-noktasi')).toHaveStyle({ backgroundColor: '#64748b' });
   });
 
@@ -101,7 +103,7 @@ describe('yeni bağlantı formu', () => {
         },
       },
     ]);
-    expect(await within(nav()).findByRole('button', { name: /Staging API/ })).toHaveTextContent('api@stg.example:6543');
+    expect(await within(nav()).findByRole('button', { name: /Staging API/ })).toHaveAttribute('title', 'api@stg.example:6543');
     expect(screen.queryByRole('form', { name: /bağlantı/i })).not.toBeInTheDocument();
   });
 });
@@ -282,7 +284,7 @@ describe('bağlantı silme', () => {
   it('onaylanınca bağlantı ve şifresi silinir, listeden kalkar', async () => {
     const { user, fake, dialog } = await openDelete();
     await user.click(within(dialog).getByRole('button', { name: 'Sil' }));
-    await waitFor(() => expect(within(nav()).getAllByRole('button', { name: /@/ })).toHaveLength(1));
+    await waitFor(() => expect(connectionRows()).toHaveLength(1));
     expect(within(nav()).getByRole('button', { name: /Kalan/ })).toBeInTheDocument();
     expect(fake.requests).toEqual([{ method: 'DELETE', id: 'b1' }]);
     expect(fake.passwords.has('b1')).toBe(false);

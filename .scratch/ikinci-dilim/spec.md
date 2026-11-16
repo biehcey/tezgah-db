@@ -15,7 +15,7 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
 - **Okuma modu** (ADR-0004): yalnızca okuyan script'ler karar kartı açmadan `BEGIN READ ONLY` ile çalışır. Sonuçlar editörün altında, SELECT başına bir sonuç sekmesinde, sanallaştırılmış bir grid'de açılır; kaydırdıkça 500'er satır daha çekilir.
 - **Sorgu geçmişi**: Çalıştırma kayıtlarına filtrelenebilir, aranabilir bir yan panelden (Ctrl/Cmd+Alt+E) göz atılır; çift tık kaydı yeni sekmede açar.
 - **Şema bilen tamamlama**: kullanıcının açtığı hedefin görünür şemalarındaki tablo, view ve kolonlar editörde tamamlanır.
-- **Tablo sekmesi**: veritabanı panelinden ya da Cmd/Ctrl+K'dan açılan, editörsüz, `≈ N satır` başlıklı, serbest `WHERE` / `ORDER BY` kutulu, sayfalı tablo görünümü. Her sayfa kısa, ayrı, salt okunur bir sorgudur.
+- **Tablo sekmesi**: gezgin ağacından ya da Cmd/Ctrl+K'dan açılan, editörsüz, başlığında `≈N · M yüklü` yazan, serbest `WHERE` / `ORDER BY` kutulu, sayfalı tablo görünümü. Her sayfa kısa, ayrı, salt okunur bir sorgudur.
 - **Düzenlenebilir grid**: PK'lı tabloda Tablo sekmesi düzenlenebilir. Değişiklikler Bekleyen değişiklik olarak birikir; üretilen SQL sürekli önizlenir. "Uygula" bu SQL'i mevcut Script çalıştırıcıyla Transaction modunda çalıştırır (karar kartı, Karar süresi, Çalıştırma kaydı). "Dene" Deneme modunda gösterir, "Konsola aktar" yeni konsol sekmesine taşır.
 - **ALTER TABLE kolon ekleme**: Tablo sekmesinde "+ Kolon" formu, canlı `ADD COLUMN` önizlemesi ve tabloyu yeniden yazacak ya da hata verecek durumlar için engellemeyen uyarılar.
 - **"Bekletiyorsun" göstergesi**: karar beklerken ya da Okuma transaction'ı açıkken karar kartında "⚠ N oturumu bekletiyorsun" ve bekletilen oturumların listesi.
@@ -34,7 +34,7 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
 8. Geliştirici olarak geri gelen sekmelerin hiçbir sunucuya kendiliğinden bağlanmamasını istiyorum, böylece "açılışta bağlantı yok" kuralı korunur.
 9. Geliştirici olarak sekme bilgilerinin `tezgah.json`'dan ayrı saklanmasını istiyorum, böylece bağlantı ayarlarım sık değişen sekme içeriğiyle birlikte yazılmaz.
 10. Geliştirici olarak bir sekmenin hedefi silinmiş bir bağlantıya işaret ediyorsa sekmenin açılmasını ama hedefsiz görünmesini istiyorum, böylece metnim kaybolmaz.
-11. Geliştirici olarak veritabanı panelinden ya da Cmd/Ctrl+K'dan seçtiğim hedefin aktif sekmenin hedefi olmasını istiyorum.
+11. Geliştirici olarak gezgin ağacından ya da Cmd/Ctrl+K'dan seçtiğim hedefin aktif sekmenin hedefi olmasını istiyorum.
 12. Geliştirici olarak karar bekleyen bir sekmede hedef değiştirmenin kapalı olmasını istiyorum (ilk dilimdeki kural sekme başına).
 13. Geliştirici olarak karar bekleyen ya da Okuma transaction'ı açık bir sekmeyi kapatınca transaction'ın geri alınmasını istiyorum (ADR-0002).
 
@@ -94,17 +94,17 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
 50. Geliştirici olarak bir tablonun kolonlarının tipleriyle birlikte tamamlanmasını istiyorum.
 51. Geliştirici olarak `search_path`'in ilk şemasındaki tabloların öneksiz, diğerlerinin `şema.` ile tamamlanmasını istiyorum.
 52. Geliştirici olarak yalnızca Veritabanı seçiminde görünür kıldığım şemaların tamamlamaya girmesini istiyorum.
-53. Geliştirici olarak katalogun yalnızca bu oturumda elimle hedef seçtiğimde (panel / Ctrl+K) ya da sekmeyi ilk çalıştırdığımda okunmasını istiyorum; geri gelen sekmeler kendiliğinden katalog okumamalı.
+53. Geliştirici olarak katalogun yalnızca bu oturumda elimle hedef seçtiğimde (gezgin / Ctrl+K) ya da sekmeyi ilk çalıştırdığımda okunmasını istiyorum; geri gelen sekmeler kendiliğinden katalog okumamalı.
 54. Geliştirici olarak aynı hedefe bağlı sekmelerin aynı Katalog önbelleğini paylaşmasını istiyorum, böylece katalog her sekmede yeniden okunmaz.
 55. Geliştirici olarak DDL içeren bir script commit ya da autocommit ile bitince katalogun yenilenmesini istiyorum, böylece yeni tablom hemen tamamlanır.
 56. Geliştirici olarak katalogu "↻" ile elle yenileyebilmek istiyorum, böylece başka bir araçla yapılan şema değişikliklerini de görürüm.
 
 ### Tablo sekmesi
 
-57. Geliştirici olarak veritabanı panelinde bir şema çipine tıklayınca o şemanın tablo listesini filtre kutusuyla görmek istiyorum.
+57. Geliştirici olarak kenar çubuğunda klasör › bağlantı › veritabanı › şema › tablo ağacında bir şemayı açınca tablolarını tahmini satır sayısıyla görmek ve ağacın tepesindeki tek arama kutusuyla (bağlantı, veritabanı, şema ya da tablo adına göre) daraltmak istiyorum. Görünmeyen şemalar tek satırda toplanmalı; Ctrl/Cmd+B kenar çubuğunu gizleyip açmalı.
 58. Geliştirici olarak Cmd/Ctrl+K'da tablo adı arayıp tabloyu açabilmek istiyorum.
 59. Geliştirici olarak bir tabloyu açınca editörsüz bir Tablo sekmesinde ilk sayfayı görmek istiyorum.
-60. Geliştirici olarak Tablo sekmesi başlığında `≈ N satır` görmek istiyorum; tablo hiç analiz edilmediyse "≈ bilinmiyor" yazmalı, `0` değil.
+60. Geliştirici olarak Tablo sekmesinin tek satırlık üst çubuğunda (ad, sayı, `WHERE`/`ORDER BY`, `+ Satır`, `+ Kolon`, ↻) tahmini ve yüklü satır sayısını `≈N · M yüklü` olarak görmek istiyorum; tablo hiç analiz edilmediyse "≈ bilinmiyor" yazmalı, `0` değil.
 61. Geliştirici olarak serbest `WHERE` ve `ORDER BY` kutularına SQL yazabilmek ve bu kutularda da tamamlama almak istiyorum.
 62. Geliştirici olarak kolon başlığına tıklayınca `ORDER BY` kutusunun dolmasını istiyorum.
 63. Geliştirici olarak filtre kutusuna birden fazla ifade ya da `;` yazarak tabloya başka bir şey yaptıramamak istiyorum; sorgu tek ifade olarak gönderilmeli.
@@ -121,14 +121,14 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
 71. Geliştirici olarak PK'lı bir tablonun Tablo sekmesinde hücreleri düzenleyebilmek istiyorum.
 72. Geliştirici olarak PK'sız tabloda düzenlemenin kapalı olmasını ve nedenini görmek istiyorum.
 73. Geliştirici olarak konsol sonuçlarının her zaman salt okunur olmasını istiyorum.
-74. Geliştirici olarak F2, çift tık ya da yazmaya başlayarak düzenleyiciyi açmak; Enter ile kaydedip aşağı inmek, Shift+Enter ile yeni satır eklemek, Esc ile vazgeçmek, Tab / Shift+Tab ile kaydedip yana geçmek istiyorum.
+74. Geliştirici olarak F2, çift tık ya da yazmaya başlayarak düzenleyiciyi açmak; Enter ile kaydedip aşağı inmek, Shift+Enter ile yeni satır eklemek, Esc ile vazgeçmek, Tab / Shift+Tab ile kaydedip düzenleyiciyi sonraki/önceki yazılabilir hücrede açık tutmak istiyorum (satır sonunda sarar; yüklü satırın PK'sı, salt okunur kolon ve silinecek satır atlanır; yazılabilir hücre kalmadıysa düzenleyici kapanır).
 75. Geliştirici olarak Ctrl/Cmd+Shift+N ya da sağ tıkla bir hücreyi NULL yapabilmek istiyorum; NULL ile boş metin ayrı olmalı.
 76. Geliştirici olarak tüm tipleri (json ve diziler dahil) ham metin olarak düzenlemek istiyorum; dönüşümü Postgres yapmalı.
 77. Geliştirici olarak `bytea` ve generated kolonların salt okunur olmasını istiyorum.
 78. Geliştirici olarak satır ekleyebilmek ve silebilmek istiyorum; yeni satırda dokunmadığım kolonlar INSERT'e girmemeli, böylece DEFAULT'ları çalışır.
 79. Geliştirici olarak değişen hücreleri, eklenen ve silinecek satırları grid'de işaretli görmek istiyorum.
 80. Geliştirici olarak Tablo sekmesinde çok hücreli TSV yapıştırabilmek istiyorum: yapıştırma seçimin sol üst köşesinden başlamalı, boş hücre NULL olmalı, taşan satırlar yeni satır olmalı, taşan ya da salt okunur kolona denk gelen yapıştırma tümden reddedilmeli.
-81. Geliştirici olarak sağ sütunda bekleyen değişiklikleri ve üretilen SQL'i sürekli görmek istiyorum, böylece neyin çalışacağını tam olarak bilirim.
+81. Geliştirici olarak grid'in altındaki çekmecede bekleyen değişiklik sayısını, bekleyen listesini ve üretilen SQL'i yan yana görmek (SQL'i gizleyip açabilmek), tüm bekleyenleri tek tıkla geri alabilmek ve Ctrl/Cmd+Enter ile Uygula, Ctrl/Cmd+Shift+Enter ile Dene, Ctrl/Cmd+Alt+Enter ile SQL'i aç/kapa kısayollarını kullanmak istiyorum, böylece neyin çalışacağını tam olarak bilirim. Düğme kapalıyken kısayol bir şey yapmamalı.
 82. Geliştirici olarak üretilen `UPDATE`'in yalnızca değişen kolonları içermesini ve `WHERE`'in tüm PK kolonlarını kullanmasını istiyorum.
 83. Geliştirici olarak değerlerin `'…'::tip` literal olarak yazılmasını istiyorum, böylece önizlemede gördüğüm, kayda geçen ve konsola aktarılan SQL aynı olur.
 84. Geliştirici olarak her ifadenin tam 1 satır etkilemesini istiyorum; etkilemezse çalıştırma durmalı, satır işaretlenmeli ve "satır değişmiş ya da silinmiş" denmeli.
@@ -211,7 +211,7 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
 - Kullanıcı `ORDER BY` boşsa ve PK varsa keyset: `WHERE (<kullanıcı WHERE>) AND (pk1, pk2…) > ($1, $2…) ORDER BY pk1, pk2… LIMIT 500`. Aksi hâlde `ORDER BY <kullanıcınınki ya da PK ya da yok> LIMIT 500 OFFSET n` ve sonuçta "sayfalar arası tutarlılık garanti değil" notu.
 - Kullanıcı `WHERE`'i olduğu gibi parantez içinde gömülür (`ORDER BY` listesi parantezsiz); sondaki `;` ve yorum atılır ki satır yorumu sorgunun devamını yutmasın. Tek ifade garantisini Postgres'in extended protocol'ü verir (çok ifade reddedilir), core ayrıca `;` sonrası boş olmayan metni ve psql `\` komutunu reddeder.
 - Uygulanan filtre, ilk sayfası gelince sekmeye (ve diske) yazılır; reddedilen filtre kutuda kalır ama yazılmaz.
-- `reltuples` gösterim kuralı: `-1` → "≈ bilinmiyor", aksi hâlde yuvarlanmış `≈ N satır`.
+- `reltuples` gösterim kuralı: `-1` → "≈ bilinmiyor", aksi hâlde yuvarlanmış `≈N`; Tablo sekmesi başlığında yüklü satır sayısıyla `≈N · M yüklü` (`rowCounts`).
 - Kolon başlığına tık → `ORDER BY "kolon"`, ikinci tık `DESC`, üçüncü tık temizler.
 
 ### core: Katalog → tamamlama (yeni, saf)
@@ -268,9 +268,9 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
 
 - **Konsol yerleşimi**: hedef başlığının üstünde sekme şeridi (konsol ve Tablo sekmeleri, ortam rengi, kapat, yeni). Konsol sekmesi: solda editör, altında sonuç sekmeleri ve grid; sağda bugünkü sağ sütun (karar kartı + zaman çizelgesi). Geçmiş paneli Ctrl/Cmd+Alt+E ile açılır kapanır.
 - **Sonuç grid'i**: kendi DOM grid'imiz + `@tanstack/react-virtual`, yalnızca satır sanallaştırması, sabit satır yüksekliği. `role="grid"`, toplam bilinmezken `aria-rowcount="-1"`, `aria-rowindex`/`aria-colindex`/`aria-selected`, roving tabindex. Sona yaklaşınca `dahaFazla` (konsol) ya da sonraki sayfa (Tablo sekmesi) istenir. Davranışın kendisi core/grid'dedir; bileşen olayları core'a iletir ve sonucu çizer.
-- **Düzenleyici**: hücrenin üstünde açılan, büyüyen tek `<textarea>`; tuşlar US-74/75'teki gibi. Düzenleyiciden çıkmak (başka hücreye tıklama, odağın gitmesi) dokunulan değeri kaydeder; yalnızca Esc vazgeçer. Dokunulmadan kapatılan kutu kaydedilmez (NULL boş metne dönmez). Düzenleme kapalıyken (konsol sonucu, PK'sız tablo, Uygula sürerken) tam değer salt okunur açılır ve nedeni kutunun altında yazar.
-- **Tablo sekmesi**: başlık (tablo adı, `≈ N satır`, "+ Kolon", ↻), filtre/sıralama çubuğu (CodeMirror tek satırlık, katalog tamamlamalı), düzenlenebilir tabloda grid'in üstünde "Satır ekle" (eklenen satıra gider) ve kısayol ipucu, grid (sağ tık: NULL yap, Satır ekle, Satırları sil / Silmeyi geri al, INSERT olarak kopyala); sağ sütunda Bekleyen değişiklikler + SQL önizlemesi + Uygula/Dene/Konsola aktar + karar kartı. "+ Kolon" formu aynı sağ sütunda (PK'sız tabloda da) açılır; açıkken bekleyen değişiklik listesinin yerini alır, kendi Uygula/Dene/Konsola aktar çubuğu vardır, ALTER `beklenenSatir` olmadan çalışır. Formu açmak hedefin katalogunu (yoksa) ister (kullanıcı tipleri); tip kutusu `<datalist>` ile önerir; oynaklık varsayılan ifadede yeni ad görülünce 300 ms duraklamadan sonra sorulur. Commit sonrası form kapanır, `katalogYenilendi` ise arayüz katalogu yeniden çeker, sayfa yeniden çekilir; bekleyen grid değişiklikleri kalır. Rollback/hata/Dene sonrası form değerleriyle kalır.
-- **Veritabanı paneli**: şema çipine tıklayınca tablo listesi (filtre kutulu) açılır; listeden tıklama Tablo sekmesi açar. Cmd/Ctrl+K'ya "Tablolar" grubu eklenir (yalnızca önbelleği dolu hedeflerden).
+- **Düzenleyici**: hücrenin üstünde açılan, büyüyen tek `<textarea>`; tuşlar US-74/75'teki gibi (Tab hedefi core `tabTarget`). Düzenleyiciden çıkmak (başka hücreye tıklama, odağın gitmesi) dokunulan değeri kaydeder; yalnızca Esc vazgeçer. Dokunulmadan kapatılan kutu kaydedilmez (NULL boş metne dönmez). Düzenleme kapalıyken (konsol sonucu, PK'sız tablo, Uygula sürerken) tam değer salt okunur açılır ve nedeni kutunun altında yazar.
+- **Tablo sekmesi** ([16](../ikinci-dilim-uygulama/issues/16-tablo-ekrani-yerlesimi.md)): tek satırlık üst çubuk: tablo adı, `≈N · M yüklü` (core `rowCounts`), tek çerçevede `WHERE` / `ORDER BY` kutuları (CodeMirror tek satırlık, katalog tamamlamalı; hata ilgili kutunun altında), düzenlenebilir tabloda "+ Satır" (eklenen satıra gider), "+ Kolon", ↻. Grid'de yapışkan satır numarası kolonu ve başlıkta kolon tipi (konsol sonuçlarında da); sağ tık: NULL yap, Satır ekle, Satırları sil / Silmeyi geri al, INSERT olarak kopyala. Grid'in altında çekmece: değişiklik yokken tek satır kısayol ipucu (ya da düzenlemenin kapalı nedeni); varken sayı rozeti, "SQL'i gizle/göster", 🔒 Yazma kilidi (prod), ↶ Geri al (tüm bekleyenleri atar), Konsola aktar, ⟲ Dene, Uygula; SQL açıkken bekleyen listesi ve üretilen SQL yan yana, hatalı ifadenin satırı işaretli; karar kartı, Değişiklikler ve deneme prod uyarısı da çekmecede. Sınır ve OFFSET notları çekmece satırındadır. Kısayollar yalnızca Tablo sekmesi öndeyken, açık pencere ve "+ Kolon" formu yokken: Ctrl/Cmd+Enter Uygula, Ctrl/Cmd+Shift+Enter Dene, Ctrl/Cmd+Alt+Enter SQL; açık düzenleyici önce kaydedilir; AltGr yazmayı bozmaz, Windows'un Ctrl+Alt'a verdiği AltGraph Alt sayılır (core `tableShortcut`). Sekme şeridinde tür ikonu ve Tablo sekmesinde bekleyen sayısı rozeti. "+ Kolon" formu grid'in yanında yan panel olarak (PK'sız tabloda da) açılır; açıkken çalıştırma kartları panelde görünür, kendi Uygula/Dene/Konsola aktar çubuğu vardır, ALTER `beklenenSatir` olmadan çalışır. Formu açmak hedefin katalogunu (yoksa) ister (kullanıcı tipleri); tip kutusu `<datalist>` ile önerir; oynaklık varsayılan ifadede yeni ad görülünce 300 ms duraklamadan sonra sorulur. Commit sonrası form kapanır, `katalogYenilendi` ise arayüz katalogu yeniden çeker, sayfa yeniden çekilir; bekleyen grid değişiklikleri kalır. Rollback/hata/Dene sonrası form değerleriyle kalır.
+- **Gezgin ağacı** (bağlantı listesi ve Veritabanı panelinin yerine): klasör › bağlantı › veritabanı › şema › tablo, tepesinde tek arama kutusu (core `searchTree`: eşleşmenin ataları açılır; Esc temizler). Bağlan/yenile (⟳), hedef yapma, Veritabanı seçimi (⭐ ve şema görünürlüğü), sürükle-bırak, sağ tık / ⋯ menüsü, içe aktarma rozetleri ve Alt+Enter ile gösterme ağaçtadır. Şema düğümü açılınca katalog (yoksa) istenir; tablolar tahmini satır sayısıyla (core `compactRowCount`; katalog yoksa ya da analiz edilmemişse boş) listelenir ve tıklama Tablo sekmesi açar. Görünmeyen şemalar "+ N gizli şema" satırında toplanır. Ctrl/Cmd+B kenar çubuğunu gizler; gizliyken ince "» Gezgin" şeridi kalır, durum diske yazılmaz. Cmd/Ctrl+K'ya "Tablolar" grubu eklenir (yalnızca önbelleği dolu hedeflerden).
 - **Tamamlama**: editöre katalogdan üretilen `SQLNamespace` ile `lang-sql` `schema` + `defaultSchema` verilir; katalog değişince yeniden yapılandırılır.
 - **Bekletme göstergesi**: karar kartında (ve Okuma açıkken kartın yerindeki ince durum satırında) "⚠ N oturumu bekletiyorsun"; üzerine gelince liste; NULL alanlar "görünmüyor".
 
@@ -302,12 +302,12 @@ Script ekranı **sekmeli konsola** dönüşür (ADR-0003): her sekme bugünkü S
      - Okuma rozeti, karar kartının çıkmaması, 25006 düğmesi.
      - Sonuç sekmeleri, kaydırınca `dahaFazla`, kapanan transaction notu, sınır mesajı.
      - Grid: gezinme, aralık seçimi, Ctrl/Cmd+C (pano sahtesi), "INSERT olarak kopyala", düzenleyici tuşları, NULL kısayolu, yapıştırma ve reddi, işaretler.
-     - Tablo sekmesi: `≈ N satır`/"≈ bilinmiyor", filtre hatası, başlık tıklama, PK'sız tabloda düzenlemenin kapalı olması, SQL önizlemesi, prod 🔒'da Uygula devre dışı + Dene açık, commit sonrası yeniden çekme, rollback sonrası bekleyenlerin kalması, kapatma uyarısı, Konsola aktar.
+     - Tablo sekmesi: `≈N · M yüklü`/"≈ bilinmiyor", filtre hatası, başlık tıklama, PK'sız tabloda düzenlemenin kapalı olması, SQL önizlemesi, prod 🔒'da Uygula devre dışı + Dene açık, commit sonrası yeniden çekme, rollback sonrası bekleyenlerin kalması, kapatma uyarısı, Konsola aktar.
      - "+ Kolon": canlı önizleme ve lint uyarıları.
      - Geçmiş paneli: kısayol, varsayılan hedef filtresi, çift tıkla yeni sekme.
      - Tamamlama: katalogun yalnızca kullanıcı eylemiyle istenmesi; CodeMirror'ın kendi tamamlama davranışı test edilmez, yalnızca editöre verilen yapılandırma.
      - Bekletme göstergesi: sayı, liste, "görünmüyor".
-- **Prior art**: core'da `calistirma-modu`, `deneme-farki`, `calistirma-kaydi`, `ifade-bolme` testleri (tablo tabanlı); server'da `script-calistirici.test.ts`, `deneme.test.ts`, `calistirma-kayitlari.test.ts`, `yazma-kilidi.test.ts` (sahte Postgres, `describePg`, test soketi `waitFor`); web'de `ScriptEkrani.test.tsx`, `VeritabaniPaneli.test.tsx`, `HizliGecis.test.tsx` (sahte API, sahte çalıştırmalar).
+- **Prior art**: core'da `calistirma-modu`, `deneme-farki`, `calistirma-kaydi`, `ifade-bolme` testleri (tablo tabanlı); server'da `script-calistirici.test.ts`, `deneme.test.ts`, `calistirma-kayitlari.test.ts`, `yazma-kilidi.test.ts` (sahte Postgres, `describePg`, test soketi `waitFor`); web'de `ScriptEkrani.test.tsx`, `GezginAgaci.test.tsx`, `HizliGecis.test.tsx` (sahte API, sahte çalıştırmalar).
 
 ## Out of Scope
 

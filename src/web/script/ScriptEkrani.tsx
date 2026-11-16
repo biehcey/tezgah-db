@@ -284,7 +284,7 @@ export function ScriptEkrani({
         ) : (
           <>
             <h2 className="hedef-adi soluk">Hedef seçilmedi</h2>
-            <span className="soluk kucuk">Soldaki Veritabanı panelinden bir veritabanı seçin.</span>
+            <span className="soluk kucuk">Soldaki gezginden bir veritabanı seçin.</span>
           </>
         )}
         {target && <KatalogDugmesi catalog={catalog} onRefresh={() => onCatalog?.('yenile')} />}

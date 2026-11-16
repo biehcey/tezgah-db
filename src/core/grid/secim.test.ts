@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSelected, navigate, selectCell, selectedValues, selectionRange } from './secim';
+import { isSelected, navigate, selectCell, selectedValues, selectionRange, tabTarget } from './secim';
 
 const SIZE = { satirlar: 10, kolonlar: 4, sayfa: 3 };
 const key = (tus: string, mods: { shift?: boolean; ctrl?: boolean } = {}) => ({ tus, shift: false, ctrl: false, ...mods });
@@ -81,5 +81,32 @@ describe('Seçili değerler', () => {
     const sel = { capa: { satir: 0, kolon: 0 }, aktif: { satir: 1, kolon: 1 } };
     expect(isSelected(sel, { satir: 1, kolon: 0 })).toBe(true);
     expect(isSelected(sel, { satir: 2, kolon: 0 })).toBe(false);
+  });
+});
+
+describe('Tab ile ardışık düzenleme: tabTarget', () => {
+  // 3 satır × 3 kolon; kolon 0 PK, kolon 2 salt okunur (bytea).
+  const size = { satirlar: 3, kolonlar: 3 };
+  const cells = (durumlar: Record<number, 'eklendi' | 'silinecek'> = {}) => ({
+    pk: new Set([0]),
+    saltOkunurKolon: (k: number) => k === 2,
+    satirDurumu: (s: number) => durumlar[s] ?? null,
+  });
+
+  it.each([
+    ['yandaki yazılabilir hücreye', { satir: 0, kolon: 0 }, false, {}, { satir: 0, kolon: 1 }],
+    ['satır sonunda sarar, PK ve salt okunuru atlar', { satir: 0, kolon: 1 }, false, {}, { satir: 1, kolon: 1 }],
+    ['Shift+Tab geri sarar', { satir: 1, kolon: 1 }, true, {}, { satir: 0, kolon: 1 }],
+    ['silinecek satırı atlar', { satir: 0, kolon: 1 }, false, { 1: 'silinecek' }, { satir: 2, kolon: 1 }],
+    ['eklenen satırın PK’sı yazılır', { satir: 1, kolon: 1 }, false, { 2: 'eklendi' }, { satir: 2, kolon: 0 }],
+    ['son yazılabilir hücreden sonra hücre yok', { satir: 2, kolon: 1 }, false, {}, null],
+    ['ilk yazılabilir hücreden önce hücre yok', { satir: 0, kolon: 1 }, true, {}, null],
+    ['geri kalan satırlar silinecekse hücre yok', { satir: 0, kolon: 1 }, false, { 1: 'silinecek', 2: 'silinecek' }, null],
+  ] as const)('%s', (_, from, back, durumlar, expected) => {
+    expect(tabTarget(from, back, size, cells(durumlar))).toEqual(expected);
+  });
+
+  it('boş grid’de hücre yok', () => {
+    expect(tabTarget({ satir: 0, kolon: 0 }, false, { satirlar: 0, kolonlar: 3 }, cells())).toBeNull();
   });
 });

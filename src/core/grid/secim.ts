@@ -112,6 +112,33 @@ export function navigate(sel: Selection, key: NavKey, size: GridSize): Selection
   return key.shift ? extendTo(sel, cell) : selectCell(cell);
 }
 
+/** Düzenleyicinin Tab ile gidebileceği hücreleri belirleyen bilgiler. */
+export interface WritableCells {
+  /** PK kolonları: yüklü satırda atlanır, eklenen satırda yazılır. */
+  pk: ReadonlySet<number>;
+  /** Yazılamayan kolon (`bytea`, üretilmiş). */
+  saltOkunurKolon: (kolon: number) => boolean;
+  satirDurumu: (satir: number) => 'eklendi' | 'silinecek' | null;
+}
+
+/**
+ * Düzenleyici açıkken Tab/Shift+Tab'ın açacağı sonraki yazılabilir hücre (IntelliJ gibi). Satır
+ * sonunda sarar; yüklü satırın PK'sını, salt okunur kolonu ve silinecek satırı atlar. Grid'in
+ * başına/sonuna kadar yazılabilir hücre yoksa `null`: düzenleyici kapanır, seçim yerinde kalır.
+ */
+export function tabTarget(from: Cell, back: boolean, size: Pick<GridSize, 'satirlar' | 'kolonlar'>, cells: WritableCells): Cell | null {
+  const step = back ? -1 : 1;
+  const total = size.satirlar * size.kolonlar;
+  for (let i = from.satir * size.kolonlar + from.kolon + step; i >= 0 && i < total; i += step) {
+    const cell = { satir: Math.floor(i / size.kolonlar), kolon: i % size.kolonlar };
+    const durum = cells.satirDurumu(cell.satir);
+    if (durum === 'silinecek' || cells.saltOkunurKolon(cell.kolon)) continue;
+    if (durum !== 'eklendi' && cells.pk.has(cell.kolon)) continue;
+    return cell;
+  }
+  return null;
+}
+
 function clamp({ satir, kolon }: Cell, size: GridSize): Cell {
   return {
     satir: Math.min(Math.max(satir, 0), size.satirlar - 1),

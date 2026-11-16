@@ -216,9 +216,13 @@ export function appendPage(loaded: Rows, page: { satirlar: Rows; sonraki: PageCu
 
 const COUNT = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 });
 
-/** `pg_class.reltuples` başlıkta: `-1` (hiç analiz edilmedi) "≈ bilinmiyor", aksi hâlde `≈ N satır`. */
-export function rowEstimate(reltuples: number): string {
-  return reltuples < 0 ? '≈ bilinmiyor' : `≈ ${COUNT.format(Math.round(reltuples))} satır`;
+/**
+ * Tablo sekmesi başlığındaki sayaç: `≈N · M yüklü`. Tahmin `pg_class.reltuples`'tır; `-1` (hiç
+ * analiz edilmedi) "≈ bilinmiyor" yazar, `0` değil. Bilinmeyen parça (`null`) yazılmaz.
+ */
+export function rowCounts(reltuples: number | null, loaded: number | null): string {
+  const estimate = reltuples === null ? null : reltuples < 0 ? '≈ bilinmiyor' : `≈${COUNT.format(Math.round(reltuples))}`;
+  return [estimate, loaded === null ? null : `${COUNT.format(loaded)} yüklü`].filter((p) => p !== null).join(' · ');
 }
 
 // --- Uç sözleşmesi: `POST …/veritabanlari/:db/tablo-sayfasi` ---

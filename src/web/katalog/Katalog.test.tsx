@@ -6,7 +6,7 @@ import type { Catalog, CompletionConfig } from '../../core/katalog';
 import { TABS_VERSION, type SavedTabs } from '../../core/konsol-sekmeleri';
 import { App } from '../App';
 import { completionConfig } from '../script/ScriptEditoru';
-import { editorScript, setEditorScript } from '../test/eylemler';
+import { editorScript, selectedDatabases, setEditorScript } from '../test/eylemler';
 import { connection, createFakeConnections, createFakeScriptRuns, emptyCatalog, renderWithApi } from '../test/sahte-api';
 
 const DEV = connection({
@@ -67,7 +67,7 @@ const refreshButton = () => screen.getByRole('button', { name: 'Katalogu yenile'
 async function connectInPanel(user: ReturnType<typeof userEvent.setup>) {
   const nav = screen.getByRole('navigation', { name: 'Bağlantılar' });
   await user.click(within(nav).getByRole('button', { name: /Yerel/ }));
-  const panel = screen.getByRole('region', { name: 'Veritabanları' });
+  const panel = selectedDatabases();
   await user.click(within(panel).getByRole('button', { name: /Bağlan ve tüm/ }));
   await user.click(await within(panel).findByRole('button', { name: 'postgres şemaları' }));
   return within(await within(panel).findByRole('group', { name: 'postgres şemaları' }));
@@ -100,7 +100,7 @@ describe('Katalog: yalnızca kullanıcı eylemiyle istenir', () => {
     fake.servers.set('d1', { databases: { postgres: ['public'], app: ['public'] } });
     const nav = screen.getByRole('navigation', { name: 'Bağlantılar' });
     await user.click(within(nav).getByRole('button', { name: /Yerel/ }));
-    await user.click(within(screen.getByRole('region', { name: 'Veritabanları' })).getByRole('button', { name: 'app' }));
+    await user.click(within(selectedDatabases()).getByRole('button', { name: 'app' }));
     await waitFor(() => expect(fake.catalogRequests).toEqual(['getir d1/app']));
   });
 
@@ -159,7 +159,8 @@ describe('Katalog: yenileme', () => {
     await pickTarget(user, 'Yerel');
     await waitFor(() => expect(schemaNames()).toEqual(['public', 'rapor']));
     await connectInPanel(user);
-    await user.click(within(screen.getByRole('region', { name: 'Veritabanları' })).getByRole('button', { name: 'Bağlantı menüsü' }));
+    const yerel = screen.getByText('Yerel', { selector: '.baglanti-adi' }).closest<HTMLElement>('.dugum-satiri')!;
+    await user.click(within(yerel).getByRole('button', { name: 'Bağlantı menüsü' }));
     await user.click(screen.getByRole('menuitem', { name: 'Bağlantıyı kes' }));
     await waitFor(() => expect(editorCompletion()).toBeNull());
     expect(fake.catalogRequests).toEqual(['getir d1/postgres']);

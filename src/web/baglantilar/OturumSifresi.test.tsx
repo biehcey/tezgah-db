@@ -5,7 +5,7 @@ import { App } from '../App';
 import { connection, createFakeConnections, renderWithApi, type FakeConnections } from '../test/sahte-api';
 
 const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
-const panel = () => screen.getByRole('region', { name: 'Veritabanları' });
+const panel = () => screen.getByRole('region', { name: 'Prod veritabanları' });
 const dialog = () => screen.getByRole('dialog', { name: /şifresi/ });
 
 /** Keychain'e kaydedilmeyen, şifre isteyen sunucuya giden prod bağlantısı. */
@@ -66,7 +66,7 @@ describe('Oturumluk şifre penceresi', () => {
     await user.click(within(dialog()).getByRole('button', { name: 'Bağlan' }));
     await within(panel()).findByRole('heading', { name: 'Gizli (1)' });
 
-    await user.click(within(panel()).getByRole('button', { name: 'Bağlantı menüsü' }));
+    await user.click(within(nav()).getByRole('button', { name: 'Bağlantı menüsü' }));
     await user.click(screen.getByRole('menuitem', { name: 'Bağlantıyı kes' }));
     await connect();
     expect(await within(panel()).findByRole('heading', { name: 'Gizli (1)' })).toBeInTheDocument();

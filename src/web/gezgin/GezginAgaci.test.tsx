@@ -3,14 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { editConnection } from '../test/eylemler';
-import { connection, createFakeConnections, renderWithApi, type FakeConnections } from '../test/sahte-api';
+import { connection, createFakeConnections, emptyCatalog, renderWithApi, type FakeConnections } from '../test/sahte-api';
 
 const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
-const panel = () => screen.getByRole('region', { name: 'Veritabanları' });
+/** Açık (tek) bağlantının veritabanları. */
+const panel = () => screen.getByRole('region', { name: / veritabanları$/ });
 const header = () => screen.getByRole('region', { name: 'Hedef' });
 
-/** Bağlantı listesindeki satır (`li`); satır düğmesi ve ⋯ menüsü içinde. */
-const rowOf = (name: string) => within(nav()).getByText(name, { selector: '.baglanti-adi' }).closest('li')!;
+/** Ağaçtaki bağlantı satırı; satır düğmesi, ⟳ ve ⋯ menüsü içinde. */
+const rowOf = (name: string) => within(nav()).getByText(name, { selector: '.baglanti-adi' }).closest<HTMLElement>('.dugum-satiri')!;
 
 function setup(fake: FakeConnections = createFakeConnections([connection()])) {
   const user = userEvent.setup();
@@ -33,8 +34,8 @@ function withServer(fake: FakeConnections, id = 'b1') {
   return fake;
 }
 
-describe('Veritabanı paneli: bağlanmamış bağlantı', () => {
-  it('bağlantı seçilince kayıtlı seçim görünür ve hiçbir sunucuya bağlanılmaz', async () => {
+describe('Gezgin ağacı: bağlanmamış bağlantı', () => {
+  it('bağlantıya tıklayınca açılır, kayıtlı seçim görünür ve hiçbir sunucuya bağlanılmaz', async () => {
     const { user, fake } = setup(
       createFakeConnections([
         connection({
@@ -45,8 +46,9 @@ describe('Veritabanı paneli: bağlanmamış bağlantı', () => {
         }),
       ]),
     );
-    expect(screen.queryByRole('region', { name: 'Veritabanları' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Yerel veritabanları' })).not.toBeInTheDocument();
     await selectConnection(user, 'Yerel');
+    expect(within(rowOf('Yerel')).getByRole('button', { name: /Yerel/ })).toHaveAttribute('aria-expanded', 'true');
     const p = within(panel());
     expect(p.getByRole('button', { name: 'postgres' })).toBeInTheDocument();
     expect(p.getByRole('button', { name: 'app' })).toBeInTheDocument();
@@ -67,7 +69,96 @@ describe('Veritabanı paneli: bağlanmamış bağlantı', () => {
   });
 });
 
-describe('Veritabanı paneli: bağlanınca', () => {
+describe('Gezgin ağacı: aç/kapa', () => {
+  it('ok tıklaması ve ←/→ bağlantıyı kapatıp açar; yeniden tıklamak kapatmaz', async () => {
+    const { user } = setup();
+    await selectConnection(user, 'Yerel');
+    const row = within(rowOf('Yerel')).getByRole('button', { name: /Yerel/ });
+    await user.click(row);
+    expect(row).toHaveAttribute('aria-expanded', 'true');
+    await user.click(row.querySelector('.agac-oku')!);
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: 'Yerel veritabanları' })).not.toBeInTheDocument();
+    row.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(panel()).toBeInTheDocument();
+    await user.keyboard('{ArrowLeft}');
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('Ctrl/Cmd+B gezgini gizler; ince “» Gezgin” şeridi geri açar ve ağaç durumu korunur', async () => {
+    const { user } = setup();
+    await selectConnection(user, 'Yerel');
+    await user.keyboard('{Control>}b{/Control}');
+    expect(screen.queryByRole('navigation', { name: 'Bağlantılar' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Gezgini aç' }));
+    expect(panel()).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Gezgini gizle' }));
+    expect(screen.getByRole('button', { name: 'Gezgini aç' })).toBeInTheDocument();
+    await user.keyboard('{Meta>}b{/Meta}');
+    expect(nav()).toBeInTheDocument();
+  });
+});
+
+describe('Gezgin ağacı: şemalar, tablolar ve arama', () => {
+  function withCatalog() {
+    const fake = withServer(createFakeConnections([connection({ databaseSelection: [{ database: 'app', schemas: null }] }), connection({ id: 'b2', name: 'Analiz' })]));
+    const rel = (sema: string, ad: string, reltuples: number) => ({ sema, ad, tur: 'r' as const, kolonlar: [], pk: [], reltuples });
+    fake.catalogs.set(
+      'b1/app',
+      emptyCatalog({ semalar: ['public', 'raporlar'], iliskiler: [rel('public', 'musteri', 12_345), rel('public', 'siparis', -1), rel('raporlar', 'aylik', 40)] }),
+    );
+    return fake;
+  }
+
+  async function openSchemas(user: ReturnType<typeof userEvent.setup>) {
+    await selectConnection(user, 'Yerel');
+    await user.click(within(panel()).getByRole('button', { name: 'Bağlan ve tüm veritabanlarını listele' }));
+    await user.click(await within(panel()).findByRole('button', { name: 'app şemaları' }));
+    return within(await within(panel()).findByRole('group', { name: 'app şemaları' }));
+  }
+
+  it('şema açılınca tabloları tahmini satır sayısıyla listelenir; tıklayınca Tablo sekmesinde açılır', async () => {
+    const { user } = setup(withCatalog());
+    const schemas = await openSchemas(user);
+    await user.click(schemas.getByRole('button', { name: 'public' }));
+    const tables = within(await within(panel()).findByRole('list', { name: 'public tabloları' }));
+    expect(tables.getByRole('button', { name: 'musteri' })).toHaveTextContent('≈12k');
+    // Hiç analiz edilmemiş tabloda sayı yok.
+    expect(tables.getByRole('button', { name: 'siparis' }).textContent).toBe('▦siparis');
+    await user.click(tables.getByRole('button', { name: 'musteri' }));
+    expect(await screen.findByRole('region', { name: 'public.musteri tablosu' })).toBeInTheDocument();
+  });
+
+  it('arama eşleşen tablonun yolunu açar, diğerlerini gizler; bağlantı adıyla da eşleşir; Esc temizler', async () => {
+    const { user } = setup(withCatalog());
+    const schemas = await openSchemas(user);
+    await user.click(schemas.getByRole('button', { name: 'public' }));
+    await within(panel()).findByRole('button', { name: 'musteri' });
+    await user.click(schemas.getByRole('button', { name: 'public' }));
+    expect(within(panel()).queryByRole('button', { name: 'musteri' })).not.toBeInTheDocument();
+
+    const box = screen.getByRole('searchbox', { name: 'Gezginde ara' });
+    await user.type(box, 'MUS');
+    expect(within(panel()).getByRole('button', { name: 'musteri' })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: 'siparis' })).not.toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: 'raporlar' })).not.toBeInTheDocument();
+    expect(within(nav()).queryByText('Analiz')).not.toBeInTheDocument();
+
+    await user.clear(box);
+    await user.type(box, 'anal');
+    expect(within(nav()).getByText('Analiz')).toBeInTheDocument();
+    expect(within(nav()).queryByText('Yerel')).not.toBeInTheDocument();
+
+    await user.type(box, 'zzz');
+    expect(within(nav()).getByText(/Eşleşme yok/)).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(within(nav()).getByText('Yerel')).toBeInTheDocument();
+    expect(within(nav()).getByText('Analiz')).toBeInTheDocument();
+  });
+});
+
+describe('Gezgin ağacı: bağlanınca', () => {
   it('görünürler ⭐ ile üstte, diğerleri "Gizli (N)" altında; satırda bağlı işareti', async () => {
     const { user } = setup(withServer(createFakeConnections([connection()])));
     await selectConnection(user, 'Yerel');
@@ -119,7 +210,7 @@ describe('Veritabanı paneli: bağlanınca', () => {
     expect(within(panel()).getByRole('heading', { name: 'Gizli (2)' })).toBeInTheDocument();
   });
 
-  it('şema çipleri açılıp kapanır; sistem şemaları kapalı, çipin görünürlük düğmesi görünürlüğü değiştirir', async () => {
+  it('şemalar açılıp kapanır; görünmeyenler tek satırda toplanır, görünürlük düğmesi görünürlüğü değiştirir', async () => {
     const { user, fake } = setup(
       withServer(
         createFakeConnections([
@@ -142,12 +233,15 @@ describe('Veritabanı paneli: bağlanınca', () => {
     const chips = within(await within(panel()).findByRole('group', { name: 'app şemaları' }));
     expect(chips.getByRole('button', { name: 'public görünürlüğü' })).toHaveAttribute('aria-pressed', 'true');
     expect(chips.getByRole('button', { name: 'raporlar görünürlüğü' })).toHaveAttribute('aria-pressed', 'true');
-    expect(chips.getByRole('button', { name: 'pg_catalog görünürlüğü' })).toHaveAttribute('aria-pressed', 'false');
+    expect(chips.queryByRole('button', { name: 'pg_catalog görünürlüğü' })).not.toBeInTheDocument();
 
-    // Gizli şemanın tabloları katalogda yok: adı tablo listesi açmaz.
-    expect(chips.getByRole('button', { name: 'pg_catalog' })).toBeDisabled();
+    // Sistem şemaları tek satırda; açılınca görünür yapılabilir, ama adları tablo listesi açmaz.
+    await user.click(chips.getByRole('button', { name: '+ 2 gizli şema' }));
+    expect(chips.getByRole('button', { name: 'pg_catalog görünürlüğü' })).toHaveAttribute('aria-pressed', 'false');
+    expect(chips.queryByRole('button', { name: 'pg_catalog' })).not.toBeInTheDocument();
     await user.click(chips.getByRole('button', { name: 'raporlar görünürlüğü' }));
     await waitFor(() => expect(chips.getByRole('button', { name: 'raporlar görünürlüğü' })).toHaveAttribute('aria-pressed', 'false'));
+    expect(chips.getByRole('button', { name: '+ 3 gizli şema' })).toBeInTheDocument();
     expect(fake.connections[0]!.databaseSelection).toEqual([
       { database: 'postgres', schemas: null },
       { database: 'app', schemas: ['public'] },
@@ -163,12 +257,12 @@ describe('Veritabanı paneli: bağlanınca', () => {
     await user.click(within(panel()).getByRole('button', { name: 'Bağlan ve tüm veritabanlarını listele' }));
     await within(panel()).findByRole('heading', { name: 'Gizli (2)' });
     fake.servers.get('b1')!.databases.yeni = ['public'];
-    await user.click(within(panel()).getByRole('button', { name: 'Yenile' }));
+    await user.click(within(rowOf('Yerel')).getByRole('button', { name: 'Yenile' }));
     expect(await within(panel()).findByRole('heading', { name: 'Gizli (3)' })).toBeInTheDocument();
   });
 });
 
-describe('Veritabanı paneli: bağlantı düzenlenince', () => {
+describe('Gezgin ağacı: bağlantı düzenlenince', () => {
   async function connected() {
     const ctx = setup(withServer(createFakeConnections([connection()])));
     await selectConnection(ctx.user, 'Yerel');
@@ -194,7 +288,7 @@ describe('Veritabanı paneli: bağlantı düzenlenince', () => {
   });
 });
 
-describe('Veritabanı paneli: hata', () => {
+describe('Gezgin ağacı: hata', () => {
   it('bağlanılamazsa mesaj, "Tekrar dene" ve "Düzenle" görünür; satırda ⚠', async () => {
     const { user, fake } = setup();
     await selectConnection(user, 'Yerel');
@@ -248,10 +342,10 @@ describe('bağlantı menüsü', () => {
     expect(within(rowOf('Yerel')).queryByLabelText('bağlı')).not.toBeInTheDocument();
   });
 
-  it('panel başlığındaki ⋯ aynı menüyü açar', async () => {
+  it('sağ tık aynı menüyü açar', async () => {
     const { user } = setup();
-    await selectConnection(user, 'Yerel');
-    await user.click(within(panel()).getByRole('button', { name: 'Bağlantı menüsü' }));
+    await within(nav()).findByRole('button', { name: /Yerel/ });
+    await user.pointer({ keys: '[MouseRight]', target: within(rowOf('Yerel')).getByRole('button', { name: /Yerel/ }) });
     expect(screen.getByRole('menuitem', { name: 'Hedef yap' })).toBeInTheDocument();
   });
 });

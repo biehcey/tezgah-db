@@ -10,6 +10,21 @@ export async function editConnection(user: UserEvent, name: RegExp) {
   await user.click(screen.getByRole('menuitem', { name: 'Düzenle' }));
 }
 
+/** Gezgin ağacında seçili bağlantının açık veritabanları bölümü. */
+export function selectedDatabases(): HTMLElement {
+  const nav = screen.getByRole('navigation', { name: 'Bağlantılar' });
+  const name = nav.querySelector('.baglanti-satiri[aria-current="true"] .baglanti-adi')?.textContent;
+  if (!name) throw new Error('Gezginde seçili bağlantı yok');
+  return within(nav).getByRole('region', { name: `${name} veritabanları` });
+}
+
+/** Sekme şeridindeki sekmenin başlığı: tür ikonu hariç metni. */
+export function tabTitle(tab: HTMLElement): string {
+  const copy = tab.cloneNode(true) as HTMLElement;
+  copy.querySelector('.sekme-turu')?.remove();
+  return copy.textContent ?? '';
+}
+
 /**
  * Alanı tek bir girişle doldurur (tıkla + yapıştır). `user.type` her tuşta tüm `App`'i yeniden
  * render eder; uzun metinlerde test, tam takımın yükü altında zaman aşımına yaklaşır.
