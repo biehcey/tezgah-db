@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { navigatorShortcut, tableShortcut, type ShortcutKey } from './kisayollar';
+import { navigatorShortcut, rowViewShortcut, tableShortcut, type ShortcutKey } from './kisayollar';
 
 const key = (k: Partial<ShortcutKey>): ShortcutKey => ({ key: 'Enter', code: 'Enter', ctrl: false, meta: false, shift: false, alt: false, altGraph: false, ...k });
 
@@ -18,6 +18,21 @@ describe('tableShortcut: Tablo sekmesi kısayolları', () => {
     ['başka tuş', key({ key: 'a', code: 'KeyA', ctrl: true }), null],
   ] as const)('%s', (_, k, expected) => {
     expect(tableShortcut(k)).toBe(expected);
+  });
+});
+
+describe('rowViewShortcut: grid’de satır görünümü', () => {
+  it.each([
+    ['Shift+Enter kapalıyken açar', key({ shift: true }), false, 'ac'],
+    ['Shift+Enter açıkken kapatır', key({ shift: true }), true, 'kapat'],
+    ['Esc açıkken kapatır', key({ key: 'Escape', code: 'Escape' }), true, 'kapat'],
+    ['Esc kapalıyken bir şey yapmaz', key({ key: 'Escape', code: 'Escape' }), false, null],
+    ['Enter tek başına değil', key({}), false, null],
+    ['Ctrl+Shift+Enter Dene’nin', key({ ctrl: true, shift: true }), false, null],
+    ['Cmd+Shift+Enter Dene’nin', key({ meta: true, shift: true }), true, null],
+    ['Alt+Shift+Enter değil', key({ alt: true, shift: true }), false, null],
+  ] as const)('%s', (_, k, open, expected) => {
+    expect(rowViewShortcut(k, open)).toBe(expected);
   });
 });
 

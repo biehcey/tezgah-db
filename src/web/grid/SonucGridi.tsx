@@ -16,8 +16,9 @@ import {
   type PointerEvent,
   type Ref,
 } from 'react';
-import { NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
-import { isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
+import { DEFAULT_LABEL, NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
+import { CONSOLE_READ_ONLY_REASON, DELETED_REASON, isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
+import { rowViewShortcut, shortcutKey } from '../../core/kisayollar';
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
@@ -94,13 +95,14 @@ interface Props {
   /** PK kolonları: Tab ile ardışık düzenlemede yüklü satırda atlanır. */
   pkKolonlari?: readonly number[];
   duzenleyiciRef?: Ref<GridHandle>;
+  /** Satır görünümü açık mı; grid odaktayken Shift+Enter açar/kapatır, açıkken Esc kapatır. */
+  satirGorunumuAcik?: boolean;
+  onSatirGorunumu?: (acik: boolean) => void;
+  /** Aktif hücrenin satırı değişti (ilk çizimde de bildirilir); satır görünümü onu gösterir. */
+  onAktifSatir?: (satir: number) => void;
 }
 
-const DELETED_REASON = 'Silinecek satır düzenlenemez; önce silmeyi geri alın.';
-const DEFAULT_LABEL = 'DEFAULT';
 const DURUM_ETIKETI = { eklendi: 'eklendi', silinecek: 'silinecek' } as const;
-
-const READ_ONLY_REASON = 'Konsol sonuçları salt okunur; düzenleme PK’lı tablonun Tablo sekmesinde.';
 
 /** Açık değer kutusu: düzenleyici ya da salt okunur tam değer. */
 interface ValueBox {
@@ -128,7 +130,8 @@ const NEAR_END_ROWS = 100;
  * Sonuç grid'i: yalnızca satırlar sanallaştırılır, satır yüksekliği sabittir. Konsol sonuçlarında
  * salt okunurdur; `onDuzenle` verilince (Tablo sekmesi) hücrenin üstünde büyüyen bir `<textarea>`
  * düzenleyici açılır: F2, çift tık ya da yazmaya başlama; Enter kaydet + aşağı, Shift+Enter yeni
- * satır, Esc vazgeç, Tab/Shift+Tab kaydet + yana. Tüm tipler ham metindir. Seçim,
+ * satır, Esc vazgeç, Tab/Shift+Tab kaydet + yana. Grid'de (düzenleyici kapalıyken) Shift+Enter satır
+ * görünümünü açar/kapatır, açıkken Esc kapatır; aktif satır `onAktifSatir` ile bildirilir. Tüm tipler ham metindir. Seçim,
  * gezinme, gösterim ve TSV `core/grid`'dedir; bileşen olayları oraya iletir ve sonucu çizer.
  * Odak roving tabindex ile aktif hücrededir; aktif satır görünümden çıksa da çizilmeye devam eder
  * ki odak kaybolmasın ve klavye gezinmesi sürsün.
@@ -144,7 +147,7 @@ export function SonucGridi({
   onKolonTikla,
   siralama = null,
   onDuzenle,
-  saltOkunurNedeni = READ_ONLY_REASON,
+  saltOkunurNedeni = CONSOLE_READ_ONLY_REASON,
   kolonSaltOkunur,
   satirIsareti,
   hataliSatirlar,
@@ -155,6 +158,9 @@ export function SonucGridi({
   sonSatiraGit,
   pkKolonlari,
   duzenleyiciRef,
+  satirGorunumuAcik = false,
+  onSatirGorunumu,
+  onAktifSatir,
 }: Props) {
   const olcum = useContext(GridOlcumu);
   const noteId = useId();
@@ -271,6 +277,11 @@ export function SonucGridi({
     };
   }, []);
 
+  const activeRow = sel.aktif.satir;
+  const onAktifSatirRef = useRef(onAktifSatir);
+  onAktifSatirRef.current = onAktifSatir;
+  useEffect(() => onAktifSatirRef.current?.(activeRow), [activeRow]);
+
   function moveTo(next: Selection) {
     setSel(next);
     focusPending.current = true;
@@ -309,6 +320,12 @@ export function SonucGridi({
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     const ctrl = e.ctrlKey || e.metaKey;
+    const rowViewAction = onSatirGorunumu && rowViewShortcut(shortcutKey(e.nativeEvent), satirGorunumuAcik);
+    if (rowViewAction) {
+      e.preventDefault();
+      onSatirGorunumu(rowViewAction === 'ac');
+      return;
+    }
     if (isNullKey(e)) {
       e.preventDefault();
       if (onDuzenle && satirlar.length > 0) setNull(sel);

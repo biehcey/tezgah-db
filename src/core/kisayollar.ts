@@ -27,6 +27,17 @@ export function tableShortcut(e: ShortcutKey): TableShortcut | null {
   return e.shift ? 'dene' : 'uygula';
 }
 
+/**
+ * Grid odaktayken satır görünümü: Shift+Enter açar/kapatır, açıkken Esc kapatır. Değiştiricili
+ * Shift+Enter (Ctrl/Cmd: Dene) bu kısayol değildir. Düzenleyicinin Shift+Enter'ı (yeni satır) grid'e ulaşmaz.
+ */
+export function rowViewShortcut(e: ShortcutKey, open: boolean): 'ac' | 'kapat' | null {
+  if (e.ctrl || e.meta || e.alt || e.altGraph) return null;
+  if (e.key === 'Enter' && e.shift) return open ? 'kapat' : 'ac';
+  if (e.key === 'Escape' && open) return 'kapat';
+  return null;
+}
+
 /** Ctrl/Cmd+B: kenar çubuğundaki gezgini gizler/açar. Alt ile `key` klavyeye göre değişir; `code` değişmez. */
 export function navigatorShortcut(e: ShortcutKey): boolean {
   return (e.ctrl || e.meta) && !e.shift && !e.alt && !e.altGraph && e.code === 'KeyB';

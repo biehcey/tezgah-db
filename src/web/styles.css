@@ -2403,7 +2403,102 @@ button.kucuk {
   font-style: italic;
 }
 
->>>>
+/* Satır görünümü: grid'in sağında, seçili satırın dikey formu. */
+.satir-gorunumu {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 340px;
+  min-height: 0;
+  border-left: 1px solid var(--cizgi);
+}
+
+.satir-gorunumu-sekmeleri {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--cizgi);
+}
+
+.satir-gorunumu-sekmeleri .sekmeler {
+  flex: 1;
+  padding-top: 0;
+  border-bottom: 0;
+}
+
+.satir-gorunumu-govde {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 12px;
+}
+
+.satir-gorunumu-govde > p {
+  margin: 0 0 8px;
+}
+
+.satir-gorunumu-basligi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.satir-gorunumu-basligi .bosluk,
+.satir-alani-etiketi .bosluk {
+  flex: 1;
+}
+
+.satir-alani {
+  margin-bottom: 8px;
+}
+
+.satir-alani-etiketi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.pk-rozeti {
+  font-size: 10px;
+}
+
+.satir-alani-degeri {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  overflow: auto;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.satir-alani-degeri.yer-tutucu::placeholder {
+  font-style: italic;
+}
+
+.satir-alani-degeri[readonly] {
+  background: var(--kenar-zemin);
+}
+
+.satir-alani.degisti .satir-alani-degeri {
+  background: color-mix(in srgb, var(--dikkat) 18%, transparent);
+}
+
+.satir-alani-notu {
+  margin: 2px 0 0;
+}
+
+/* Konsol sonucunda grid ve (açıkken) satır görünümü yan yana. */
+.sonuc-govdesi {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sonuc-govdesi > .sonuc-gridi {
+  min-width: 0;
+}
 
 .tablo-yukle {
   display: flex;

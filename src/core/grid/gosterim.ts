@@ -4,6 +4,8 @@ import { CELL_CHARS, MAX_INITIAL_WIDTH, MIN_COLUMN_WIDTH } from './sabitler';
 export type CellDisplay = { null: true } | { null: false; metin: string };
 
 export const NULL_LABEL = 'NULL';
+/** Eklenen satırın dokunulmayan kolonu: INSERT'e girmez. */
+export const DEFAULT_LABEL = 'DEFAULT';
 /** Satır sonlarının hücredeki işareti. */
 export const LINE_BREAK = '↵';
 

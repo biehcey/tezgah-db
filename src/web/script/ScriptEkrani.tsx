@@ -25,7 +25,7 @@ import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
 import { STATUS_LABELS, STATUS_SYMBOLS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
 import { ScriptEditoru, type EditorMarks, type ScriptEditoruHandle } from './ScriptEditoru';
 import { resultSummary, resultTotal } from '../../core/grid/ozet';
-import { SonucGridi } from '../grid/SonucGridi';
+import { SonucGovdesi } from '../grid/SonucGovdesi';
 import { catalogUse, type CatalogEntry, type CatalogReason } from '../katalog/kataloglar';
 
 interface Props {
@@ -601,7 +601,7 @@ function Sonuclar({
                 {s.sinir && <span className="sonuc-notu"> · {ROW_LIMIT_MESSAGE}</span>}
                 {s.devamKapandi && <span className="sonuc-notu"> · {s.devamKapandi}</span>}
               </p>
-              <SonucGridi
+              <SonucGovdesi
                 etiket={`${resultLabel(s)} sonucu`}
                 kolonlar={s.onizleme!.kolonlar}
                 tipler={s.onizleme!.tipler}

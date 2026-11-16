@@ -44,6 +44,9 @@ import {
 import { targetSchemas } from '../../core/veritabani-secimi';
 import { ApiError, useApi } from '../api/client';
 import { SonucGridi, type GridHandle } from '../grid/SonucGridi';
+import { SatirGorunumu } from '../grid/SatirGorunumu';
+import { rowView } from '../../core/grid/satir-gorunumu';
+import { BekleyenListesi } from './BekleyenListesi';
 import { APPLE, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
@@ -154,7 +157,7 @@ const MOD = APPLE ? '⌘' : 'Ctrl+';
 const MOD_ADI = APPLE ? 'Cmd' : 'Ctrl';
 
 /** Bekleyen değişiklik yokken çekmece satırındaki kısayol ipucu. */
-const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd+Shift+N: NULL · sağ tık: satır sil · Ctrl/Cmd+V: TSV yapıştır · ${MOD_ADI}+B: gezgin`;
+const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd+Shift+N: NULL · sağ tık: satır sil · Ctrl/Cmd+V: TSV yapıştır · Shift+Enter: satır görünümü · ${MOD_ADI}+B: gezgin`;
 
 /**
  * Tablo sekmesi: editörsüz, tek satırlık üst çubukta ad, `≈N · M yüklü`, tek çerçevede serbest
@@ -318,12 +321,12 @@ export function TabloSekmesi({
   // ---------- Bekleyen değişiklikler ve Uygula ----------
 
   /** PK'lı tabloda düzenlenebilir tablo; PK kolonlarından biri sonuçta yoksa da kapalı. */
+  const tipler = useMemo(() => sayfa?.tipler.map((oid) => typeName(oid, tipAdlari)), [sayfa?.tipler, tipAdlari]);
   const editable = useMemo(() => {
-    if (!sayfa) return null;
-    const tipler = sayfa.tipler.map((oid) => typeName(oid, tipAdlari));
+    if (!sayfa || !tipler) return null;
     return editableTable({ sema: tab.sema, tablo: tab.tablo, kolonlar: sayfa.kolonlar, tipler, pk: sayfa.pk, uretilmis: sayfa.uretilmis });
     // Sayfa eklendikçe `sayfa` değişir; tablo yalnızca kolonlar/PK/tiplerle değişir.
-  }, [sayfa?.kolonlar, sayfa?.tipler, sayfa?.pk, sayfa?.uretilmis, tipAdlari, tab.sema, tab.tablo]);
+  }, [sayfa?.kolonlar, tipler, sayfa?.pk, sayfa?.uretilmis, tab.sema, tab.tablo]);
   const table = editable && !('kapali' in editable) ? editable : null;
   /** Diske yazılmaz; sekme kapanınca kaybolur (kapatırken uyarılır). */
   const [changes, setChangesState] = useState<PendingChanges>(NO_CHANGES);
@@ -458,6 +461,20 @@ export function TabloSekmesi({
   const editing = table !== null && !busy;
   const busyReason = BUSY_REASONS[runKind][run?.deneme ? 'dene' : 'uygula'];
   const pkKolonlari = useMemo(() => table?.pk.map((k) => table.kolonlar.indexOf(k)), [table]);
+  const items = useMemo(() => (table ? pendingItems(table, changes) : []), [table, changes]);
+
+  // ---------- Satır görünümü ----------
+
+  /** Grid'in sağındaki satır görünümü açık (Shift+Enter, ◧); diske yazılmaz. */
+  const [rowViewOpen, setRowViewOpen] = useState(false);
+  /** Grid'in aktif hücresinin satırı; satır görünümü onu gösterir. */
+  const [activeRow, setActiveRow] = useState(0);
+  const rowViewRef = useRef<HTMLElement>(null);
+  const rowViewRow = useMemo(() => {
+    const satir = rows ? rows[activeRow] : sayfa?.satirlar[activeRow];
+    if (!sayfa || !tipler || !editable || !satir) return null;
+    return rowView({ kolonlar: sayfa.kolonlar, tipler, pk: sayfa.pk, sira: activeRow, satir, duzenleme: editable, mesgul: busy ? busyReason : null });
+  }, [sayfa, tipler, editable, rows, activeRow, busy, busyReason]);
 
   /**
    * Kısayollar yalnızca bu sekme görünürken, pencere ve "+ Kolon" formu açık değilken (form kendi
@@ -475,6 +492,9 @@ export function TabloSekmesi({
       e.preventDefault();
       e.stopPropagation();
       gridRef.current?.kaydet();
+      // Satır görünümündeki yazılmış alan da önce kaydedilir (alandan çıkmak kaydeder).
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && rowViewRef.current?.contains(focused)) focused.blur();
       setQueued({ eylem });
     };
     window.addEventListener('keydown', onKey, true);
@@ -649,6 +669,18 @@ export function TabloSekmesi({
         >
           ↻
         </button>
+        <button
+          type="button"
+          className="ikon-dugme"
+          aria-label="Satır görünümü"
+          aria-pressed={rowViewOpen}
+          aria-keyshortcuts="Shift+Enter"
+          title="Satır görünümü (grid’de Shift+Enter)"
+          disabled={!sayfa}
+          onClick={() => setRowViewOpen(!rowViewOpen)}
+        >
+          ◧
+        </button>
       </header>
       {errorLine(null)}
       <div className="tablo-govde">
@@ -692,9 +724,25 @@ export function TabloSekmesi({
               sonSatiraGit={goLast}
               pkKolonlari={pkKolonlari}
               duzenleyiciRef={gridRef}
+              satirGorunumuAcik={rowViewOpen}
+              onSatirGorunumu={setRowViewOpen}
+              onAktifSatir={setActiveRow}
             />
           )}
         </div>
+        {rowViewOpen && sayfa && (
+          <SatirGorunumu
+            panelRef={rowViewRef}
+            satir={rowViewRow}
+            duzenleme={
+              editing
+                ? { duzenle: (c, deger) => editCellAt(activeRow, c, deger), sil: () => deleteAt([activeRow]), geriAl: () => restoreAt([activeRow]) }
+                : undefined
+            }
+            degisiklikler={table ? { sayi: count, icerik: <BekleyenListesi items={items} failed={failed} /> } : undefined}
+            onKapat={() => setRowViewOpen(false)}
+          />
+        )}
         {columnForm && (
           <aside aria-label="Kolon ekleme paneli" className="kolon-paneli">
             <KolonFormu
@@ -753,14 +801,7 @@ export function TabloSekmesi({
             <div className="cekmece-govde">
               {showSql && (
                 <section aria-label="SQL önizlemesi" className="sql-onizlemesi">
-                  <ul aria-label="Bekleyen değişiklikler" className="bekleyen-listesi kucuk">
-                    {pendingItems(table, changes).map((item) => (
-                      <li key={item.anahtar} className={failed?.satir === item.anahtar ? 'hatali' : undefined}>
-                        {item.metin}
-                        {failed?.satir === item.anahtar && <span className="ifade-hatasi"> — {failed.mesaj}</span>}
-                      </li>
-                    ))}
-                  </ul>
+                  <BekleyenListesi items={items} failed={failed} />
                   <pre className="uretilen-sql kucuk">{script.metin}</pre>
                 </section>
               )}
