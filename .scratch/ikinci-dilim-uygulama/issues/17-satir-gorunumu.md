@@ -8,7 +8,7 @@ Prototip (birincil kaynak): `prototype/03-tablo-ekrani-yerlesimi` branch'i, `.sc
 
 **Blocked by:** 16
 
-**Status:** ready-for-agent
+**Status:** done (d321bc0)
 
 - [x] Grid'de Shift+Enter ya da üst satırdaki `◧` paneli açar/kapatır; açıkken grid'de Esc kapatır. Durum diske yazılmaz.
   - Shift+Enter yalnızca grid odaktayken çalışır; düzenleyicideki Shift+Enter (yeni satır) değişmez.
