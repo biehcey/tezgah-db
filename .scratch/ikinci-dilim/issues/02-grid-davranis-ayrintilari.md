@@ -25,9 +25,10 @@ Grilling 2026-11-09 (Q1–Q9). ADR veya sözlük değişikliği yok (hepsi kolay
   - Taşan satırlar yeni satır olur; yeni satırda dokunulmayan kolonlar DEFAULT kalır (Q21).
   - Kolon taşarsa ya da salt okunur kolona (`bytea`, generated) denk gelirse yapıştırma tümden reddedilir ve hata gösterilir.
   - Boş hücre NULL olur; `NULL` metni düz metindir (`'NULL'`); tırnaklı hücreler kopyalama kuralına simetrik çözülür.
-- **Gösterim (Q3):** sabit yükseklikli tek satır. Değer kolon genişliğinde `…` ile kırpılır, satır sonları `↵` ile gösterilir. Hücreye ilk 1000 karakter basılır, değerin tamamı bellekte kalır. Tooltip ve değer paneli yok; tam değer düzenleyiciden okunur (konsol sonuçlarında salt okunur açılır).
+- **Gösterim (Q3):** sabit yükseklikli tek satır. Değer kolon genişliğinde `…` ile kırpılır, satır sonları `↵` ile gösterilir. Hücreye ilk 1000 karakter basılır, değerin tamamı bellekte kalır. Tooltip yok. Tam değer düzenleyiciden okunur (konsol sonuçlarında salt okunur açılır) ya da satır görünümünden: grid'de Shift+Enter ile sağda açılan, seçili satırı dikey form olarak gösteren panel ([03](03-tablo-ekrani-yerlesimi.md), [17](../../ikinci-dilim-uygulama/issues/17-satir-gorunumu.md)); ilk karardaki "değer paneli yok" satırının yerini alır.
 - **Düzenleyici (Q4):** hücrenin üstünde açılan, gerektiğinde büyüyen tek `<textarea>`.
-  - Enter: kaydet ve aşağı in. Shift+Enter: yeni satır. Esc: vazgeç. Tab / Shift+Tab: kaydet ve sağa/sola geç.
+  - Enter: kaydet ve aşağı in. Shift+Enter: yeni satır. Esc: vazgeç.
+  - Tab / Shift+Tab: kaydet ve düzenleyiciyi sonraki/önceki **yazılabilir** hücrede açık aç ([16](../../ikinci-dilim-uygulama/issues/16-tablo-ekrani-yerlesimi.md)). Satır sonunda sarar; yüklü satırın PK'sını, salt okunur kolonu ve silinecek satırı atlar (eklenen satırın PK'sı yazılabilir). Yazılabilir hücre kalmadıysa düzenleyici kapanır, seçim yerinde kalır. Düzenleyici kapalıyken Tab yalnızca seçimi taşır.
   - F2 veya çift tık düzenlemeyi açar; seçili hücrede yazmaya başlamak da açar ve değeri değiştirir.
   - Ctrl/Cmd+Shift+N düzenleyicide de NULL yapar.
 - **Satır sınırı (Q5):** konsol sonuçlarında ve Tablo sekmesinde sert sınır 100.000 satır. Sınıra ulaşınca "daha fazla" kapanır ve "Sınıra ulaşıldı, filtrele" mesajı çıkar. Sabit `src/core/grid`'de; tarayıcı yükseklik sınırının altında kaldığı için ölçekli kaydırma gerekmez.

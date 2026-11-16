@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { TABS_VERSION, type SavedTabs } from '../../core/konsol-sekmeleri';
 import { App } from '../App';
-import { editorScript, setEditorScript } from '../test/eylemler';
+import { editorScript, selectedDatabases, setEditorScript, tabTitle } from '../test/eylemler';
 import { connection, createFakeConnections, createFakeScriptRuns, renderWithApi } from '../test/sahte-api';
 
 const DK = 60_000;
@@ -50,7 +50,7 @@ async function pickTarget(user: ReturnType<typeof userEvent.setup>, query: strin
 describe('Konsol sekmeleri: açılış', () => {
   it('kayıtlı sekmeler sırasıyla geri gelir; aktif sekmenin metni ve hedefi görünür', async () => {
     await setup(saved([devTab('s1', 'SELECT 1'), prodTab('s2', 'SELECT 2')], 's2'));
-    expect(tabs().map((t) => t.textContent)).toEqual(['Yerel / postgres', 'Canlı / app']);
+    expect(tabs().map(tabTitle)).toEqual(['Yerel / postgres', 'Canlı / app']);
     expect(tabNamed(/Canlı/)).toHaveAttribute('aria-selected', 'true');
     expect(editorScript()).toBe('SELECT 2');
     expect(within(header()).getByRole('heading')).toHaveTextContent('Canlı / app');
@@ -65,14 +65,14 @@ describe('Konsol sekmeleri: açılış', () => {
 
   it('silinmiş bağlantıya işaret eden sekme hedefsiz açılır, metni korunur', async () => {
     await setup(saved([{ id: 's1', tur: 'konsol', hedef: { connectionId: 'silindi', database: 'x', schema: null }, metin: 'SELECT 9' }]));
-    expect(tabs().map((t) => t.textContent)).toEqual(['Hedefsiz']);
+    expect(tabs().map(tabTitle)).toEqual(['Hedefsiz']);
     expect(within(header()).getByText('Hedef seçilmedi')).toBeInTheDocument();
     expect(editorScript()).toBe('SELECT 9');
   });
 
   it('kayıtlı sekme yoksa hedefsiz boş bir sekme açılır', async () => {
     await setup();
-    expect(tabs().map((t) => t.textContent)).toEqual(['Hedefsiz']);
+    expect(tabs().map(tabTitle)).toEqual(['Hedefsiz']);
     expect(editorScript()).toBe('');
   });
 });
@@ -116,7 +116,7 @@ describe('Konsol sekmeleri: şerit', () => {
     expect(screen.queryByRole('region', { name: 'Script editörü' })).not.toBeInTheDocument();
 
     await pickTarget(user, 'Canlı');
-    expect(tabs().map((t) => t.textContent)).toEqual(['Canlı / app']);
+    expect(tabs().map(tabTitle)).toEqual(['Canlı / app']);
   });
 });
 
@@ -124,15 +124,15 @@ describe('Konsol sekmeleri: hedef', () => {
   it('paletten seçilen hedef yalnızca aktif sekmenin hedefi olur', async () => {
     const { user } = await setup(saved([devTab('s1'), devTab('s2')], 's2'));
     await pickTarget(user, 'Canlı');
-    expect(tabs().map((t) => t.textContent)).toEqual(['Yerel / postgres', 'Canlı / app']);
+    expect(tabs().map(tabTitle)).toEqual(['Yerel / postgres', 'Canlı / app']);
   });
 
   it('Veritabanı panelinden seçilen hedef aktif sekmenin hedefi olur', async () => {
     const { user } = await setup(saved([devTab('s1')]));
     const nav = screen.getByRole('navigation', { name: 'Bağlantılar' });
     await user.click(within(nav).getByRole('button', { name: /Canlı/ }));
-    await user.click(within(screen.getByRole('region', { name: 'Veritabanları' })).getByRole('button', { name: 'app' }));
-    expect(tabs().map((t) => t.textContent)).toEqual(['Canlı / app']);
+    await user.click(within(selectedDatabases()).getByRole('button', { name: 'app' }));
+    expect(tabs().map(tabTitle)).toEqual(['Canlı / app']);
   });
 
   it('karar bekleyen sekmede hedef değiştirilemez; başka sekmede değiştirilebilir', async () => {
@@ -213,7 +213,7 @@ describe('Konsol sekmeleri: çalıştırma oturumları', () => {
     expect(runs.last().closed).toBe(true);
     // Kapanan sekmenin hedef kilidi kalmaz.
     await pickTarget(user, 'Canlı');
-    expect(tabs().map((t) => t.textContent)).toEqual(['Canlı / app']);
+    expect(tabs().map(tabTitle)).toEqual(['Canlı / app']);
   });
 });
 

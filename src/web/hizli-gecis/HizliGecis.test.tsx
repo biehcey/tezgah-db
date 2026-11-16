@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { HizliGecis } from './HizliGecis';
-import { setEditorScript } from '../test/eylemler';
+import { selectedDatabases, setEditorScript } from '../test/eylemler';
 import { connection, createFakeConnections, createFakeScriptRuns, folder, renderWithApi, type FakeConnections } from '../test/sahte-api';
 
 const palette = () => screen.getByRole('dialog', { name: 'Hızlı geçiş' });
@@ -14,7 +14,7 @@ const options = (name: string) =>
     .getAllByRole('option')
     .map((o) => o.textContent);
 const header = () => screen.getByRole('region', { name: 'Hedef' });
-const panel = () => screen.getByRole('region', { name: 'Veritabanları' });
+const panel = selectedDatabases;
 const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
 
 function twoConnections() {

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { HistoryEntry } from '../../core/gecmis-filtresi';
 import { TABS_VERSION, type SavedTabs } from '../../core/konsol-sekmeleri';
 import { App } from '../App';
-import { editorScript } from '../test/eylemler';
+import { editorScript, tabTitle } from '../test/eylemler';
 import { connection, createFakeConnections, renderWithApi } from '../test/sahte-api';
 
 const PROD = connection({ id: 'p1', name: 'Canlı', envTag: 'prod', color: '#dc2626', databaseSelection: [{ database: 'app', schemas: null }] });
@@ -170,7 +170,7 @@ describe('Sorgu geçmişi paneli: çift tık', () => {
     await user.dblClick(rows()[0]!);
 
     const opened = within(strip()).getAllByRole('tab');
-    expect(opened.map((t) => t.textContent)).toEqual(['Canlı / app', 'Yerel / postgres']);
+    expect(opened.map(tabTitle)).toEqual(['Canlı / app', 'Yerel / postgres']);
     expect(opened[1]).toHaveAttribute('aria-selected', 'true');
     expect(editorScript()).toBe('SELECT 42');
     await user.click(opened[0]!);
@@ -186,7 +186,7 @@ describe('Sorgu geçmişi paneli: çift tık', () => {
     expect(rows()[0]).toHaveTextContent('Eski / x');
     rows()[0]!.focus();
     await user.keyboard('{Enter}');
-    expect(within(strip()).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Canlı / app', 'Hedefsiz']);
+    expect(within(strip()).getAllByRole('tab').map(tabTitle)).toEqual(['Canlı / app', 'Hedefsiz']);
     expect(editorScript()).toBe('SELECT 7');
   });
 });

@@ -127,7 +127,8 @@ describe('Script ekranı: canlı olaylar', () => {
     expect(card).toHaveTextContent('750 satır');
     expect(within(card).queryByRole('grid')).not.toBeInTheDocument();
     const grid = within(results()).getByRole('grid');
-    expect(within(grid).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['g', 'bos']);
+    // Başlıkta kolon adı ve tipi (konsol sonuçlarında da).
+    expect(within(grid).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['ginteger', 'bostext']);
     expect(within(grid).getAllByRole('gridcell').map((c) => c.textContent)).toEqual(['1', 'NULL', '2', 'NULL']);
     expect(grid).toHaveAttribute('aria-rowcount', '751');
     expect(results()).toHaveTextContent('750 satır · ilk 2 satır gösteriliyor');

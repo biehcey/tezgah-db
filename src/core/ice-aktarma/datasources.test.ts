@@ -242,7 +242,7 @@ describe('Veritabanı seçimi (introspection-scope)', () => {
       single({}, '<schema-mapping><introspection-scope><node kind="database" negative="1"><node kind="schema" negative="1" /></node></introspection-scope></schema-mapping>'),
       PROJECT,
     ).candidates[0]!;
-    expect(all).toMatchObject({ databases: ['app'], warnings: ['IntelliJ’de tüm veritabanları görünür; içe aktardıktan sonra Veritabanı panelinden seçin'] });
+    expect(all).toMatchObject({ databases: ['app'], warnings: ['IntelliJ’de tüm veritabanları görünür; içe aktardıktan sonra gezginden seçin'] });
     const old = dataSourceCandidates(
       single({}, '<schema-mapping><introspection-scope>harbinger:pg_catalog,public;reach:public</introspection-scope></schema-mapping>'),
       PROJECT,

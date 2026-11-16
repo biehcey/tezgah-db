@@ -31,7 +31,7 @@ import {
 import { ApiError, connectionRequest, useApi } from './api/client';
 import { HizliGecis, type PaletteCommand } from './hizli-gecis/HizliGecis';
 import { BaglantiFormu } from './baglantilar/BaglantiFormu';
-import { BaglantiListesi, type ImportMarks } from './baglantilar/BaglantiListesi';
+import { GezginAgaci, type ImportMarks } from './gezgin/GezginAgaci';
 import { IceAktarma } from './ice-aktarma/IceAktarma';
 import { IceAktarmaSonucu } from './ice-aktarma/IceAktarmaSonucu';
 import type { ImportApplyResponse } from '../core/ice-aktarma/sozlesme';
@@ -52,7 +52,8 @@ import {
   type Target,
 } from '../core/veritabani-secimi';
 import type { ConnectionSession } from './veritabanlari/hedef';
-import { VeritabaniPaneli } from './veritabanlari/VeritabaniPaneli';
+import { navigatorShortcut, shortcutKey } from '../core/kisayollar';
+import { APPLE, modalOpen } from './ortak/pencere';
 
 type Status = { kind: 'loading' } | { kind: 'ok'; version: string } | { kind: 'error'; message: string };
 /**
@@ -63,8 +64,9 @@ type Editing = { kind: 'yeni'; url?: { text: string; key: number } } | { kind: '
 /** Alt+Enter ile kenar çubuğunda gösterilecek veritabanı; gösterilince temizlenir. */
 type Reveal = Target;
 
-/** Kısayolun platformdaki yazılışı. */
-const PALETTE_SHORTCUT = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
+/** Kısayolların platformdaki yazılışı. */
+const PALETTE_SHORTCUT = APPLE ? '⌘K' : 'Ctrl K';
+const NAVIGATOR_SHORTCUT = APPLE ? '⌘B' : 'Ctrl+B';
 /** Açık klasör penceresi. */
 type FolderDialog = { kind: 'yeni' } | { kind: 'yeniden-adlandir'; folder: Folder } | { kind: 'sil'; folder: Folder } | null;
 /** Açık menü; `key` her açılışta değişir ki menü (alt menü durumu dahil) baştan kurulsun. */
@@ -135,6 +137,8 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
+  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); diske yazılmaz. */
+  const [navigatorOpen, setNavigatorOpen] = useState(true);
   /** Bu oturumda listeden açılan Tablo sekmeleri; ilk sayfaları hemen çekilir. */
   const [autoLoadTabs, setAutoLoadTabs] = useState<ReadonlySet<string>>(new Set());
   /** Sekme başına hedef kilidi: script çalışırken ve karar beklenirken hedef değiştirilemez; neden. */
@@ -160,6 +164,10 @@ export function App() {
         if (dialogOpen.current || consoleHidden.current) return;
         e.preventDefault();
         setHistoryOpen((open) => !open);
+      }
+      if (navigatorShortcut(shortcutKey(e)) && !modalOpen()) {
+        e.preventDefault();
+        setNavigatorOpen((open) => !open);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -258,7 +266,6 @@ export function App() {
   const edited = editing?.kind === 'duzenle' ? connections?.find((c) => c.id === editing.id) : undefined;
   const formOpen = editing?.kind === 'yeni' || edited !== undefined;
   consoleHidden.current = formOpen;
-  const selected = connections?.find((c) => c.id === selectedId);
   const targetConnection = target ? connections?.find((c) => c.id === target.connectionId) : undefined;
 
   function open(next: Editing) {
@@ -417,7 +424,7 @@ export function App() {
   }
 
   /**
-   * Veritabanı panelinin tablo listesinden: tablo yeni bir Tablo sekmesinde açılır (aynı tablonun
+   * Gezgin ağacının tablo listesinden: tablo yeni bir Tablo sekmesinde açılır (aynı tablonun
    * sekmesi açıksa ona geçilir). Aktif sekmenin hedefi değişmez.
    */
   function openTable(connection: Connection, database: string, schema: string, table: string) {
@@ -436,9 +443,10 @@ export function App() {
     }
   }
 
-  /** Alt+Enter: bağlantı seçilir (klasörü açılır), veritabanı panelde odaklanır. */
+  /** Alt+Enter: bağlantı seçilir, gezginde açılır (gizliyse gezgin de), veritabanı satırı odaklanır. */
   function revealInList(shown: Target) {
     setSelectedId(shown.connectionId);
+    setNavigatorOpen(true);
     setReveal(shown);
   }
 
@@ -666,7 +674,19 @@ export function App() {
 
   return (
     <div className={`tezgah${targetConnection && isProd(targetConnection.envTag) ? ' prod-cerceve' : ''}`}>
-      <aside className="kenar">
+      {!navigatorOpen && (
+        <button
+          type="button"
+          className="gezgin-seridi"
+          aria-label="Gezgini aç"
+          title={`Gezgini aç (${NAVIGATOR_SHORTCUT})`}
+          onClick={() => setNavigatorOpen(true)}
+        >
+          » Gezgin
+        </button>
+      )}
+      {/* Gizlenince kapanmaz: açık düğümler, yüklü şemalar ve arama korunur. */}
+      <aside className="kenar" hidden={!navigatorOpen}>
         <header className="kenar-baslik">
           <h1>Tezgah</h1>
           <button
@@ -705,46 +725,45 @@ export function App() {
           >
             +
           </button>
+          <button
+            type="button"
+            className="ikon-dugme"
+            aria-label="Gezgini gizle"
+            title={`Gezgini gizle (${NAVIGATOR_SHORTCUT})`}
+            onClick={() => setNavigatorOpen(false)}
+          >
+            «
+          </button>
         </header>
         <nav aria-label="Bağlantılar" className="baglantilar">
           {connections && (
-            <BaglantiListesi
+            <GezginAgaci
               connections={connections}
               folders={folders}
               selectedId={selectedId}
               sessions={sessions}
-              targetConnectionId={targetConnection?.id ?? null}
+              target={target}
+              targetLock={targetLock}
+              reveal={reveal}
+              onRevealed={revealed}
+              importMarks={importMarks}
               onSelect={setSelectedId}
               onConnectionMenu={connectionMenu}
               onFolderMenu={folderMenu}
               onMove={(connection, folderId) => void move(connection, folderId)}
-              revealId={reveal?.connectionId ?? null}
-              importMarks={importMarks}
               onImport={() => setImportOpen(true)}
               onNew={() => open({ kind: 'yeni' })}
+              onConnect={(connection) => void connect(connection)}
+              onPasswordNeeded={async (connection, err) => (await askPassword(connection, err)) !== null}
+              onSelectTarget={selectTarget}
+              onSelectionChange={(connection, selection) => void changeSelection(connection, selection)}
+              onEdit={(connection) => edit(connection.id)}
+              catalogs={catalogs.entries}
+              onCatalog={(t) => catalogs.request(t, 'hedef')}
+              onOpenTable={openTable}
             />
           )}
         </nav>
-        {selected && (
-          <VeritabaniPaneli
-            key={selected.id}
-            connection={selected}
-            session={sessions[selected.id]}
-            target={target}
-            targetLock={targetLock}
-            reveal={reveal?.connectionId === selected.id ? reveal.database : null}
-            onRevealed={revealed}
-            onConnect={() => void connect(selected)}
-            onPasswordNeeded={async (err) => (await askPassword(selected, err)) !== null}
-            onSelectTarget={(database) => selectTarget(selected, database)}
-            onSelectionChange={(selection) => void changeSelection(selected, selection)}
-            onEdit={() => edit(selected.id)}
-            onMenu={(at) => connectionMenu(selected, at)}
-            catalogs={catalogs.entries}
-            onCatalog={(t) => catalogs.request(t, 'hedef')}
-            onOpenTable={(database, schema, table) => openTable(selected, database, schema, table)}
-          />
-        )}
         <footer className="kenar-alt">{status.kind === 'ok' && <span>v{status.version}</span>}</footer>
       </aside>
       <main className="calisma-alani">

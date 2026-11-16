@@ -61,6 +61,13 @@ const cell = (r: number, c: number) => {
 };
 const preview = () => t().getByRole('region', { name: 'SQL önizlemesi' });
 const applyButton = () => t().getByRole('button', { name: 'Uygula' });
+const drawer = () => t().getByRole('region', { name: 'Bekleyen değişiklikler çekmecesi' });
+/** Değişiklik yokken çekmece tek satır ipucudur: eylem ve SQL yok. */
+function expectNoPending() {
+  expect(drawer()).toHaveTextContent('Tab: sonraki hücre');
+  expect(t().queryByRole('region', { name: 'SQL önizlemesi' })).not.toBeInTheDocument();
+  expect(t().queryByRole('button', { name: 'Uygula' })).not.toBeInTheDocument();
+}
 
 async function editName(user: ReturnType<typeof userEvent.setup>, r: number, value: string) {
   await user.click(cell(r, 1));
@@ -68,10 +75,9 @@ async function editName(user: ReturnType<typeof userEvent.setup>, r: number, val
 }
 
 describe('Tablo sekmesi: hücre düzenleme', () => {
-  it('düzenlenen hücre grid’de işaretli; bekleyen değişiklik ve üretilen SQL sağ sütunda', async () => {
+  it('düzenlenen hücre grid’de işaretli; bekleyen değişiklik ve üretilen SQL alttaki çekmecede', async () => {
     const { user } = await setup();
-    expect(preview()).toHaveTextContent('Bekleyen değişiklik yok');
-    expect(applyButton()).toBeDisabled();
+    expectNoPending();
     await editName(user, 0, 'Veli');
 
     expect(cell(0, 1)).toHaveTextContent('Veli');
@@ -99,7 +105,7 @@ const menuItem = (name: string) => within(screen.getByRole('menu')).getByRole('m
 describe('Tablo sekmesi: satır ekleme ve silme', () => {
   it('“Satır ekle” grid’in sonuna DEFAULT’lu satır ekler ve ona gider; dokunulan kolonlar INSERT’e girer', async () => {
     const { user } = await setup();
-    await user.click(t().getByRole('button', { name: 'Satır ekle' }));
+    await user.click(t().getByRole('button', { name: '+ Satır' }));
 
     expect(rowOf(2)).toHaveClass('eklendi');
     expect(cell(2, 0)).toHaveTextContent('DEFAULT');
@@ -114,7 +120,7 @@ describe('Tablo sekmesi: satır ekleme ve silme', () => {
 
   it('sağ tıkla satır silinir ve işaretlenir; silmeyi geri almak bekleyeni kaldırır; sıra DELETE → UPDATE → INSERT', async () => {
     const { user } = await setup();
-    await user.click(t().getByRole('button', { name: 'Satır ekle' }));
+    await user.click(t().getByRole('button', { name: '+ Satır' }));
     await editName(user, 0, 'Veli');
     await user.pointer({ keys: '[MouseRight]', target: cell(1, 0) });
     await user.click(menuItem('Satırları sil'));
@@ -131,11 +137,11 @@ describe('Tablo sekmesi: satır ekleme ve silme', () => {
 
   it('eklenip silinen satır SQL üretmez', async () => {
     const { user } = await setup();
-    await user.click(t().getByRole('button', { name: 'Satır ekle' }));
+    await user.click(t().getByRole('button', { name: '+ Satır' }));
     await user.pointer({ keys: '[MouseRight]', target: cell(2, 1) });
     await user.click(menuItem('Satırları sil'));
     expect(t().getAllByRole('row')).toHaveLength(3);
-    expect(preview()).toHaveTextContent('Bekleyen değişiklik yok');
+    expectNoPending();
   });
 });
 
@@ -185,7 +191,7 @@ describe('Tablo sekmesi: salt okunur kolonlar', () => {
     await user.dblClick(cell(0, 2));
     expect(t().getByRole('note')).toHaveTextContent('“dosya” bytea kolonu: salt okunur');
     await user.keyboard('{Escape}{Control>}{Shift>}N{/Shift}{/Control}');
-    expect(preview()).toHaveTextContent('Bekleyen değişiklik yok');
+    expectNoPending();
   });
 });
 
@@ -210,7 +216,7 @@ describe('Tablo sekmesi: TSV yapıştırma', () => {
     await user.click(cell(0, 1));
     await user.paste('a\tb\nc');
     expect(t().getByRole('alert')).toHaveTextContent('Yapıştırma reddedildi: 2 kolon yapıştırılıyor, seçimden itibaren 1 kolon var.');
-    expect(preview()).toHaveTextContent('Bekleyen değişiklik yok');
+    expectNoPending();
   });
 });
 
@@ -244,7 +250,7 @@ describe('Tablo sekmesi: Uygula', () => {
     runs.last().emit({ type: 'bitti', sonuc: 'commit' });
 
     await waitFor(() => expect(fake.tablePageRequests).toHaveLength(2));
-    await waitFor(() => expect(preview()).toHaveTextContent('Bekleyen değişiklik yok'));
+    await waitFor(() => expectNoPending());
     expect(cell(0, 1)).toHaveTextContent('Veli');
     expect(cell(0, 1)).not.toHaveClass('degisti');
     expect(card.getByText('Commit edildi')).toBeInTheDocument();
@@ -291,7 +297,7 @@ const tryButton = () => t().getByRole('button', { name: '⟲ Dene' });
 describe('Tablo sekmesi: Dene', () => {
   it('önizlemedeki SQL Deneme modunda, her ifade 1 satır beklenerek çalışır; sonuç Değişiklikler’de, bekleyenler kalır', async () => {
     const { user, fake, runs } = await setup();
-    expect(tryButton()).toBeDisabled();
+    expect(t().queryByRole('button', { name: '⟲ Dene' })).not.toBeInTheDocument();
     await editName(user, 0, 'Veli');
     await user.click(tryButton());
 
@@ -368,18 +374,20 @@ describe('Tablo sekmesi: Konsola aktar', () => {
   it('önizlemedeki SQL aynı hedefte yeni konsol sekmesinde açılır; bekleyenler Tablo sekmesinde kalır', async () => {
     const { user, runs } = await setup();
     const exportButton = () => t().getByRole('button', { name: 'Konsola aktar' });
-    expect(exportButton()).toBeDisabled();
+    expect(t().queryByRole('button', { name: 'Konsola aktar' })).not.toBeInTheDocument();
     await editName(user, 0, 'Veli');
     await editName(user, 1, 'Zeynep');
     const sql = preview().querySelector('pre')!.textContent;
     await user.click(exportButton());
 
     const tabs = within(screen.getByRole('tablist', { name: 'Konsol sekmeleri' })).getAllByRole('tab');
+    // Sekme şeridinde tür ikonu ve Tablo sekmesinin bekleyen sayısı.
     expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('aria-selected')])).toEqual([
-      ['Yerel / postgres', 'false'],
-      ['users', 'false'],
-      ['Yerel / postgres', 'true'],
+      ['›_Yerel / postgres', 'false'],
+      ['▦users2', 'false'],
+      ['›_Yerel / postgres', 'true'],
     ]);
+    expect(within(tabs[1]!).getByLabelText('2 bekleyen değişiklik')).toBeInTheDocument();
     expect(editorScript()).toBe(sql);
     expect(runs.runs).toHaveLength(0);
 
@@ -409,5 +417,96 @@ describe('Tablo sekmesi: kapatma', () => {
     await user.click(screen.getByRole('button', { name: 'users sekmesini kapat' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'public.users tablosu' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Tablo sekmesi: çekmece', () => {
+  it('değişiklik varken sayı, eylemler ve SQL; SQL gizlenip açılır; ↶ Geri al tüm bekleyenleri atar', async () => {
+    const { user } = await setup();
+    await editName(user, 0, 'Veli');
+    await editName(user, 1, 'Zeynep');
+    expect(drawer()).toHaveTextContent('2bekleyen değişiklik');
+    for (const name of ['Konsola aktar', '⟲ Dene', 'Uygula']) expect(t().getByRole('button', { name })).toBeEnabled();
+
+    const toggle = t().getByRole('button', { name: 'SQL’i gizle ▾' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await user.click(toggle);
+    expect(t().queryByRole('region', { name: 'SQL önizlemesi' })).not.toBeInTheDocument();
+    await user.click(t().getByRole('button', { name: 'SQL’i göster ▴' }));
+    expect(preview()).toHaveTextContent(`SET "ad" = 'Zeynep'::text`);
+
+    await user.click(t().getByRole('button', { name: '↶ Geri al' }));
+    expectNoPending();
+    expect(cell(0, 1)).toHaveTextContent('Ali');
+    expect(cell(0, 1)).not.toHaveClass('degisti');
+  });
+});
+
+describe('Tablo sekmesi: Tab ile sıralı düzenleme', () => {
+  it('Tab kaydeder ve sonraki yazılabilir hücrede düzenleyiciyi açar; yüklü satırın PK’sı atlanır', async () => {
+    const { user } = await setup();
+    await user.click(cell(0, 1));
+    await user.keyboard('Veli{Tab}');
+    // Satır sonunda sarar; satır 2'nin `id`'si (PK) atlanır, `ad`'a gelinir.
+    const box = t().getByRole('textbox', { name: /değeri$/ });
+    expect(box).toHaveValue('Ayşe');
+    await user.clear(box);
+    await user.keyboard('Zeynep{Shift>}{Tab}{/Shift}');
+    expect(t().getByRole('textbox', { name: /değeri$/ })).toHaveValue('Veli');
+    await user.keyboard('{Escape}');
+    expect(within(t().getByRole('list', { name: 'Bekleyen değişiklikler' })).getAllByRole('listitem')).toHaveLength(2);
+    expect(cell(1, 1)).toHaveTextContent('Zeynep');
+  });
+});
+
+describe('Tablo sekmesi: kısayollar', () => {
+  it('Ctrl/Cmd+Enter Uygula’yı çalıştırır; açık düzenleyici önce kaydedilir', async () => {
+    const { user, runs } = await setup();
+    await user.click(cell(0, 1));
+    await user.keyboard('Veli{Control>}{Enter}{/Control}');
+    expect(runs.runs).toHaveLength(1);
+    expect(runs.last()).toMatchObject({ deneme: false, script: `UPDATE "public"."users" SET "ad" = 'Veli'::text WHERE "id" = '1'::integer;` });
+  });
+
+  it('Ctrl/Cmd+Shift+Enter Dene’yi çalıştırır', async () => {
+    const { user, runs } = await setup();
+    await editName(user, 0, 'Veli');
+    await user.keyboard('{Meta>}{Shift>}{Enter}{/Shift}{/Meta}');
+    expect(runs.last()).toMatchObject({ deneme: true });
+  });
+
+  it('Ctrl/Cmd+Alt+Enter SQL’i gizler ve gösterir', async () => {
+    const { user } = await setup();
+    await editName(user, 0, 'Veli');
+    await user.keyboard('{Control>}{Alt>}{Enter}{/Alt}{/Control}');
+    expect(t().queryByRole('region', { name: 'SQL önizlemesi' })).not.toBeInTheDocument();
+    await user.keyboard('{Control>}{Alt>}{Enter}{/Alt}{/Control}');
+    expect(preview()).toBeInTheDocument();
+  });
+
+  it('prod salt okunurken Ctrl/Cmd+Enter hiçbir şey çalıştırmaz; değişiklik yokken de', async () => {
+    const { user, runs } = await setup({ conn: PROD });
+    await user.click(cell(0, 1));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await editName(user, 0, 'Veli');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(runs.runs).toHaveLength(0);
+    expect(applyButton()).toBeDisabled();
+  });
+
+  it('“+ Kolon” formu açıkken kısayollar bekleyen değişiklikleri çalıştırmaz', async () => {
+    const { user, runs } = await setup();
+    await editName(user, 0, 'Veli');
+    await user.click(t().getByRole('button', { name: '+ Kolon' }));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(runs.runs).toHaveLength(0);
+  });
+
+  it('Konsol sekmesi öndeyken Tablo sekmesinin kısayolları çalışmaz', async () => {
+    const { user, runs } = await setup();
+    await editName(user, 0, 'Veli');
+    await user.click(screen.getAllByRole('tab')[0]!);
+    await user.keyboard('{Control>}{Shift>}{Enter}{/Shift}{/Control}');
+    expect(runs.runs.filter((r) => r.deneme)).toHaveLength(0);
   });
 });

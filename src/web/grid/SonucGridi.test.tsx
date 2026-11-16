@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { JSDOM_OLCUMU } from '../test/grid';
 import { GridOlcumu } from './olcum';
@@ -282,12 +283,12 @@ describe('Sonuç grid’i: tam değer ve kolon genişliği', () => {
 });
 
 describe('Sonuç grid’i: düzenleyici', () => {
-  function editable(satirlar = rows(3)) {
+  function editable(satirlar = rows(3), extra: Partial<ComponentProps<typeof SonucGridi>> = {}) {
     const user = userEvent.setup();
     const onDuzenle = vi.fn();
     render(
       <GridOlcumu.Provider value={JSDOM_OLCUMU}>
-        <SonucGridi etiket="Sonuç 1" kolonlar={KOLONLAR} satirlar={satirlar} toplamSatir={satirlar.length} onDuzenle={onDuzenle} />
+        <SonucGridi etiket="Sonuç 1" kolonlar={KOLONLAR} satirlar={satirlar} toplamSatir={satirlar.length} onDuzenle={onDuzenle} {...extra} />
       </GridOlcumu.Provider>,
     );
     return { user, onDuzenle };
@@ -318,15 +319,65 @@ describe('Sonuç grid’i: düzenleyici', () => {
     expect(cell(0, 1)).toHaveFocus();
   });
 
-  it('çift tık açar; Tab kaydedip sağa, Shift+Tab kaydedip sola geçer', async () => {
+  it('çift tık açar; Tab kaydedip düzenleyiciyi sağdaki hücrede açık tutar, Shift+Tab soldakinde', async () => {
     const { user, onDuzenle } = editable();
     await user.dblClick(cell(1, 1));
     await user.keyboard('2{Tab}');
     expect(onDuzenle).toHaveBeenLastCalledWith(1, 1, 'ad 22');
-    expect(cell(1, 2)).toHaveFocus();
-    await user.keyboard('{F2}z{Shift>}{Tab}{/Shift}');
+    expect(editor()).toHaveAccessibleName('not değeri');
+    expect(editor()).toHaveFocus();
+    expect(cell(1, 2)).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('z{Shift>}{Tab}{/Shift}');
     expect(onDuzenle).toHaveBeenLastCalledWith(1, 2, 'z');
-    expect(cell(1, 1)).toHaveFocus();
+    expect(editor()).toHaveAccessibleName('ad değeri');
+    expect(editor()).toHaveValue('ad 2');
+  });
+
+  it('Tab satır sonunda sarar; yüklü satırın PK’sını, salt okunur kolonu ve silinecek satırı atlar', async () => {
+    const satirlar = [...rows(3), ['', '', null]];
+    const { user, onDuzenle } = editable(satirlar, {
+      pkKolonlari: [0],
+      kolonSaltOkunur: (k) => (k === 2 ? 'salt okunur' : null),
+      satirIsareti: (r) => (r === 1 ? { durum: 'silinecek', degisen: [] } : r === 3 ? { durum: 'eklendi', degisen: [] } : undefined),
+    });
+    await user.dblClick(cell(0, 1));
+    await user.keyboard('{Tab}');
+    // 0:2 salt okunur, 1 silinecek, 2:0 PK → 2:1
+    expect(editor()).toHaveAccessibleName('ad değeri');
+    expect(cell(2, 1)).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{Tab}');
+    // eklenen satırın PK'sı yazılır
+    expect(editor()).toHaveAccessibleName('id değeri');
+    expect(cell(3, 0)).toHaveAttribute('aria-selected', 'true');
+    expect(onDuzenle).not.toHaveBeenCalled();
+  });
+
+  it('yazılabilir hücre kalmadıysa Tab kaydedip düzenleyiciyi kapatır, seçim yerinde kalır', async () => {
+    const { user, onDuzenle } = editable(rows(2));
+    await user.dblClick(cell(1, 2));
+    await user.keyboard('son{Tab}');
+    expect(onDuzenle).toHaveBeenLastCalledWith(1, 2, 'son');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(cell(1, 2)).toHaveFocus();
+  });
+
+  it('düzenleme kapalıyken Tab yalnızca seçimi taşır', async () => {
+    const { user } = editable();
+    await user.click(cell(0, 2));
+    await user.keyboard('{Tab}');
+    expect(cell(1, 0)).toHaveFocus();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('kolon tipi başlıkta, satır numarası satırın başında', () => {
+    render(
+      <GridOlcumu.Provider value={JSDOM_OLCUMU}>
+        <SonucGridi etiket="Sonuç 1" kolonlar={KOLONLAR} tipler={[23, 25, 25]} satirlar={rows(2)} toplamSatir={2} />
+      </GridOlcumu.Provider>,
+    );
+    expect(screen.getAllByRole('columnheader')[0]).toHaveTextContent('idinteger');
+    const row = grid().querySelector('[role="row"][aria-rowindex="3"]')!;
+    expect(row.querySelector('.grid-satir-no')).toHaveTextContent('2');
   });
 
   it('dokunmadan kapatılan NULL hücre boş metne dönmez', async () => {

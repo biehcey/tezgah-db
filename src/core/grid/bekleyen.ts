@@ -92,6 +92,12 @@ export function editableTable(table: EditableTable): EditableTable | { kapali: s
   return table;
 }
 
+/** Konsol sonuçları hiç düzenlenmez. */
+export const CONSOLE_READ_ONLY_REASON = 'Konsol sonuçları salt okunur; düzenleme PK’lı tablonun Tablo sekmesinde.';
+
+/** Silinecek satırın hücreleri yazılamaz. */
+export const DELETED_REASON = 'Silinecek satır düzenlenemez; önce silmeyi geri alın.';
+
 /** Kolon yazılamıyorsa nedeni: `bytea` (düzenleme kapsam dışı) ve üretilmiş kolonlar. */
 export function readOnlyReason(table: EditableTable, kolon: number): string | null {
   const ad = table.kolonlar[kolon]!;

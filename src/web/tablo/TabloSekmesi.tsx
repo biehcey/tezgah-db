@@ -17,6 +17,7 @@ import {
   type PendingChanges,
 } from '../../core/grid/bekleyen';
 import type { Cell } from '../../core/grid/secim';
+import { shortcutKey, tableShortcut, type TableShortcut } from '../../core/kisayollar';
 import { typeName } from '../../core/grid/tipler';
 import { startDecision, type DecisionTimer } from '../../core/karar-suresi';
 import { filterCompletion, typeMap } from '../../core/katalog';
@@ -34,7 +35,7 @@ import {
   cycleOrderBy,
   headerSort,
   pageErrorText,
-  rowEstimate,
+  rowCounts,
   type FilterBox,
   type LoadedRows,
   type TableFilter,
@@ -42,7 +43,11 @@ import {
 } from '../../core/tablo-sayfasi';
 import { targetSchemas } from '../../core/veritabani-secimi';
 import { ApiError, useApi } from '../api/client';
-import { SonucGridi } from '../grid/SonucGridi';
+import { SonucGridi, type GridHandle } from '../grid/SonucGridi';
+import { SatirGorunumu } from '../grid/SatirGorunumu';
+import { rowView } from '../../core/grid/satir-gorunumu';
+import { BekleyenListesi } from './BekleyenListesi';
+import { APPLE, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
 import { KolonFormu } from './KolonFormu';
@@ -119,7 +124,7 @@ function queryError(err: unknown): QueryError | null {
 
 const BOXES: readonly FilterBox[] = ['where', 'orderBy'];
 
-/** Sağ sütundan çalıştırılan script: bekleyen değişiklikler ya da "+ Kolon"un ALTER'ı. */
+/** Çekmeceden ya da "+ Kolon" panelinden çalıştırılan script: bekleyen değişiklikler ya da ALTER. */
 type RunKind = 'bekleyen' | 'kolon';
 
 const BUSY_REASONS: Record<RunKind, Record<'uygula' | 'dene', string>> = {
@@ -147,17 +152,26 @@ const ACTION_TITLES: Record<RunKind, { aktar: string; dene: string; uygula: stri
   },
 };
 
+/** Platformdaki değiştirici tuş; düğmelerdeki kısayol ipuçları için. */
+const MOD = APPLE ? '⌘' : 'Ctrl+';
+const MOD_ADI = APPLE ? 'Cmd' : 'Ctrl';
+
+/** Bekleyen değişiklik yokken çekmece satırındaki kısayol ipucu. */
+const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd+Shift+N: NULL · sağ tık: satır sil · Ctrl/Cmd+V: TSV yapıştır · Shift+Enter: satır görünümü · ${MOD_ADI}+B: gezgin`;
+
 /**
- * Tablo sekmesi: editörsüz, başlıkta `≈ N satır`, serbest `WHERE` / `ORDER BY` kutuları, altında
- * grid. Her sayfa sunucuda kısa, ayrı, salt okunur, tek ifadelik bir sorgudur; sekme açık
- * transaction tutmaz. Sona yaklaşınca sonraki sayfa istenir. Geri gelen sekme bağlanmaz: veri
- * "Yükle" ile çekilir.
+ * Tablo sekmesi: editörsüz, tek satırlık üst çubukta ad, `≈N · M yüklü`, tek çerçevede serbest
+ * `WHERE` / `ORDER BY` kutuları ve eylemler; altında grid, en altta çekmece. Her sayfa sunucuda
+ * kısa, ayrı, salt okunur, tek ifadelik bir sorgudur; sekme açık transaction tutmaz. Sona
+ * yaklaşınca sonraki sayfa istenir. Geri gelen sekme bağlanmaz: veri "Yükle" ile çekilir.
  *
  * PK'lı tabloda hücreler düzenlenir, NULL yapılır, satır eklenir/silinir ve TSV yapıştırılır;
- * hepsi Bekleyen değişiklik olarak birikir, sağ sütunda
- * liste ve üretilen SQL sürekli görünür. "Uygula" o SQL'i bu sekmede mevcut Script çalıştırıcıyla
- * Transaction modunda, her ifade tam 1 satır etkileyecek şekilde çalıştırır (karar kartı); "Dene"
- * aynısını Deneme modunda gösterir, "Konsola aktar" yeni konsol sekmesine taşır.
+ * hepsi Bekleyen değişiklik olarak birikir. Çekmece değişiklik yokken kısayol ipucunu, varken
+ * sayıyı ve eylemleri gösterir; "SQL'i göster" ile liste ve üretilen SQL grid'in altında açılır.
+ * "Uygula" (Ctrl/Cmd+Enter) o SQL'i bu sekmede mevcut Script çalıştırıcıyla Transaction modunda,
+ * her ifade tam 1 satır etkileyecek şekilde çalıştırır (karar kartı); "Dene" (Ctrl/Cmd+Shift+Enter)
+ * aynısını Deneme modunda gösterir, "Konsola aktar" yeni konsol sekmesine taşır, "↶ Geri al"
+ * bekleyenlerin hepsini atar.
  */
 export function TabloSekmesi({
   tab,
@@ -307,12 +321,12 @@ export function TabloSekmesi({
   // ---------- Bekleyen değişiklikler ve Uygula ----------
 
   /** PK'lı tabloda düzenlenebilir tablo; PK kolonlarından biri sonuçta yoksa da kapalı. */
+  const tipler = useMemo(() => sayfa?.tipler.map((oid) => typeName(oid, tipAdlari)), [sayfa?.tipler, tipAdlari]);
   const editable = useMemo(() => {
-    if (!sayfa) return null;
-    const tipler = sayfa.tipler.map((oid) => typeName(oid, tipAdlari));
+    if (!sayfa || !tipler) return null;
     return editableTable({ sema: tab.sema, tablo: tab.tablo, kolonlar: sayfa.kolonlar, tipler, pk: sayfa.pk, uretilmis: sayfa.uretilmis });
     // Sayfa eklendikçe `sayfa` değişir; tablo yalnızca kolonlar/PK/tiplerle değişir.
-  }, [sayfa?.kolonlar, sayfa?.tipler, sayfa?.pk, sayfa?.uretilmis, tipAdlari, tab.sema, tab.tablo]);
+  }, [sayfa?.kolonlar, tipler, sayfa?.pk, sayfa?.uretilmis, tab.sema, tab.tablo]);
   const table = editable && !('kapali' in editable) ? editable : null;
   /** Diske yazılmaz; sekme kapanınca kaybolur (kapatırken uyarılır). */
   const [changes, setChangesState] = useState<PendingChanges>(NO_CHANGES);
@@ -327,8 +341,11 @@ export function TabloSekmesi({
   const script = useMemo(() => (table ? pendingScript(table, changes) : { metin: '', ifadeler: [] }), [table, changes]);
   const [run, setRun] = useState<RunView | null>(null);
   const [runKind, setRunKind] = useState<RunKind>('bekleyen');
-  /** "+ Kolon" formu sağ sütunda açık. */
+  /** "+ Kolon" formu sağdaki yan panelde açık. */
   const [columnForm, setColumnForm] = useState(false);
+  /** Çekmecede bekleyen listesi ve üretilen SQL açık (Ctrl/Cmd+Alt+Enter); diske yazılmaz. */
+  const [sqlOpen, setSqlOpen] = useState(true);
+  const gridRef = useRef<GridHandle>(null);
   const onCatalogRef = useRef(onCatalog);
   onCatalogRef.current = onCatalog;
   const [deadline, setDeadline] = useState<DecisionTimer | null>(null);
@@ -443,11 +460,62 @@ export function TabloSekmesi({
   };
   const editing = table !== null && !busy;
   const busyReason = BUSY_REASONS[runKind][run?.deneme ? 'dene' : 'uygula'];
+  const pkKolonlari = useMemo(() => table?.pk.map((k) => table.kolonlar.indexOf(k)), [table]);
+  const items = useMemo(() => (table ? pendingItems(table, changes) : []), [table, changes]);
 
-  /** Sağ sütunun Uygula/Dene/Konsola aktar çubuğu; `metin` `null` ya da boşsa düğmeler kapalı. */
+  // ---------- Satır görünümü ----------
+
+  /** Grid'in sağındaki satır görünümü açık (Shift+Enter, ◧); diske yazılmaz. */
+  const [rowViewOpen, setRowViewOpen] = useState(false);
+  /** Grid'in aktif hücresinin satırı; satır görünümü onu gösterir. */
+  const [activeRow, setActiveRow] = useState(0);
+  const rowViewRef = useRef<HTMLElement>(null);
+  const rowViewRow = useMemo(() => {
+    const satir = rows ? rows[activeRow] : sayfa?.satirlar[activeRow];
+    if (!sayfa || !tipler || !editable || !satir) return null;
+    return rowView({ kolonlar: sayfa.kolonlar, tipler, pk: sayfa.pk, sira: activeRow, satir, duzenleme: editable, mesgul: busy ? busyReason : null });
+  }, [sayfa, tipler, editable, rows, activeRow, busy, busyReason]);
+
+  /**
+   * Kısayollar yalnızca bu sekme görünürken, pencere ve "+ Kolon" formu açık değilken (form kendi
+   * Uygula'sını taşır; Ctrl+Enter bekleyen grid değişikliklerini çalıştırmamalı). Düzenleyici açıksa önce
+   * kaydedilir; eylem, kaydedilen değeri içeren çizimden sonra (güncel script'le) çalışır. Düğmesi
+   * kapalı eylem (salt okunur prod, çalışıyor, bekleyen yok) hiçbir şey yapmaz.
+   */
+  const [queued, setQueued] = useState<{ eylem: TableShortcut } | null>(null);
+  useEffect(() => {
+    if (hidden || columnForm) return;
+    const onKey = (e: KeyboardEvent) => {
+      const eylem = tableShortcut(shortcutKey(e));
+      if (!eylem || modalOpen()) return;
+      // Yakalama evresinde: düzenleyicinin Enter'ı (kaydet + aşağı) ve editörün tuşları çalışmasın.
+      e.preventDefault();
+      e.stopPropagation();
+      gridRef.current?.kaydet();
+      // Satır görünümündeki yazılmış alan da önce kaydedilir (alandan çıkmak kaydeder).
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && rowViewRef.current?.contains(focused)) focused.blur();
+      setQueued({ eylem });
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [hidden, columnForm]);
+  useEffect(() => {
+    if (!queued) return;
+    setQueued(null);
+    if (count === 0) return;
+    if (queued.eylem === 'sql') setSqlOpen((open) => !open);
+    else runScript(script.metin, queued.eylem === 'dene', 'bekleyen');
+  });
+
+  /**
+   * Uygula/Dene/Konsola aktar çubuğu; `metin` `null` ya da boşsa düğmeler kapalı. Bekleyenlerinkinde
+   * "↶ Geri al" ve kısayol ipuçları da var.
+   */
   const actionBar = (metin: string | null, tur: RunKind) => {
     const none = busy || !metin;
     const titles = ACTION_TITLES[tur];
+    const pending = tur === 'bekleyen';
     return (
       <div className="script-cubugu">
         {lock && (
@@ -463,20 +531,42 @@ export function TabloSekmesi({
             {WRITE_LOCK_LABELS[lock].rozet}
           </button>
         )}
+        {pending && (
+          <button type="button" title="Bekleyen değişikliklerin hepsini at" onClick={() => setChanges(NO_CHANGES)} disabled={none}>
+            ↶ Geri al
+          </button>
+        )}
         <button type="button" title={titles.aktar} onClick={() => metin && onExportToConsole(metin)} disabled={none}>
           Konsola aktar
         </button>
-        <button type="button" title={titles.dene} onClick={() => metin && runScript(metin, true, tur)} disabled={none}>
+        <button
+          type="button"
+          title={pending ? `${titles.dene} (${MOD}Shift+Enter)` : titles.dene}
+          aria-keyshortcuts={pending ? 'Control+Shift+Enter Meta+Shift+Enter' : undefined}
+          onClick={() => metin && runScript(metin, true, tur)}
+          disabled={none}
+        >
           ⟲ Dene
+          {pending && (
+            <kbd className="kisayol-ipucu" aria-hidden="true">
+              {MOD}⇧↵
+            </kbd>
+          )}
         </button>
         <button
           type="button"
           className="birincil"
-          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : titles.uygula}
+          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${MOD}Enter)` : titles.uygula}
+          aria-keyshortcuts={pending ? 'Control+Enter Meta+Enter' : undefined}
           onClick={() => metin && runScript(metin, false, tur)}
           disabled={none || lock === 'salt-okunur'}
         >
           Uygula
+          {pending && (
+            <kbd className="kisayol-ipucu" aria-hidden="true">
+              {MOD}↵
+            </kbd>
+          )}
         </button>
       </div>
     );
@@ -503,13 +593,60 @@ export function TabloSekmesi({
       </p>
     ) : null;
 
+  /** Çalıştırmanın kartları: deneme prod uyarısı, karar kartı, Değişiklikler (deneme). */
+  const runPanels = run && (
+    <div className="calistirma-paneli">
+      {run.deneme && target && isProd(target.connection.envTag) && <DenemeProdUyarisi />}
+      <KararKarti run={run} deadline={run.evre === 'karar' ? deadline : null} onRequest={requestDecision} />
+      {run.deneme && (
+        <section aria-label="Değişiklikler" className="ifade-listesi">
+          <Degisiklikler run={run} />
+        </section>
+      )}
+    </div>
+  );
+
+  /** Çekmece satırının sol yanı değişiklik yokken: neden düzenlenemediği ya da kısayol ipucu. */
+  const idleNote = editable && 'kapali' in editable ? editable.kapali : busy && table ? busyReason : table ? HINT : null;
+  const showSql = count > 0 && sqlOpen && table !== null;
+
   return (
     <section aria-label={`${name} tablosu`} className="tablo-sekmesi" hidden={hidden}>
       <header className="tablo-basligi">
-        <h2>{name}</h2>
-        {estimate !== null && <span className="soluk kucuk">{rowEstimate(estimate)}</span>}
-        {target && <span className="soluk kucuk">{`${target.connection.name} / ${target.database}`}</span>}
-        <span className="bosluk" />
+        <h2 title={target ? `${target.connection.name} / ${target.database} · ${name}` : name}>
+          <span className="soluk">{tab.sema}.</span>
+          {tab.tablo}
+        </h2>
+        <span className="soluk kucuk tablo-sayaci" title="pg_class.reltuples tahmini · yüklü satırlar">
+          {rowCounts(estimate, sayfa ? sayfa.satirlar.length : null)}
+        </span>
+        {loading && sayfa && <span className="soluk kucuk">Yükleniyor…</span>}
+        {sayfa?.yukleniyor && <span className="soluk kucuk">Satırlar yükleniyor…</span>}
+        <div className="filtre-cercevesi">
+          {BOXES.map((kutu) => (
+            <div key={kutu} className="filtre-kutusu">
+              <span className="filtre-etiketi" aria-hidden="true">
+                {BOX_LABELS[kutu]}
+              </span>
+              <div className="filtre-alani">
+                <FiltreKutusu
+                  etiket={BOX_LABELS[kutu]}
+                  value={draft[kutu]}
+                  onChange={(text) => setDraft({ ...draftRef.current, [kutu]: text })}
+                  onApply={() => target && apply(draftRef.current)}
+                  completion={completion}
+                  invalid={error?.kutu === kutu}
+                />
+                {errorLine(kutu)}
+              </div>
+            </div>
+          ))}
+        </div>
+        {table && (
+          <button type="button" onClick={addRowAction} disabled={!editing} title="Sona yeni satır ekler; dokunulmayan kolonlar DEFAULT kalır">
+            + Satır
+          </button>
+        )}
         <button
           type="button"
           title="ALTER TABLE … ADD COLUMN önizlemeli kolon ekleme formunu aç"
@@ -532,27 +669,21 @@ export function TabloSekmesi({
         >
           ↻
         </button>
+        <button
+          type="button"
+          className="ikon-dugme"
+          aria-label="Satır görünümü"
+          aria-pressed={rowViewOpen}
+          aria-keyshortcuts="Shift+Enter"
+          title="Satır görünümü (grid’de Shift+Enter)"
+          disabled={!sayfa}
+          onClick={() => setRowViewOpen(!rowViewOpen)}
+        >
+          ◧
+        </button>
       </header>
-      <div className="filtre-cubugu">
-        {BOXES.map((kutu) => (
-          <div key={kutu} className="filtre-kutusu">
-            <span className="filtre-etiketi" aria-hidden="true">
-              {BOX_LABELS[kutu]}
-            </span>
-            <FiltreKutusu
-              etiket={BOX_LABELS[kutu]}
-              value={draft[kutu]}
-              onChange={(text) => setDraft({ ...draftRef.current, [kutu]: text })}
-              onApply={() => target && apply(draftRef.current)}
-              completion={completion}
-              invalid={error?.kutu === kutu}
-            />
-            {errorLine(kutu)}
-          </div>
-        ))}
-        {errorLine(null)}
-      </div>
-      <div className={`tablo-govde${table ? ' duzenlenebilir' : ''}`}>
+      {errorLine(null)}
+      <div className="tablo-govde">
         <div className="tablo-sol">
           {!target && <p className="soluk kucuk">Bu Tablo sekmesinin hedefi yok: bağlantısı silinmiş.</p>}
           {target && view.durum === 'bekliyor' && !loading && (
@@ -570,102 +701,115 @@ export function TabloSekmesi({
             </p>
           )}
           {sayfa && (
-            <>
-              <p className="soluk kucuk tablo-durumu">
-                {complete(sayfa) ? `${sayfa.satirlar.length} satır` : `ilk ${sayfa.satirlar.length} satır gösteriliyor`}
-                {loading && ' · Yükleniyor…'}
-                {sayfa.yukleniyor && ' · Satırlar yükleniyor…'}
-                {sayfa.sinir && ` · ${ROW_LIMIT_MESSAGE}`}
-                {sayfa.hata && ` · ${sayfa.hata}`}
-                {sayfa.tutarlilikNotu && ` · ${OFFSET_NOTE}`}
-              </p>
-              {editable && 'kapali' in editable && <p className="soluk kucuk">{editable.kapali}</p>}
-              {busy && table && <p className="soluk kucuk">{busyReason}</p>}
-              {table && (
-                <div className="grid-araclari">
-                  <button type="button" onClick={addRowAction} disabled={!editing} title="Sona yeni satır ekler; dokunulmayan kolonlar DEFAULT kalır">
-                    Satır ekle
-                  </button>
-                  <span className="soluk kucuk">Sağ tık: NULL yap, satır sil · Ctrl/Cmd+Shift+N: NULL · Ctrl/Cmd+V: TSV yapıştır</span>
-                </div>
-              )}
-              {pasteError && (
-                <p role="alert" className="uyari-metni kucuk">
-                  {pasteError}
-                </p>
-              )}
-              <SonucGridi
-                key={gridKey}
-                etiket={`${name} satırları`}
-                kolonlar={sayfa.kolonlar}
-                tipler={sayfa.tipler}
-                tipAdlari={tipAdlari}
-                satirlar={shownRows}
-                toplamSatir={complete(sayfa) ? shownRows.length : null}
-                onSonaYaklasti={loadMore}
-                onKolonTikla={(c) => sortBy(sayfa, sayfa.kolonlar[c]!)}
-                siralama={siralama}
-                onDuzenle={editing ? editCellAt : undefined}
-                saltOkunurNedeni={editable && 'kapali' in editable ? editable.kapali : busyReason}
-                kolonSaltOkunur={table ? (c) => readOnlyReason(table, c) : undefined}
-                satirIsareti={rows ? (r) => rows[r] : undefined}
-                hataliSatirlar={failedRows}
-                onSatirEkle={editing ? addRowAction : undefined}
-                onSatirSil={editing ? deleteAt : undefined}
-                onSilmeyiGeriAl={editing ? restoreAt : undefined}
-                onYapistir={editing ? pasteAt : undefined}
-                sonSatiraGit={goLast}
-              />
-            </>
+            <SonucGridi
+              key={gridKey}
+              etiket={`${name} satırları`}
+              kolonlar={sayfa.kolonlar}
+              tipler={sayfa.tipler}
+              tipAdlari={tipAdlari}
+              satirlar={shownRows}
+              toplamSatir={complete(sayfa) ? shownRows.length : null}
+              onSonaYaklasti={loadMore}
+              onKolonTikla={(c) => sortBy(sayfa, sayfa.kolonlar[c]!)}
+              siralama={siralama}
+              onDuzenle={editing ? editCellAt : undefined}
+              saltOkunurNedeni={editable && 'kapali' in editable ? editable.kapali : busyReason}
+              kolonSaltOkunur={table ? (c) => readOnlyReason(table, c) : undefined}
+              satirIsareti={rows ? (r) => rows[r] : undefined}
+              hataliSatirlar={failedRows}
+              onSatirEkle={editing ? addRowAction : undefined}
+              onSatirSil={editing ? deleteAt : undefined}
+              onSilmeyiGeriAl={editing ? restoreAt : undefined}
+              onYapistir={editing ? pasteAt : undefined}
+              sonSatiraGit={goLast}
+              pkKolonlari={pkKolonlari}
+              duzenleyiciRef={gridRef}
+              satirGorunumuAcik={rowViewOpen}
+              onSatirGorunumu={setRowViewOpen}
+              onAktifSatir={setActiveRow}
+            />
           )}
         </div>
-        {(table || columnForm || run) && (
-          <aside aria-label="Bekleyen değişiklikler sütunu" className="calistirma-sutunu bekleyen-sutunu">
-            {columnForm && (
-              <KolonFormu
-                sema={tab.sema}
-                tablo={tab.tablo}
-                kolonlar={existingColumns}
-                tablodaSatirVar={tableHasRows({ satir: sayfa?.satirlar.length ?? null, filtreli: (sayfa?.filtre.where.trim() ?? '') !== '', tahmin: estimate })}
-                kullaniciTipleri={katalog?.kullaniciTipleri ?? []}
-                target={target && { connectionId: target.connection.id, database: target.database }}
-                busy={busy}
-                eylemler={(metin) => actionBar(metin, 'kolon')}
-                onClose={() => setColumnForm(false)}
-              />
-            )}
-            {table && !columnForm && (
-              <>
-                <section aria-label="SQL önizlemesi" className="sql-onizlemesi">
-                  {count === 0 ? (
-                    <p className="soluk kucuk">Bekleyen değişiklik yok. Hücreyi düzenlemek için yazmaya başlayın, F2 ya da çift tık.</p>
-                  ) : (
-                    <>
-                      <ul aria-label="Bekleyen değişiklikler" className="bekleyen-listesi kucuk">
-                        {pendingItems(table, changes).map((item) => (
-                          <li key={item.anahtar} className={failed?.satir === item.anahtar ? 'hatali' : undefined}>
-                            {item.metin}
-                            {failed?.satir === item.anahtar && <span className="ifade-hatasi"> — {failed.mesaj}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                      <pre className="uretilen-sql kucuk">{script.metin}</pre>
-                    </>
-                  )}
-                </section>
-                {actionBar(count === 0 ? null : script.metin, 'bekleyen')}
-              </>
-            )}
-            {run?.deneme && target && isProd(target.connection.envTag) && <DenemeProdUyarisi />}
-            <KararKarti run={run} deadline={run?.evre === 'karar' ? deadline : null} onRequest={requestDecision} />
-            {run?.deneme && (
-              <section aria-label="Değişiklikler" className="ifade-listesi">
-                <Degisiklikler run={run} />
-              </section>
-            )}
+        {rowViewOpen && sayfa && (
+          <SatirGorunumu
+            panelRef={rowViewRef}
+            satir={rowViewRow}
+            duzenleme={
+              editing
+                ? { duzenle: (c, deger) => editCellAt(activeRow, c, deger), sil: () => deleteAt([activeRow]), geriAl: () => restoreAt([activeRow]) }
+                : undefined
+            }
+            degisiklikler={table ? { sayi: count, icerik: <BekleyenListesi items={items} failed={failed} /> } : undefined}
+            onKapat={() => setRowViewOpen(false)}
+          />
+        )}
+        {columnForm && (
+          <aside aria-label="Kolon ekleme paneli" className="kolon-paneli">
+            <KolonFormu
+              sema={tab.sema}
+              tablo={tab.tablo}
+              kolonlar={existingColumns}
+              tablodaSatirVar={tableHasRows({ satir: sayfa?.satirlar.length ?? null, filtreli: (sayfa?.filtre.where.trim() ?? '') !== '', tahmin: estimate })}
+              kullaniciTipleri={katalog?.kullaniciTipleri ?? []}
+              target={target && { connectionId: target.connection.id, database: target.database }}
+              busy={busy}
+              eylemler={(metin) => actionBar(metin, 'kolon')}
+              onClose={() => setColumnForm(false)}
+            />
+            {runPanels}
           </aside>
         )}
       </div>
+      {(sayfa || run) && (
+        <section aria-label="Bekleyen değişiklikler çekmecesi" className="cekmece">
+          <div className="cekmece-cubugu">
+            {count > 0 ? (
+              <>
+                <span className="rozet sayi-rozeti">{count}</span>
+                <b>bekleyen değişiklik</b>
+                <button
+                  type="button"
+                  className="ikon-dugme"
+                  aria-expanded={sqlOpen}
+                  aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
+                  title={`Bekleyen listesi ve üretilen SQL (${MOD}Alt+Enter)`}
+                  onClick={() => setSqlOpen(!sqlOpen)}
+                >
+                  {sqlOpen ? 'SQL’i gizle ▾' : 'SQL’i göster ▴'}
+                </button>
+              </>
+            ) : (
+              idleNote && <span className="soluk kucuk cekmece-notu">{idleNote}</span>
+            )}
+            {count > 0 && busy && <span className="soluk kucuk cekmece-notu">{busyReason}</span>}
+            {sayfa?.sinir && <span className="soluk kucuk cekmece-notu">{ROW_LIMIT_MESSAGE}</span>}
+            {sayfa?.tutarlilikNotu && <span className="soluk kucuk cekmece-notu">{OFFSET_NOTE}</span>}
+            {sayfa?.hata && (
+              <span role="alert" className="uyari-metni kucuk cekmece-notu">
+                {sayfa.hata}
+              </span>
+            )}
+            {pasteError && (
+              <span role="alert" className="uyari-metni kucuk cekmece-notu">
+                {pasteError}
+              </span>
+            )}
+            <span className="bosluk" />
+            {count > 0 && actionBar(script.metin, 'bekleyen')}
+          </div>
+          {(showSql || (runPanels && !columnForm)) && (
+            <div className="cekmece-govde">
+              {showSql && (
+                <section aria-label="SQL önizlemesi" className="sql-onizlemesi">
+                  <BekleyenListesi items={items} failed={failed} />
+                  <pre className="uretilen-sql kucuk">{script.metin}</pre>
+                </section>
+              )}
+              {!columnForm && runPanels}
+            </div>
+          )}
+        </section>
+      )}
     </section>
   );
 }

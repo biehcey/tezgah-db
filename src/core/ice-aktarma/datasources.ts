@@ -154,7 +154,7 @@ export function dataSourceCandidates(files: DataSourcesFiles, ctx: DataSourcesCo
     const tunnel = mapTunnel(child(loc, 'ssh-properties'), sshConfigs, ctx);
     if (tunnel.warning) warnings.push(tunnel.warning);
     const scope = scopeDatabases(child(child(loc, 'schema-mapping'), 'introspection-scope'), database);
-    if (scope.all) warnings.push('IntelliJ’de tüm veritabanları görünür; içe aktardıktan sonra Veritabanı panelinden seçin');
+    if (scope.all) warnings.push('IntelliJ’de tüm veritabanları görünür; içe aktardıktan sonra gezginden seçin');
 
     result.candidates.push({
       source,

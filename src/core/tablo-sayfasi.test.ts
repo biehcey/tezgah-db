@@ -9,7 +9,7 @@ import {
   nextCursor,
   pageErrorText,
   parseTablePageRequest,
-  rowEstimate,
+  rowCounts,
   tablePageQuery,
   type TableMeta,
 } from './tablo-sayfasi';
@@ -192,15 +192,17 @@ describe('nextCursor', () => {
   });
 });
 
-describe('rowEstimate', () => {
-  it('reltuples = -1 (hiç analiz edilmedi) "≈ bilinmiyor", 0 değil', () => {
-    expect(rowEstimate(-1)).toBe('≈ bilinmiyor');
-  });
-
-  it('aksi hâlde yuvarlanmış, binlik ayraçlı', () => {
-    expect(rowEstimate(0)).toBe('≈ 0 satır');
-    expect(rowEstimate(42)).toBe('≈ 42 satır');
-    expect(rowEstimate(1234567.4)).toBe('≈ 1.234.567 satır');
+describe('rowCounts: başlıkta tahmin ve yüklü satırlar', () => {
+  it.each([
+    ['reltuples = -1 (hiç analiz edilmedi) "≈ bilinmiyor", 0 değil', -1, null, '≈ bilinmiyor'],
+    ['tahmin yuvarlanmış, binlik ayraçlı', 1234567.4, null, '≈1.234.567'],
+    ['tahmin sıfır', 0, 0, '≈0 · 0 yüklü'],
+    ['tahmin ve yüklü', 484, 486, '≈484 · 486 yüklü'],
+    ['bilinmeyen tahmin ve yüklü', -1, 1500, '≈ bilinmiyor · 1.500 yüklü'],
+    ['tahmin yoksa yalnızca yüklü', null, 12, '12 yüklü'],
+    ['hiçbiri yoksa boş', null, null, ''],
+  ] as const)('%s', (_, estimate, loaded, expected) => {
+    expect(rowCounts(estimate, loaded)).toBe(expected);
   });
 });
 

@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -13,13 +14,16 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type Ref,
 } from 'react';
-import { NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
-import { isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
+import { DEFAULT_LABEL, NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
+import { CONSOLE_READ_ONLY_REASON, DELETED_REASON, isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
+import { rowViewShortcut, shortcutKey } from '../../core/kisayollar';
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
-import { extendTo, isSelected, navigate, selectCell, selectedValues, selectionRange, type Cell, type Selection } from '../../core/grid/secim';
+import { extendTo, isSelected, navigate, selectCell, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
+import { typeName } from '../../core/grid/tipler';
 import { toTsv } from '../../core/grid/tsv';
 import { Menu, menuBelow, type MenuItem, type MenuPosition } from '../ortak/Menu';
 import { GridOlcumu, canvasTextWidth } from './olcum';
@@ -36,6 +40,15 @@ export const AUTO_SCROLL_MS = 40;
 const VALUE_BOX_MIN_WIDTH = 320;
 /** Salt okunur tam değer kutusunun yüksekliği (px); CSS `.hucre-degeri` ile aynı. */
 const VALUE_BOX_HEIGHT = 144;
+/** Satır numarası kolonunun en az genişliği (px); hane başına `ROW_NO_DIGIT_PX` büyür. */
+const ROW_NO_MIN_WIDTH = 40;
+const ROW_NO_DIGIT_PX = 8;
+
+/** Çağıranın düzenleyiciyi denetlemesi (Tablo sekmesinin kısayolları). */
+export interface GridHandle {
+  /** Açık düzenleyici varsa dokunulan değeri kaydedip kapatır; yoksa bir şey yapmaz. */
+  kaydet: () => void;
+}
 
 interface Props {
   /** Grid'in erişilebilir adı. */
@@ -79,13 +92,17 @@ interface Props {
   onYapistir?: (baslangic: Cell, metin: string) => void;
   /** Her artışında seçim son satırın ilk hücresine gider (eklenen satır). */
   sonSatiraGit?: number;
+  /** PK kolonları: Tab ile ardışık düzenlemede yüklü satırda atlanır. */
+  pkKolonlari?: readonly number[];
+  duzenleyiciRef?: Ref<GridHandle>;
+  /** Satır görünümü açık mı; grid odaktayken Shift+Enter açar/kapatır, açıkken Esc kapatır. */
+  satirGorunumuAcik?: boolean;
+  onSatirGorunumu?: (acik: boolean) => void;
+  /** Aktif hücrenin satırı değişti (ilk çizimde de bildirilir); satır görünümü onu gösterir. */
+  onAktifSatir?: (satir: number) => void;
 }
 
-const DELETED_REASON = 'Silinecek satır düzenlenemez; önce silmeyi geri alın.';
-const DEFAULT_LABEL = 'DEFAULT';
 const DURUM_ETIKETI = { eklendi: 'eklendi', silinecek: 'silinecek' } as const;
-
-const READ_ONLY_REASON = 'Konsol sonuçları salt okunur; düzenleme PK’lı tablonun Tablo sekmesinde.';
 
 /** Açık değer kutusu: düzenleyici ya da salt okunur tam değer. */
 interface ValueBox {
@@ -113,7 +130,8 @@ const NEAR_END_ROWS = 100;
  * Sonuç grid'i: yalnızca satırlar sanallaştırılır, satır yüksekliği sabittir. Konsol sonuçlarında
  * salt okunurdur; `onDuzenle` verilince (Tablo sekmesi) hücrenin üstünde büyüyen bir `<textarea>`
  * düzenleyici açılır: F2, çift tık ya da yazmaya başlama; Enter kaydet + aşağı, Shift+Enter yeni
- * satır, Esc vazgeç, Tab/Shift+Tab kaydet + yana. Tüm tipler ham metindir. Seçim,
+ * satır, Esc vazgeç, Tab/Shift+Tab kaydet + yana. Grid'de (düzenleyici kapalıyken) Shift+Enter satır
+ * görünümünü açar/kapatır, açıkken Esc kapatır; aktif satır `onAktifSatir` ile bildirilir. Tüm tipler ham metindir. Seçim,
  * gezinme, gösterim ve TSV `core/grid`'dedir; bileşen olayları oraya iletir ve sonucu çizer.
  * Odak roving tabindex ile aktif hücrededir; aktif satır görünümden çıksa da çizilmeye devam eder
  * ki odak kaybolmasın ve klavye gezinmesi sürsün.
@@ -129,7 +147,7 @@ export function SonucGridi({
   onKolonTikla,
   siralama = null,
   onDuzenle,
-  saltOkunurNedeni = READ_ONLY_REASON,
+  saltOkunurNedeni = CONSOLE_READ_ONLY_REASON,
   kolonSaltOkunur,
   satirIsareti,
   hataliSatirlar,
@@ -138,13 +156,25 @@ export function SonucGridi({
   onSilmeyiGeriAl,
   onYapistir,
   sonSatiraGit,
+  pkKolonlari,
+  duzenleyiciRef,
+  satirGorunumuAcik = false,
+  onSatirGorunumu,
+  onAktifSatir,
 }: Props) {
   const olcum = useContext(GridOlcumu);
   const noteId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const firstPage = satirlar.slice(0, PAGE_ROWS);
+  /** Başlıktaki kolon tipleri (`typeName`); çözülemeyen tip yazılmaz. */
+  const tipAdi = useMemo(
+    () => kolonlar.map((_, c) => (tipler?.[c] === undefined ? null : typeName(tipler[c], tipAdlari))),
+    [kolonlar, tipler, tipAdlari],
+  );
+  /** Genişlik ölçümünde başlık: ad ve tip birlikte. */
+  const basliklar = kolonlar.map((ad, c) => (tipAdi[c] ? `${ad}  ${tipAdi[c]}` : ad));
   // Ölçü verilmediyse (tarayıcı) genişlik, yazı tipi okunabilsin diye ilk çizimden hemen sonra ölçülür.
-  const [measured, setWidths] = useState(() => (olcum.metinGenisligi ? initialColumnWidths(kolonlar, firstPage, olcum.metinGenisligi) : null));
+  const [measured, setWidths] = useState(() => (olcum.metinGenisligi ? initialColumnWidths(basliklar, firstPage, olcum.metinGenisligi) : null));
   const widths = measured ?? kolonlar.map(() => MIN_COLUMN_WIDTH);
   const [sel, setSel] = useState<Selection>(() => selectCell({ satir: 0, kolon: 0 }));
   /** F2 / çift tık / yazmaya başlama ile açılan değer kutusu. */
@@ -183,7 +213,9 @@ export function SonucGridi({
   const latest = useRef({ sel, satirSayisi: satirlar.length, virtualizer });
   latest.current = { sel, satirSayisi: satirlar.length, virtualizer };
   const items = virtualizer.getVirtualItems();
-  const offsets = useMemo(() => widths.reduce<number[]>((acc, w, i) => [...acc, acc[i]! + w], [0]), [widths]);
+  const rowNoWidth = Math.max(ROW_NO_MIN_WIDTH, String(satirlar.length).length * ROW_NO_DIGIT_PX + 16);
+  /** Kolonların sol kenarı; satır numarası kolonundan sonra. */
+  const offsets = useMemo(() => widths.reduce<number[]>((acc, w, i) => [...acc, acc[i]! + w], [rowNoWidth]), [widths, rowNoWidth]);
 
   useLayoutEffect(() => {
     if (!focusPending.current) return;
@@ -205,7 +237,7 @@ export function SonucGridi({
     const header = grid.querySelector('.grid-kolon-basligi') ?? grid;
     const cell = grid.querySelector('.grid-hucresi') ?? grid;
     const olc = canvasTextWidth(getComputedStyle(cell), getComputedStyle(header)) ?? estimateWidth;
-    setWidths(initialColumnWidths(kolonlar, firstPage, olc));
+    setWidths(initialColumnWidths(basliklar, firstPage, olc));
     // Yalnızca ilk çizimde: sonraki genişlikler kullanıcının sürüklemesidir.
   }, []);
 
@@ -245,6 +277,11 @@ export function SonucGridi({
     };
   }, []);
 
+  const activeRow = sel.aktif.satir;
+  const onAktifSatirRef = useRef(onAktifSatir);
+  onAktifSatirRef.current = onAktifSatir;
+  useEffect(() => onAktifSatirRef.current?.(activeRow), [activeRow]);
+
   function moveTo(next: Selection) {
     setSel(next);
     focusPending.current = true;
@@ -283,6 +320,12 @@ export function SonucGridi({
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     const ctrl = e.ctrlKey || e.metaKey;
+    const rowViewAction = onSatirGorunumu && rowViewShortcut(shortcutKey(e.nativeEvent), satirGorunumuAcik);
+    if (rowViewAction) {
+      e.preventDefault();
+      onSatirGorunumu(rowViewAction === 'ac');
+      return;
+    }
     if (isNullKey(e)) {
       e.preventDefault();
       if (onDuzenle && satirlar.length > 0) setNull(sel);
@@ -364,9 +407,44 @@ export function SonucGridi({
       closeBox(true, { tus: 'ArrowDown', shift: false });
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      closeBox(true, { tus: 'Tab', shift: e.shiftKey });
+      tabToNext(box, e.shiftKey);
     }
   }
+
+  /**
+   * Tab / Shift+Tab: değer kaydedilir, düzenleyici yandaki yazılabilir hücrede açık kalır (IntelliJ
+   * gibi); yazılabilir hücre kalmadıysa kapanır, seçim yerinde kalır. Kutu aynı `<textarea>`
+   * olarak yer değiştirir: odak grid'e dönmez, blur ile ikinci kez kaydedilmez.
+   */
+  function tabToNext(current: ValueBox, back: boolean) {
+    const next = tabTarget(current.cell, back, gridSize(), {
+      pk: new Set(pkKolonlari),
+      saltOkunurKolon: (kolon) => (kolonSaltOkunur?.(kolon) ?? null) !== null,
+      satirDurumu: (satir) => satirIsareti?.(satir)?.durum ?? null,
+    });
+    if (!next) {
+      closeBox(true);
+      return;
+    }
+    if (current.kirli) onDuzenle?.(current.cell.satir, current.cell.kolon, current.metin);
+    const value = satirlar[next.satir]?.[next.kolon] ?? null;
+    const yerTutucu = isDefaultCell(satirIsareti?.(next.satir), next.kolon) ? DEFAULT_LABEL : value === null ? NULL_LABEL : undefined;
+    setBox({ cell: next, metin: value ?? '', yerTutucu, duzenle: true, kirli: false });
+    setSel(selectCell(next));
+    virtualizer.scrollToIndex(next.satir);
+  }
+
+  useImperativeHandle(duzenleyiciRef, () => ({ kaydet: () => closeBox(true) }));
+
+  // Tab ile yer değiştiren kutuda imleç sona gider, kutu görünür alana kaydırılır.
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  const boxCell = box ? `${box.cell.satir}:${box.cell.kolon}` : null;
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el || document.activeElement !== el) return;
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [boxCell]);
 
   function onCellMouseDown(e: MouseEvent, cell: Cell) {
     rightPressed.current = e.button === 2;
@@ -461,6 +539,9 @@ export function SonucGridi({
         <div className="grid-icerik" style={{ height: virtualizer.getTotalSize(), width: offsets.at(-1) }}>
           <div role="rowgroup" className="grid-basligi">
             <div role="row" aria-rowindex={1} className="grid-satiri">
+              <div className="grid-satir-no grid-kose" style={{ width: rowNoWidth }} aria-hidden="true">
+                #
+              </div>
               {kolonlar.map((ad, c) => {
                 const sort = siralama?.kolon === c ? siralama.yon : null;
                 return (
@@ -471,16 +552,28 @@ export function SonucGridi({
                     aria-sort={sort ? SORT_ARIA[sort] : undefined}
                     className="grid-kolon-basligi"
                     style={{ width: widths[c] }}
-                    title={ad}
+                    title={tipAdi[c] ? `${ad} · ${tipAdi[c]}` : ad}
                   >
                     {onKolonTikla ? (
                       // Odak hücrelerde (roving tabindex) kalır; klavyeyle sıralama ORDER BY kutusundan.
                       <button type="button" tabIndex={-1} className="grid-kolon-adi grid-siralama" aria-label={ad} onClick={() => onKolonTikla(c)}>
                         {ad}
+                        {tipAdi[c] && (
+                          <span className="grid-kolon-tipi" aria-hidden="true">
+                            {tipAdi[c]}
+                          </span>
+                        )}
                         {sort && <span aria-hidden="true">{SORT_ARROW[sort]}</span>}
                       </button>
                     ) : (
-                      <span className="grid-kolon-adi">{ad}</span>
+                      <span className="grid-kolon-adi">
+                        {ad}
+                        {tipAdi[c] && (
+                          <span className="grid-kolon-tipi" aria-hidden="true">
+                            {tipAdi[c]}
+                          </span>
+                        )}
+                      </span>
                     )}
                     <span
                       role="separator"
@@ -514,6 +607,9 @@ export function SonucGridi({
                   className={`grid-satiri grid-veri-satiri${failed ? ' hatali' : ''}${durum ? ` ${durum}` : ''}`}
                   style={{ transform: `translateY(${item.start}px)` }}
                 >
+                  <div className="grid-satir-no" style={{ width: rowNoWidth }} aria-hidden="true">
+                    {r + 1}
+                  </div>
                   {kolonlar.map((_, c) => {
                     const cell = { satir: r, kolon: c };
                     const changed = mark?.degisen.includes(c) ?? false;
@@ -546,6 +642,7 @@ export function SonucGridi({
           </div>
           {box && (
             <textarea
+              ref={boxRef}
               className={`hucre-degeri${box.duzenle ? ' duzenleyici' : ''}`}
               readOnly={!box.duzenle}
               aria-describedby={box.duzenle ? undefined : noteId}

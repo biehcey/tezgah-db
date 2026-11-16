@@ -44,17 +44,17 @@ async function setup(tabs: SavedTabs = { version: TABS_VERSION, sekmeler: [], ak
   return { user, fake };
 }
 
-const panel = () => screen.getByRole('region', { name: 'Veritabanları' });
+const panel = () => screen.getByRole('region', { name: 'Yerel veritabanları' });
 const tableTab = () => screen.getByRole('region', { name: /tablosu$/ });
 const grid = () => within(tableTab()).getByRole('grid');
 
-/** Panelden bağlanır, `postgres`'in şemalarını açar ve `schema` çipine tıklar; tablo listesini döndürür. */
+/** Gezginde bağlanır, `postgres`'in şemalarını açar ve `schema` düğümünü açar; tablo listesini döndürür. */
 async function openTableList(user: ReturnType<typeof userEvent.setup>, schema = 'public') {
   await user.click(within(screen.getByRole('navigation', { name: 'Bağlantılar' })).getByRole('button', { name: /Yerel/ }));
   await user.click(within(panel()).getByRole('button', { name: /Bağlan ve tüm/ }));
   await user.click(await within(panel()).findByRole('button', { name: 'postgres şemaları' }));
-  const chips = within(await within(panel()).findByRole('group', { name: 'postgres şemaları' }));
-  await user.click(chips.getByRole('button', { name: schema }));
+  const schemas = within(await within(panel()).findByRole('group', { name: 'postgres şemaları' }));
+  await user.click(schemas.getByRole('button', { name: schema }));
   return within(await within(panel()).findByRole('list', { name: `${schema} tabloları` }));
 }
 
@@ -66,16 +66,17 @@ function scrollToEnd(loaded: number) {
 }
 
 describe('Tablo listesi → Tablo sekmesi', () => {
-  it('şema çipi o şemanın tablolarını katalogdan listeler; filtre kutusu daraltır', async () => {
+  it('şema düğümü o şemanın tablolarını katalogdan listeler; gezgin araması daraltır', async () => {
     const { user, fake } = await setup();
-    const list = await openTableList(user);
-    await waitFor(() => expect(list.getAllByRole('button').map((b) => b.textContent)).toEqual(['siparis', 'user_log', 'users']));
+    await openTableList(user);
+    const names = () => within(within(panel()).getByRole('list', { name: 'public tabloları' })).getAllByRole('button').map((b) => b.title);
+    await waitFor(() => expect(names()).toEqual(['public.siparis', 'public.user_log', 'public.users']));
     expect(fake.catalogRequests).toEqual(['getir d1/postgres']);
-    await user.type(within(panel()).getByRole('searchbox', { name: 'public tablolarını filtrele' }), 'user');
-    expect(list.getAllByRole('button').map((b) => b.textContent)).toEqual(['user_log', 'users']);
+    await user.type(screen.getByRole('searchbox', { name: 'Gezginde ara' }), 'user');
+    expect(names()).toEqual(['public.user_log', 'public.users']);
   });
 
-  it('şema çipinin yanındaki düğme görünürlüğü değiştirmeye devam eder', async () => {
+  it('şemanın yanındaki düğme görünürlüğü değiştirmeye devam eder', async () => {
     const { user, fake } = await setup();
     await openTableList(user);
     const chips = within(within(panel()).getByRole('group', { name: 'postgres şemaları' }));
@@ -94,7 +95,7 @@ describe('Tablo listesi → Tablo sekmesi', () => {
     await waitFor(() => expect(within(tableTab()).getAllByRole('gridcell').map((c) => c.textContent)).toEqual(['1', '2', '3']));
     expect(fake.tablePageRequests).toEqual([{ hedef: 'd1/postgres', sema: 'public', tablo: 'users', where: '', orderBy: '', sonraki: null }]);
     expect(within(tableTab()).getByRole('heading')).toHaveTextContent('public.users');
-    expect(tableTab()).toHaveTextContent('≈ 1.300 satır');
+    expect(tableTab()).toHaveTextContent('≈1.300 · 3 yüklü');
     expect(within(tableTab()).queryByRole('region', { name: 'Script editörü' })).not.toBeInTheDocument();
   });
 
@@ -174,19 +175,19 @@ describe('Tablo sekmesi: sayfalama', () => {
     };
     const list = await openTableList(user);
     await user.click(await list.findByRole('button', { name: 'users' }));
-    await waitFor(() => expect(tableTab()).toHaveTextContent('ilk 500 satır gösteriliyor'));
+    await waitFor(() => expect(tableTab()).toHaveTextContent('500 yüklü'));
 
     scrollToEnd(500);
     scrollToEnd(500);
     expect(fake.tablePageRequests.map((r) => r.sonraki)).toEqual([null, { tur: 'keyset', degerler: ['500'] }]);
     expect(tableTab()).toHaveTextContent('Satırlar yükleniyor…');
     waiting.shift()!();
-    await waitFor(() => expect(tableTab()).toHaveTextContent('ilk 1000 satır gösteriliyor'));
+    await waitFor(() => expect(tableTab()).toHaveTextContent('1.000 yüklü'));
 
     scrollToEnd(1000);
     expect(fake.tablePageRequests).toHaveLength(3);
     waiting.shift()!();
-    await waitFor(() => expect(tableTab()).toHaveTextContent('1003 satır'));
+    await waitFor(() => expect(tableTab()).toHaveTextContent('1.003 yüklü'));
     scrollToEnd(1003);
     expect(fake.tablePageRequests).toHaveLength(3);
   });
@@ -198,10 +199,10 @@ describe('Tablo sekmesi: sayfalama', () => {
     fake.tablePage = async () => big(fake.tablePageRequests.length - 1);
     const list = await openTableList(user);
     await user.click(await list.findByRole('button', { name: 'users' }));
-    await waitFor(() => expect(tableTab()).toHaveTextContent('ilk 60000 satır'));
+    await waitFor(() => expect(tableTab()).toHaveTextContent('60.000 yüklü'));
     scrollToEnd(60_000);
     await waitFor(() => expect(tableTab()).toHaveTextContent('Sınıra ulaşıldı, filtrele'));
-    expect(tableTab()).toHaveTextContent('ilk 100000 satır');
+    expect(tableTab()).toHaveTextContent('100.000 yüklü');
     scrollToEnd(100_000);
     expect(fake.tablePageRequests).toHaveLength(2);
   });
@@ -301,7 +302,7 @@ describe('Tablo sekmesi: WHERE ve ORDER BY', () => {
     await openUsers(user, fake);
     fake.tablePage = async () => page({ satirlar: ids(1, 500), sonraki: { tur: 'offset', offset: 500 } });
     applyBox('ORDER BY', 'ad');
-    await waitFor(() => expect(tableTab()).toHaveTextContent('ilk 500 satır'));
+    await waitFor(() => expect(tableTab()).toHaveTextContent('500 yüklü'));
     scrollToEnd(500);
     await waitFor(() => expect(fake.tablePageRequests.at(-1)).toMatchObject({ orderBy: 'ad', sonraki: { tur: 'offset', offset: 500 } }));
   });
@@ -331,7 +332,7 @@ describe('Tablo sekmesi: WHERE ve ORDER BY', () => {
     fake.tablePage = async () => page({ satirlar: ids(1, 500), sonraki: { tur: 'keyset', degerler: ['500'] } });
     const list = await openTableList(user);
     await user.click(await list.findByRole('button', { name: 'users' }));
-    await waitFor(() => expect(tableTab()).toHaveTextContent('ilk 500 satır'));
+    await waitFor(() => expect(tableTab()).toHaveTextContent('500 yüklü'));
     const waiting: (() => void)[] = [];
     fake.tablePage = () => new Promise((resolve) => waiting.push(() => resolve(page({ satirlar: ids(2, 1) }))));
     applyBox('WHERE', 'id = 2');

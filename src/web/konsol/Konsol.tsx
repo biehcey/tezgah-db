@@ -111,6 +111,7 @@ export function Konsol({
             const target = resolveTarget(tab.hedef, connections);
             const { ad: title, ipucu } = tabTitle(tab, target);
             const active = tab.id === state.active;
+            const count = pending[tab.id] ?? 0;
             return (
               <div key={tab.id} className={`konsol-sekmesi${active ? ' aktif' : ''}`}>
                 <button
@@ -127,7 +128,15 @@ export function Konsol({
                     style={{ backgroundColor: target?.connection.color ?? 'transparent' }}
                     aria-hidden="true"
                   />
+                  <span className="sekme-turu" title={tab.tur === 'tablo' ? 'Tablo' : 'Konsol'} aria-hidden="true">
+                    {tab.tur === 'tablo' ? '▦' : '›_'}
+                  </span>
                   {title}
+                  {count > 0 && (
+                    <span className="rozet sayi-rozeti" aria-label={`${count} bekleyen değişiklik`}>
+                      {count}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -170,7 +179,7 @@ export function Konsol({
                   onPendingChange={pendingChangers(tab.id)}
                   onExportToConsole={(metin) => onOpenConsole(tab.hedef, metin)}
                   onCatalog={(reason) => target && void onCatalog({ connectionId: target.connection.id, database: target.database }, reason)}
-                  hidden={tab.id !== state.active}
+                  hidden={hidden || tab.id !== state.active}
                 />
               );
             }
