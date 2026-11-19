@@ -179,6 +179,37 @@ describe('Sonuç grid’i: gezinme ve seçim', () => {
   });
 });
 
+describe('Sonuç grid’i: satır numarası ve köşe', () => {
+  const rowNo = (r: number) => grid().querySelector(`[role="row"][aria-rowindex="${r + 2}"] .grid-satir-no`) as HTMLElement;
+
+  it('köşedeki # tümünü seçer ve kopyalar', async () => {
+    const { user } = setup({ satirlar: [['1', 'a', null], ['2', 'b', 'x']] });
+    await user.click(screen.getByRole('button', { name: 'Tümünü seç ve kopyala' }));
+    expect(selectedTexts()).toEqual(['1', 'a', 'NULL', '2', 'b', 'x']);
+    expect(await navigator.clipboard.readText()).toBe('1\ta\t\n2\tb\tx');
+    expect(cell(0, 0)).toHaveFocus();
+  });
+
+  it('satır numarası satırı seçer ve kopyalar; Shift ile satır aralığı', async () => {
+    const { user } = setup();
+    await user.click(rowNo(1));
+    expect(selectedTexts()).toEqual(['2', 'ad 2', '']);
+    expect(await navigator.clipboard.readText()).toBe('2\tad 2\t');
+    await user.keyboard('{Shift>}');
+    await user.click(rowNo(3));
+    await user.keyboard('{/Shift}');
+    expect(selectedTexts()).toEqual(['2', 'ad 2', '', '3', 'ad 3', 'NULL', '4', 'ad 4', '']);
+    expect(await navigator.clipboard.readText()).toBe('2\tad 2\t\n3\tad 3\t\n4\tad 4\t');
+  });
+
+  it('Ctrl+A tümünü seçer', async () => {
+    const { user } = setup({ satirlar: rows(2) });
+    await user.click(cell(1, 1));
+    await user.keyboard('{Control>}a{/Control}');
+    expect(selectedTexts()).toEqual(['1', 'ad 1', 'NULL', '2', 'ad 2', '']);
+  });
+});
+
 describe('Sonuç grid’i: INSERT olarak kopyala', () => {
   const INT4 = 23;
   const TEXT = 25;

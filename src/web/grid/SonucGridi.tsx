@@ -22,7 +22,7 @@ import { rowViewShortcut, shortcutKey } from '../../core/kisayollar';
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
-import { extendTo, isSelected, navigate, selectCell, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
+import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
 import { typeName } from '../../core/grid/tipler';
 import { toTsv } from '../../core/grid/tsv';
 import { Menu, menuBelow, type MenuItem, type MenuPosition } from '../ortak/Menu';
@@ -458,6 +458,17 @@ export function SonucGridi({
     dragging.current = true;
   }
 
+  /** Köşedeki # tümünü, satır numarası satırı (Shift ile çapanın satırından bu satıra) seçip kopyalar (IntelliJ gibi). */
+  function selectAndCopy(e: MouseEvent, next: Selection | null) {
+    rightPressed.current = false;
+    if (e.button !== 0 || !next) return;
+    e.preventDefault();
+    closeBox(true);
+    setSel(next);
+    focusPending.current = true;
+    copyText(toTsv(selectedValues(satirlar, next)));
+  }
+
   function onCellMouseEnter(cell: Cell) {
     if (dragging.current) setSel((s) => extendTo(s, cell));
   }
@@ -539,9 +550,17 @@ export function SonucGridi({
         <div className="grid-icerik" style={{ height: virtualizer.getTotalSize(), width: offsets.at(-1) }}>
           <div role="rowgroup" className="grid-basligi">
             <div role="row" aria-rowindex={1} className="grid-satiri">
-              <div className="grid-satir-no grid-kose" style={{ width: rowNoWidth }} aria-hidden="true">
+              <button
+                type="button"
+                tabIndex={-1}
+                className="grid-satir-no grid-kose"
+                style={{ width: rowNoWidth }}
+                aria-label="Tümünü seç ve kopyala"
+                title="Tümünü seç ve kopyala"
+                onMouseDown={(e) => selectAndCopy(e, selectAll({ satirlar: satirlar.length, kolonlar: kolonlar.length }))}
+              >
                 #
-              </div>
+              </button>
               {kolonlar.map((ad, c) => {
                 const sort = siralama?.kolon === c ? siralama.yon : null;
                 return (
@@ -607,7 +626,13 @@ export function SonucGridi({
                   className={`grid-satiri grid-veri-satiri${failed ? ' hatali' : ''}${durum ? ` ${durum}` : ''}`}
                   style={{ transform: `translateY(${item.start}px)` }}
                 >
-                  <div className="grid-satir-no" style={{ width: rowNoWidth }} aria-hidden="true">
+                  <div
+                    className="grid-satir-no"
+                    style={{ width: rowNoWidth }}
+                    aria-hidden="true"
+                    title="Satırı seç ve kopyala"
+                    onMouseDown={(e) => selectAndCopy(e, selectRows(e.shiftKey ? sel.capa.satir : r, r, kolonlar.length))}
+                  >
                     {r + 1}
                   </div>
                   {kolonlar.map((_, c) => {

@@ -40,6 +40,9 @@ interface Props {
   onSelect: (id: string) => void;
   onConnectionMenu: (connection: Connection, at: MenuPosition) => void;
   onFolderMenu: (folder: Folder, at: MenuPosition) => void;
+  /** Veritabanı ve tablo satırına sağ tık (Yeni konsol, Hedef yap…). */
+  onDatabaseMenu: (connection: Connection, database: string, at: MenuPosition) => void;
+  onTableMenu: (connection: Connection, database: string, schema: string, table: string, at: MenuPosition) => void;
   /** Sürükle-bırakla klasör değişimi; `null` Klasörsüz. */
   onMove: (connection: Connection, folderId: string | null) => void;
   /** Boş listedeki düğmeler. */
@@ -505,7 +508,16 @@ function VeritabaniDugumleri({
         <ul aria-label={`${schema} tabloları`} className="agac-tablolari">
           {found.map((r) => (
             <li key={r.ad}>
-              <button type="button" className="tablo-adi" title={`${schema}.${r.ad}`} onClick={() => props.onOpenTable(connection, database, schema, r.ad)}>
+              <button
+                type="button"
+                className="tablo-adi"
+                title={`${schema}.${r.ad}`}
+                onClick={() => props.onOpenTable(connection, database, schema, r.ad)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  props.onTableMenu(connection, database, schema, r.ad, { x: e.clientX, y: e.clientY });
+                }}
+              >
                 <span className="tablo-ikonu" aria-hidden="true">
                   ▦
                 </span>
@@ -623,6 +635,10 @@ function VeritabaniDugumleri({
             aria-disabled={targetLock ? true : undefined}
             title={targetLock ? `Hedef değiştirilemez: ${targetLock}` : 'Hedef yap'}
             onClick={() => !targetLock && onSelectTarget(connection, database)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              props.onDatabaseMenu(connection, database, { x: e.clientX, y: e.clientY });
+            }}
           >
             {database}
           </button>

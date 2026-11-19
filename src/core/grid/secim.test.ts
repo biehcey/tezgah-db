@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSelected, navigate, selectCell, selectedValues, selectionRange, tabTarget } from './secim';
+import { isSelected, navigate, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget } from './secim';
 
 const SIZE = { satirlar: 10, kolonlar: 4, sayfa: 3 };
 const key = (tus: string, mods: { shift?: boolean; ctrl?: boolean } = {}) => ({ tus, shift: false, ctrl: false, ...mods });
@@ -108,5 +108,28 @@ describe('Tab ile ardışık düzenleme: tabTarget', () => {
 
   it('boş grid’de hücre yok', () => {
     expect(tabTarget({ satir: 0, kolon: 0 }, false, { satirlar: 0, kolonlar: 3 }, cells())).toBeNull();
+  });
+});
+
+describe('Satır ve tümünü seçme', () => {
+  it('satır seçimi satırın bütün kolonlarını kapsar; aktif hücre satırın ilk hücresi', () => {
+    const sel = selectRows(3, 3, 4);
+    expect(selectionRange(sel)).toEqual({ ust: 3, alt: 3, sol: 0, sag: 3 });
+    expect(sel.aktif).toEqual({ satir: 3, kolon: 0 });
+  });
+
+  it('satır aralığı tersten de seçilir', () => {
+    expect(selectionRange(selectRows(5, 2, 4))).toEqual({ ust: 2, alt: 5, sol: 0, sag: 3 });
+  });
+
+  it('tümünü seçme bütün grid; boş grid’de null', () => {
+    expect(selectionRange(selectAll(SIZE)!)).toEqual({ ust: 0, alt: 9, sol: 0, sag: 3 });
+    expect(selectAll({ ...SIZE, satirlar: 0 })).toBeNull();
+  });
+
+  it('Ctrl+A tümünü seçer', () => {
+    const all = navigate(selectCell({ satir: 4, kolon: 2 }), key('a', { ctrl: true }), SIZE)!;
+    expect(selectionRange(all)).toEqual({ ust: 0, alt: 9, sol: 0, sag: 3 });
+    expect(navigate(selectCell({ satir: 4, kolon: 2 }), key('a'), SIZE)).toBeNull();
   });
 });

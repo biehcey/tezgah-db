@@ -44,6 +44,17 @@ export function extendTo(sel: Selection, cell: Cell): Selection {
   return { capa: sel.capa, aktif: cell };
 }
 
+/** `capaSatir`'dan `aktifSatir`'a kadar satırların bütün kolonları (satır numarasına tık); aktif hücre satırın ilk hücresi. */
+export function selectRows(capaSatir: number, aktifSatir: number, kolonlar: number): Selection {
+  return { capa: { satir: capaSatir, kolon: Math.max(kolonlar - 1, 0) }, aktif: { satir: aktifSatir, kolon: 0 } };
+}
+
+/** Bütün grid (köşedeki #'e tık, Ctrl/Cmd+A); boş grid'de `null`. */
+export function selectAll(size: Pick<GridSize, 'satirlar' | 'kolonlar'>): Selection | null {
+  if (size.satirlar === 0 || size.kolonlar === 0) return null;
+  return selectRows(size.satirlar - 1, 0, size.kolonlar);
+}
+
 export function selectionRange({ capa, aktif }: Selection): Range {
   return {
     ust: Math.min(capa.satir, aktif.satir),
@@ -66,11 +77,12 @@ export function selectedValues<T>(rows: readonly (readonly T[])[], sel: Selectio
 
 /**
  * Tuşun ürettiği yeni seçim. Oklar, Home/End, Ctrl+Home/End ve PageUp/PageDown Shift ile aralığı
- * genişletir. Tab/Shift+Tab sağa/sola gider ve satır sonunda sarar; grid'in ilk/son hücresinde
+ * genişletir; Ctrl+A tümünü seçer. Tab/Shift+Tab sağa/sola gider ve satır sonunda sarar; grid'in ilk/son hücresinde
  * `null` döner ki odak grid'den çıkabilsin. Gezinme tuşu değilse ya da grid boşsa `null`.
  */
 export function navigate(sel: Selection, key: NavKey, size: GridSize): Selection | null {
   if (size.satirlar === 0 || size.kolonlar === 0) return null;
+  if (key.ctrl && key.tus.toLowerCase() === 'a') return selectAll(size);
   const { satir, kolon } = sel.aktif;
   const sonSatir = size.satirlar - 1;
   const sonKolon = size.kolonlar - 1;
