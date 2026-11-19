@@ -6,7 +6,7 @@ Spec: [CTE ve alt sorgular](../spec.md#cte-ve-alt-sorgular), [Belirsiz kolonlar]
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (f035d10)
 
 - [x] CTE adı ilişki yuvasında önerilir (`variable` türü, yüksek bant); `WITH RECURSIVE` CTE'si kendi gövdesinde de.
 - [x] CTE kolonları: açık kolon listesi (`WITH x(a, b) AS`) varsa o; yoksa iç SELECT listesinden `AS ad`, tek tanımlayıcı ya da `x.ad`'nin son parçası.
