@@ -6,7 +6,7 @@ Spec: [JOIN önerisi](../spec.md#join-önerisi), [core: Katalog](../spec.md#core
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (ffd6764)
 
 - [x] core `Catalog.fkler`: `{ ad, kaynak: { sema, ad, kolonlar[] }, hedef: { sema, ad, kolonlar[] } }`, kolonlar FK sırasıyla; `buildCatalog` FK satırlarını dönüştürür.
 - [x] server: katalog okumasına `pg_constraint` (`contype = 'f'`) sorgusu, `conkey`/`confkey` sırasıyla kolon adları; iki ucu da görünür şemalarda olmayan FK alınmaz. Aynı client ve zaman aşımı; ↻ ve DDL commit sonrası yenilenir.
