@@ -9,6 +9,7 @@ import {
 } from '../core/baglanti';
 import { asksForSessionPassword, isPasswordRejected } from '../core/baglanti-testi';
 import { buildConnectionUrl } from '../core/baglanti-url';
+import { identSql } from '../core/tamamlama/adlar';
 import { asksForSshSecret, type HostKeyProblem } from '../core/ssh-tuneli';
 import { HostAnahtariKutusu } from './baglantilar/HostAnahtariKutusu';
 import {
@@ -590,15 +591,15 @@ export function App() {
     }
   }
 
-  async function copyUrl(connection: Connection) {
-    const url = buildConnectionUrl(connection);
+  /** Panoya yazar; sonuç bilgi ya da uyarı satırında (`etiket`: "URL", "Ad"). */
+  async function copyToClipboard(metin: string, etiket: string) {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(metin);
       setNotice(null);
-      setInfo(`URL kopyalandı: ${url}`);
+      setInfo(`${etiket} kopyalandı: ${metin}`);
     } catch {
       setInfo(null);
-      setNotice(`URL panoya kopyalanamadı: ${url}`);
+      setNotice(`${etiket} panoya kopyalanamadı: ${metin}`);
     }
   }
 
@@ -615,6 +616,14 @@ export function App() {
     const session = sessions[connection.id];
     showMenu(`${connection.name} menüsü`, at, [
       {
+        label: 'Yeni konsol',
+        disabled: targetDatabase === null,
+        onSelect: () => {
+          setSelectedId(connection.id);
+          newConsole({ connectionId: connection.id, database: targetDatabase! });
+        },
+      },
+      {
         label: 'Hedef yap',
         disabled: targetDatabase === null || targetLock !== null,
         onSelect: () => {
@@ -630,9 +639,33 @@ export function App() {
       { label: 'Düzenle', onSelect: () => edit(connection.id) },
       { label: 'Kopyala', onSelect: () => void copy(connection) },
       { label: 'Klasöre taşı ▸', submenu: targets, disabled: folders.length === 0 },
-      { label: 'URL’yi kopyala (şifresiz)', onSelect: () => void copyUrl(connection) },
+      { label: 'URL’yi kopyala (şifresiz)', onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
       { label: 'Bağlantıyı kes', disabled: session === undefined, onSelect: () => void disconnect(connection) },
       { label: 'Sil', danger: true, onSelect: () => setDeleting(connection) },
+    ]);
+  }
+
+  /** Verilen veritabanında yeni, boş (ya da `metin`li) konsol sekmesi; aktif sekmenin hedefi değişmez. */
+  function newConsole(target: Target, metin = '') {
+    openConsoleWith({ connectionId: target.connectionId, database: target.database, schema: null }, metin);
+    catalogs.request(target, 'hedef');
+  }
+
+  function databaseMenu(connection: Connection, database: string, at: MenuPosition) {
+    const target = { connectionId: connection.id, database };
+    showMenu(`${database} menüsü`, at, [
+      { label: 'Yeni konsol', onSelect: () => newConsole(target) },
+      { label: 'Hedef yap', disabled: targetLock !== null, onSelect: () => selectTarget(connection, database) },
+      { label: 'Adı kopyala', onSelect: () => void copyToClipboard(database, 'Ad') },
+    ]);
+  }
+
+  function tableMenu(connection: Connection, database: string, schema: string, table: string, at: MenuPosition) {
+    const name = `${identSql(schema)}.${identSql(table)}`;
+    showMenu(`${schema}.${table} menüsü`, at, [
+      { label: 'Aç', onSelect: () => openTable(connection, database, schema, table) },
+      { label: 'Yeni konsolda SELECT', onSelect: () => newConsole({ connectionId: connection.id, database }, `SELECT * FROM ${name};`) },
+      { label: 'Adı kopyala', onSelect: () => void copyToClipboard(name, 'Ad') },
     ]);
   }
 
@@ -750,6 +783,8 @@ export function App() {
               onSelect={setSelectedId}
               onConnectionMenu={connectionMenu}
               onFolderMenu={folderMenu}
+              onDatabaseMenu={databaseMenu}
+              onTableMenu={tableMenu}
               onMove={(connection, folderId) => void move(connection, folderId)}
               onImport={() => setImportOpen(true)}
               onNew={() => open({ kind: 'yeni' })}

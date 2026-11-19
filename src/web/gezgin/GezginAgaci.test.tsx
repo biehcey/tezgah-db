@@ -2,13 +2,14 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
-import { editConnection } from '../test/eylemler';
+import { editConnection, editorScript, tabTitle } from '../test/eylemler';
 import { connection, createFakeConnections, emptyCatalog, renderWithApi, type FakeConnections } from '../test/sahte-api';
 
 const nav = () => screen.getByRole('navigation', { name: 'Bağlantılar' });
 /** Açık (tek) bağlantının veritabanları. */
 const panel = () => screen.getByRole('region', { name: / veritabanları$/ });
 const header = () => screen.getByRole('region', { name: 'Hedef' });
+const tabs = () => within(screen.getByRole('tablist', { name: 'Konsol sekmeleri' })).getAllByRole('tab');
 
 /** Ağaçtaki bağlantı satırı; satır düğmesi, ⟳ ve ⋯ menüsü içinde. */
 const rowOf = (name: string) => within(nav()).getByText(name, { selector: '.baglanti-adi' }).closest<HTMLElement>('.dugum-satiri')!;
@@ -127,6 +128,43 @@ describe('Gezgin ağacı: şemalar, tablolar ve arama', () => {
     // Hiç analiz edilmemiş tabloda sayı yok.
     expect(tables.getByRole('button', { name: 'siparis' }).textContent).toBe('▦siparis');
     await user.click(tables.getByRole('button', { name: 'musteri' }));
+    expect(await screen.findByRole('region', { name: 'public.musteri tablosu' })).toBeInTheDocument();
+  });
+
+  it('veritabanına sağ tık: "Yeni konsol" o veritabanında yeni konsol sekmesi açar, aktif sekmenin hedefi değişmez', async () => {
+    const { user } = setup(withCatalog());
+    await openSchemas(user);
+    const before = tabs().length;
+    await user.pointer({ keys: '[MouseRight]', target: within(panel()).getByRole('button', { name: 'app' }) });
+    await user.click(screen.getByRole('menuitem', { name: 'Yeni konsol' }));
+    expect(tabs()).toHaveLength(before + 1);
+    expect(tabTitle(tabs().find((t) => t.getAttribute('aria-selected') === 'true')!)).toBe('Yerel / app');
+    expect(within(header()).getByRole('heading')).toHaveTextContent('Yerel / app');
+    expect(editorScript()).toBe('');
+  });
+
+  it('veritabanı menüsünde "Hedef yap" ve "Adı kopyala"', async () => {
+    const { user } = setup(withCatalog());
+    await openSchemas(user);
+    await user.pointer({ keys: '[MouseRight]', target: within(panel()).getByRole('button', { name: 'app' }) });
+    await user.click(screen.getByRole('menuitem', { name: 'Adı kopyala' }));
+    expect(await navigator.clipboard.readText()).toBe('app');
+    await user.pointer({ keys: '[MouseRight]', target: within(panel()).getByRole('button', { name: 'app' }) });
+    await user.click(screen.getByRole('menuitem', { name: 'Hedef yap' }));
+    expect(within(header()).getByRole('heading')).toHaveTextContent('Yerel / app');
+  });
+
+  it('tabloya sağ tık: "Yeni konsolda SELECT" tablonun sorgusuyla yeni konsol açar; "Aç" Tablo sekmesinde açar', async () => {
+    const { user } = setup(withCatalog());
+    const schemas = await openSchemas(user);
+    await user.click(schemas.getByRole('button', { name: 'public' }));
+    const tables = within(await within(panel()).findByRole('list', { name: 'public tabloları' }));
+    await user.pointer({ keys: '[MouseRight]', target: tables.getByRole('button', { name: 'musteri' }) });
+    await user.click(screen.getByRole('menuitem', { name: 'Yeni konsolda SELECT' }));
+    await waitFor(() => expect(editorScript()).toBe('SELECT * FROM public.musteri;'));
+    expect(within(header()).getByRole('heading')).toHaveTextContent('Yerel / app');
+    await user.pointer({ keys: '[MouseRight]', target: tables.getByRole('button', { name: 'musteri' }) });
+    await user.click(screen.getByRole('menuitem', { name: 'Aç' }));
     expect(await screen.findByRole('region', { name: 'public.musteri tablosu' })).toBeInTheDocument();
   });
 
@@ -340,6 +378,18 @@ describe('bağlantı menüsü', () => {
     await waitFor(() => expect(fake.databaseRequests).toContain('b1: kes'));
     expect(within(panel()).getByRole('button', { name: 'Bağlan ve tüm veritabanlarını listele' })).toBeInTheDocument();
     expect(within(rowOf('Yerel')).queryByLabelText('bağlı')).not.toBeInTheDocument();
+  });
+
+  it('"Yeni konsol" bağlantının ilk görünür veritabanında yeni konsol sekmesi açar', async () => {
+    const { user } = setup(
+      createFakeConnections([connection({ databaseSelection: [{ database: 'app', schemas: null }] })]),
+    );
+    await within(nav()).findByRole('button', { name: /Yerel/ });
+    const before = tabs().length;
+    await openMenu(user, 'Yerel');
+    await user.click(screen.getByRole('menuitem', { name: 'Yeni konsol' }));
+    expect(tabs()).toHaveLength(before + 1);
+    expect(within(header()).getByRole('heading')).toHaveTextContent('Yerel / app');
   });
 
   it('sağ tık aynı menüyü açar', async () => {
