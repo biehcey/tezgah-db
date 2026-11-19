@@ -1,11 +1,12 @@
+import { currentCompletions } from '@codemirror/autocomplete';
 import { EditorView } from '@codemirror/view';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { Catalog, CompletionConfig } from '../../core/katalog';
+import type { Catalog } from '../../core/katalog';
 import { TABS_VERSION, type SavedTabs } from '../../core/konsol-sekmeleri';
 import { App } from '../App';
-import { completionConfig } from '../script/ScriptEditoru';
+import { tamamlamaGirdisi, type TamamlamaGirdisi } from '../script/tamamlama';
 import { editorScript, selectedDatabases, setEditorScript } from '../test/eylemler';
 import { connection, createFakeConnections, createFakeScriptRuns, emptyCatalog, renderWithApi } from '../test/sahte-api';
 
@@ -51,14 +52,13 @@ async function setup(tabs: SavedTabs = saved([])) {
   return { user, runs, fake };
 }
 
-/** Editöre verilen tamamlama yapılandırması (CodeMirror'ın kendi tamamlaması sınanmaz). */
-function editorCompletion(): CompletionConfig | null {
+/** Editöre verilen tamamlama girdisi (CodeMirror'ın popup davranışı sınanmaz). */
+function editorCompletion(): TamamlamaGirdisi | null {
   const content = screen.getByRole('region', { name: 'Script editörü' }).querySelector('.cm-content') as HTMLElement;
-  return EditorView.findFromDOM(content)!.state.facet(completionConfig);
+  return EditorView.findFromDOM(content)!.state.facet(tamamlamaGirdisi);
 }
-const schemaNames = () => Object.keys(editorCompletion()?.schema ?? {});
-const tableNames = (schema: string) =>
-  Object.keys((editorCompletion()!.schema as Record<string, { children: Record<string, unknown> }>)[schema]!.children);
+const schemaNames = () => [...(editorCompletion()?.gorunurSemalar ?? [])];
+const tableNames = (schema: string) => editorCompletion()!.katalog!.iliskiler.filter((r) => r.sema === schema).map((r) => r.ad);
 
 const runButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
 const refreshButton = () => screen.getByRole('button', { name: 'Katalogu yenile' });
@@ -86,12 +86,22 @@ describe('Katalog: yalnızca kullanıcı eylemiyle istenir', () => {
     expect(editorCompletion()).toBeNull();
   });
 
+  it('tamamlama katalog istemez: katalog yokken motor yalnızca anahtar kelimelerle çalışır', async () => {
+    const { fake } = await setup(saved([devTab('s1', 'SELECT * FROM users WHERE ')]));
+    const content = screen.getByRole('region', { name: 'Script editörü' }).querySelector('.cm-content') as HTMLElement;
+    const view = EditorView.findFromDOM(content)!;
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+    view.focus();
+    fireEvent.keyDown(content, { key: ' ', code: 'Space', ctrlKey: true });
+    await waitFor(() => expect(currentCompletions(view.state).map((c) => c.label)).toContain('AND'));
+    expect(fake.catalogRequests).toEqual([]);
+  });
+
   it('paletten seçilen hedefin katalogu istenir ve editöre verilir', async () => {
     const { user, fake } = await setup();
     await pickTarget(user, 'Yerel');
     await waitFor(() => expect(fake.catalogRequests).toEqual(['getir d1/postgres']));
     await waitFor(() => expect(schemaNames()).toEqual(['public', 'rapor']));
-    expect(editorCompletion()!.defaultSchema).toBe('public');
     expect(tableNames('public')).toEqual(['users']);
   });
 

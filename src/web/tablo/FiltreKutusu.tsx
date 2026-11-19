@@ -1,12 +1,9 @@
-import { autocompletion } from '@codemirror/autocomplete';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
-import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { Compartment, EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
-import type { CompletionConfig } from '../../core/katalog';
-import { completionConfig } from '../script/ScriptEditoru';
+import { sqlDili, tamamlamaTemeli, type TamamlamaGirdisi } from '../script/tamamlama';
 
 interface Props {
   /** Erişilebilir ad ve yer tutucu (`WHERE` / `ORDER BY`). */
@@ -15,19 +12,15 @@ interface Props {
   onChange: (value: string) => void;
   /** Enter (tamamlama listesi kapalıyken). */
   onApply: () => void;
-  /** Katalogdan tamamlama; katalog yoksa `null`. */
-  completion: CompletionConfig | null;
+  /** Tamamlama motorunun girdisi (örtük tablo ve kutu türüyle). */
+  completion: TamamlamaGirdisi | null;
   invalid: boolean;
 }
 
-function sqlLanguage(completion: CompletionConfig | null): Extension {
-  return [sql({ dialect: PostgreSQL, ...(completion ?? {}) }), completionConfig.of(completion)];
-}
-
 /**
- * Tablo sekmesinin tek satırlık SQL kutusu (CodeMirror): renklendirme ve katalog tamamlaması;
+ * Tablo sekmesinin tek satırlık SQL kutusu (CodeMirror): renklendirme ve editörle aynı tamamlama;
  * Enter uygular, yani yazarken satır eklenmez. Tamamlama listesi açıkken Enter öneriyi seçer
- * (autocompletion'ın keymap'i önce). Yapıştırılan çok satırlı metin olduğu gibi kalır: satır sonunu
+ * (tamamlamanın tuşları önce). Yapıştırılan çok satırlı metin olduğu gibi kalır: satır sonunu
  * boşluğa çevirmek `--` yorumundan sonraki satırı yorumun içine alırdı.
  */
 export function FiltreKutusu({ etiket, value, onChange, onApply, completion, invalid }: Props) {
@@ -48,7 +41,7 @@ export function FiltreKutusu({ etiket, value, onChange, onApply, completion, inv
         doc: value,
         extensions: [
           history(),
-          autocompletion(),
+          tamamlamaTemeli,
           keymap.of([
             {
               key: 'Enter',
@@ -62,7 +55,7 @@ export function FiltreKutusu({ etiket, value, onChange, onApply, completion, inv
           ]),
           syntaxHighlighting(defaultHighlightStyle),
           placeholder(etiket),
-          language.current.of(sqlLanguage(completion)),
+          language.current.of(sqlDili(completion)),
           attributes.current.of(ariaAttributes(invalid)),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) handlers.current.onChange(update.state.doc.toString());
@@ -86,7 +79,7 @@ export function FiltreKutusu({ etiket, value, onChange, onApply, completion, inv
   }, [value]);
 
   useEffect(() => {
-    view.current?.dispatch({ effects: language.current.reconfigure(sqlLanguage(completion)) });
+    view.current?.dispatch({ effects: language.current.reconfigure(sqlDili(completion)) });
   }, [completion]);
 
   useEffect(() => {

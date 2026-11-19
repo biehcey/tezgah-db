@@ -1,10 +1,9 @@
 /**
  * Katalog önbelleği (GLOSSARY): bir hedefin görünür şemalarındaki ilişkiler, kolonları ve tipleri.
- * Sunucu okur ve tutar; arayüz bundan editör tamamlamasını, tablo listesini ve tablo aramasını kurar.
- * Fonksiyonlar tamamlamaya girmez.
+ * Sunucu okur ve tutar; arayüz bundan editör tamamlamasını (`tamamlama/`), tablo listesini ve tablo
+ * aramasını kurar.
  */
 import type { Statement } from './ifade-bolme';
-import { quoteIdent } from './grid/sql';
 
 /** `pg_class.relkind`: tablo, view, materialized view, bölümlü tablo, foreign tablo. */
 export type RelationKind = 'r' | 'v' | 'm' | 'p' | 'f';
@@ -53,89 +52,7 @@ export function typeMap(catalog: Catalog): Map<number, string> {
   return new Map(Object.entries(catalog.tipler).map(([oid, ad]) => [Number(oid), ad]));
 }
 
-// --- Tamamlama ---
-
-/** `@codemirror/lang-sql`'in `Completion`'ıyla yapısal olarak uyumlu öneri. */
-export interface CompletionOption {
-  label: string;
-  type: string;
-  detail?: string;
-  apply?: string;
-}
-
-/** `@codemirror/lang-sql`'in `SQLNamespace`'iyle yapısal olarak uyumlu ağaç. */
-export type CompletionNamespace =
-  | { [name: string]: CompletionNamespace }
-  | { self: CompletionOption; children: CompletionNamespace }
-  | readonly CompletionOption[];
-
-export interface CompletionConfig {
-  schema: CompletionNamespace;
-  /** Verilirse bu şemanın tabloları öneksiz önerilir. */
-  defaultSchema?: string;
-  /** Verilirse bu tablonun (`defaultSchema`'da) kolonları öneksiz önerilir. */
-  defaultTable?: string;
-}
-
-const KIND_LABELS: Record<RelationKind, string> = {
-  r: 'tablo',
-  v: 'view',
-  m: 'materialized view',
-  p: 'bölümlü tablo',
-  f: 'foreign tablo',
-};
-
-/** Postgres'in ayrılmış anahtar kelimeleri: tanımlayıcı olarak tırnak ister. */
-const RESERVED = new Set(
-  (
-    'all analyse analyze and any array as asc asymmetric authorization binary both case cast check collate collation ' +
-    'column concurrently constraint create cross current_catalog current_date current_role current_schema current_time ' +
-    'current_timestamp current_user default deferrable desc distinct do else end except false fetch for foreign freeze ' +
-    'from full grant group having ilike in initially inner intersect into is isnull join lateral leading left like limit ' +
-    'localtime localtimestamp natural not notnull null offset on only or order outer overlaps placing primary references ' +
-    'returning right select session_user similar some symmetric system_user table tablesample then to trailing true union ' +
-    'unique user using variadic verbose when where window with'
-  ).split(' '),
-);
-
-/** Çıplak yazılınca aynı adı veren tanımlayıcı mı (küçük harf, anahtar kelime değil). */
-function isBareIdent(name: string): boolean {
-  return /^[a-z_][a-z0-9_$]*$/.test(name) && !RESERVED.has(name);
-}
-
-function option(label: string, type: string, detail?: string): CompletionOption {
-  return { label, type, ...(detail !== undefined && { detail }), ...(!isBareIdent(label) && { apply: quoteIdent(label) }) };
-}
-
-/** lang-sql nesne anahtarlarındaki `.`'yı yol ayırıcısı sayar; adın parçası olan nokta kaçışlanır. */
-const namespaceKey = (name: string) => name.replaceAll('.', '\\.');
-
-/**
- * Katalog → editör tamamlaması: görünür şemaların ilişkileri ve kolonları (tip `detail`'de).
- * `defaultSchema` görünürse onun tabloları öneksiz de önerilir.
- */
-export function catalogCompletion(catalog: Catalog, visibleSchemas: readonly string[]): CompletionConfig {
-  const visible = new Set(visibleSchemas);
-  const schema: Record<string, { self: CompletionOption; children: Record<string, CompletionNamespace> }> = {};
-  for (const r of catalog.iliskiler) {
-    if (!visible.has(r.sema)) continue;
-    const entry = (schema[namespaceKey(r.sema)] ??= { self: option(r.sema, 'namespace'), children: {} });
-    entry.children[namespaceKey(r.ad)] = {
-      self: option(r.ad, 'type', KIND_LABELS[r.tur]),
-      children: r.kolonlar.map((k) => option(k.ad, 'property', k.tip)),
-    };
-  }
-  const defaultSchema = catalog.defaultSchema;
-  return { schema, ...(defaultSchema !== null && visible.has(defaultSchema) && { defaultSchema }) };
-}
-
-/**
- * Tablo sekmesinin `WHERE` / `ORDER BY` kutuları: editörle aynı ağaç, ama varsayılan şema tablonun
- * şeması ve tablonun kolonları öneksiz önerilir.
- */
-export function filterCompletion(catalog: Catalog, visibleSchemas: readonly string[], sema: string, tablo: string): CompletionConfig {
-  return { schema: catalogCompletion(catalog, visibleSchemas).schema, defaultSchema: sema, defaultTable: tablo };
-}
+// --- Tablo araması ---
 
 /**
  * Tablo listesi ve Cmd/Ctrl+K tablo araması: görünür şemaların ilişkileri, büyük/küçük harf
