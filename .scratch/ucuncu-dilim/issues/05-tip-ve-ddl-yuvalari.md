@@ -6,7 +6,7 @@ Spec: [Tipler ve DDL](../spec.md#tipler-ve-ddl), [core: Tamamlama motoru](../spe
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (76d9097)
 
 - [x] Tip yuvası: `::`, `CAST(… AS`, `CREATE TABLE … (` ve `ADD COLUMN ad ` sonrası kolon tipi yeri. Yaygın tip listesi "+ Kolon" formuyla aynı kaynaktan; kullanıcı tipleri `kullaniciTipleri`'nden. Katalog `null` iken yalnızca yaygın tipler.
 - [x] Kolon yuvaları: `ALTER TABLE t ALTER COLUMN `, `DROP COLUMN `, `RENAME COLUMN `; `CREATE [UNIQUE] INDEX [CONCURRENTLY] [ad] ON t (`.
