@@ -7,16 +7,10 @@ import type { SettingsStore } from './ayar-deposu';
 import { RAW_TYPES, TargetError, targetQueryError, type PoolManager } from './havuzlar';
 import { foreignKeysSql } from './katalog-fk';
 import { json, methodNotAllowed, notFound } from './http';
+import { inList } from './sql-listesi';
 
 /** Büyük veritabanlarında katalog okuması panelin kısa sorgularından uzun sürebilir. */
 const TIMEOUT_MS = 30_000;
-
-/**
- * Metin literal'i, `standard_conforming_strings`'ten bağımsız: `E'…'` içinde ters bölü ve tek
- * tırnak kaçışlanır. Sahte Postgres parametreli sorguya satır döndürmediğinden adlar gömülür.
- */
-const literal = (value: string) => `E'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`;
-const inList = (values: readonly string[]) => `IN (${values.map(literal).join(', ')})`;
 
 const SCHEMAS_SQL = `SELECT nspname AS ad, (nspname = (current_schemas(false))[1])::text AS varsayilan
   FROM pg_catalog.pg_namespace WHERE nspname !~ '^pg_(toast_)?temp_' ORDER BY nspname`;
@@ -97,7 +91,7 @@ export function createCatalogCache({ pools }: CatalogCacheDeps) {
         const iliskiler = semalar.length > 0 ? await query(client, relationsSql(semalar)) : [];
         const tipler = await query(client, typesSql(semalar));
         const fonksiyonlar = await query(client, functionsSql(semalar));
-        const fkler = semalar.length > 0 ? await query(client, foreignKeysSql(inList(semalar))) : [];
+        const fkler = semalar.length > 0 ? await query(client, foreignKeysSql(semalar)) : [];
         await client.query('COMMIT');
         return buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksiyonlar, fkler });
       } catch (err) {
