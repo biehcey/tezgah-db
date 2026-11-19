@@ -66,13 +66,15 @@ export interface KapsamIliskisi {
  * - `ifade`: kolon/takma ad/fonksiyon içeren ifade (SELECT listesi, WHERE, ON, ORDER BY, …)
  * - `kolon`: yalnızca bir ilişkinin kolonları (`INSERT INTO t (`, `SET` sol tarafı)
  * - `anahtar`: yalnızca anahtar kelimeler
+ * - `cagri`: `CALL` sonrası, yalnızca prosedürler
  * Yeni yuvalar (tip, DDL; ticket 05) bu birleşime eklenir.
  */
 export type Yuva =
   | { tur: 'iliski' }
   | { tur: 'ifade' }
   | { tur: 'kolon'; iliski: KapsamIliskisi }
-  | { tur: 'anahtar' };
+  | { tur: 'anahtar' }
+  | { tur: 'cagri' };
 
 /** Bir parantez düzeyindeki simge: alt parantez grupları tek `grup` simgesine katlanır. */
 export type DuzeySimgesi =

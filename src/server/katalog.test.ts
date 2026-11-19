@@ -92,6 +92,7 @@ describe('Katalog önbelleği: içerik', () => {
       ],
       tipler: { '23': 'integer', '16400': 'durum' },
       kullaniciTipleri: ['durum'],
+      fonksiyonlar: [],
     });
   });
 

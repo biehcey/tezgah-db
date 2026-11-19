@@ -57,6 +57,7 @@ const yeniOge = (sonra: readonly DuzeySimgesi[], virgul: boolean) =>
 const ILISKI: Yuva = { tur: 'iliski' };
 const IFADE: Yuva = { tur: 'ifade' };
 const ANAHTAR: Yuva = { tur: 'anahtar' };
+const CAGRI: Yuva = { tur: 'cagri' };
 
 /**
  * Yan cümle başlatan kelime → yuva. `sonra`: kelimeden imlece kadarki simgeler (bu düzeyde),
@@ -67,6 +68,8 @@ export const YAN_CUMLELER: Record<string, (sonra: readonly DuzeySimgesi[], once:
   JOIN: (sonra) => (yeniOge(sonra, false) ? ILISKI : ANAHTAR),
   UPDATE: (sonra) => (yeniOge(sonra, false) ? ILISKI : ANAHTAR),
   INTO: (sonra, once) => (kelime(once.at(-1)) === 'INSERT' && yeniOge(sonra, false) ? ILISKI : ANAHTAR),
+  // `CALL p(|`: argümanlar ifadedir (dış halkada `sonra` = `[p]`).
+  CALL: (sonra) => (sonra.length === 0 ? CAGRI : IFADE),
   SELECT: () => IFADE,
   WHERE: () => IFADE,
   ON: () => IFADE,

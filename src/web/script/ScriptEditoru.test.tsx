@@ -67,6 +67,16 @@ describe('ScriptEditoru: tamamlama', () => {
     expect(view.state.selection.main.head).toBe(`SELECT * FROM ${secili}`.length);
   });
 
+  it('fonksiyon seçilince ad() eklenir ve imleç parantezin içine konur', async () => {
+    const katalog = { ...KATALOG, fonksiyonlar: [{ sema: 'public', ad: 'topla', tur: 'f' as const, argumanlar: 'a integer', donus: 'integer', kumeDondurur: false, aciklama: null }] };
+    const view = editor('SELECT topl|', { katalog, gorunurSemalar: ['public'] });
+    await ctrlSpace(view);
+    expect(selectedCompletion(view.state)!.label).toBe('topla');
+    tus(view, 'Enter');
+    expect(view.state.doc.toString()).toBe('SELECT topla()');
+    expect(view.state.selection.main.head).toBe('SELECT topla('.length);
+  });
+
   it('popup kapalıyken Tab tamamlamaya dokunmaz', () => {
     const view = editor('SELECT * FROM cu|');
     tus(view, 'Tab');

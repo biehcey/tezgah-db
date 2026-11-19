@@ -33,6 +33,25 @@ export interface CatalogRelation {
   reltuples: number;
 }
 
+/** `pg_proc.prokind`: fonksiyon, prosedür, aggregate, window. */
+export type FunctionKind = 'f' | 'p' | 'a' | 'w';
+export const FUNCTION_KINDS: readonly FunctionKind[] = ['f', 'p', 'a', 'w'];
+
+/** Bir fonksiyonun bir aşırı yüklemesi (`pg_proc` satırı). */
+export interface CatalogFunction {
+  sema: string;
+  ad: string;
+  tur: FunctionKind;
+  /** `pg_get_function_arguments`, ör. `a integer, b text DEFAULT ''::text`. */
+  argumanlar: string;
+  /** `pg_get_function_result`, ör. `SETOF integer`; prosedürde boş. */
+  donus: string;
+  /** `proretset`: set-returning (FROM'da kullanılabilir). */
+  kumeDondurur: boolean;
+  /** `obj_description(oid, 'pg_proc')`. */
+  aciklama: string | null;
+}
+
 /** `GET …/katalog` yanıtı. */
 export interface Catalog {
   /** `(current_schemas(false))[1]`: `search_path`'in ilk (var olan) şeması; yoksa `null`. */
@@ -45,6 +64,11 @@ export interface Catalog {
   tipler: Record<string, string>;
   /** Görünür şemalardaki kullanıcı tipleri (enum, domain, bileşik, aralık…), `format_type` adıyla. */
   kullaniciTipleri: string[];
+  /**
+   * Görünür şemalar + `pg_catalog` (iç kullanım tipli olanlar süzülmüş); şema, ad sırasıyla,
+   * aşırı yükleme başına bir satır.
+   */
+  fonksiyonlar: CatalogFunction[];
 }
 
 /** Katalogun tip eşlemesi; "INSERT olarak kopyala" OID'leri bununla çözer. */
@@ -98,6 +122,7 @@ export interface CatalogRows {
   /** İlişki başına en az bir satır; kolonu olmayan ilişkide kolon alanları `null`. */
   iliskiler: readonly Record<string, string | null>[];
   tipler: readonly Record<string, string | null>[];
+  fonksiyonlar: readonly Record<string, string | null>[];
 }
 
 /** Postgres'in `bool` metni (`t` ya da `::text` ile `true`). */
@@ -107,7 +132,7 @@ export const pgBool = (v: string | null | undefined) => v === 't' || v === 'true
  * Sorgu satırlarından katalog: kolon satırları ilişkilerine toplanır, PK kolonları indeks sırasına
  * dizilir. Tanınmayan `relkind` atlanır.
  */
-export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler }: CatalogRows): Catalog {
+export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksiyonlar }: CatalogRows): Catalog {
   const relations = new Map<string, CatalogRelation & { pkSira: { ad: string; sira: number }[] }>();
   for (const row of iliskiler) {
     const tur = row.tur as RelationKind;
@@ -140,5 +165,31 @@ export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler }: Cata
     typeNames[row.oid] = row.ad;
     if (pgBool(row.kullanici)) userTypes.push(row.ad);
   }
-  return { defaultSchema, semalar: [...semalar], iliskiler: list, tipler: typeNames, kullaniciTipleri: userTypes.sort(compare) };
+  return {
+    defaultSchema,
+    semalar: [...semalar],
+    iliskiler: list,
+    tipler: typeNames,
+    kullaniciTipleri: userTypes.sort(compare),
+    fonksiyonlar: buildFunctions(fonksiyonlar),
+  };
+}
+
+/** Fonksiyon satırları; tanınmayan `prokind` ya da adsız satır atlanır. Aşırı yüklemeler okunduğu sırada kalır. */
+function buildFunctions(rows: CatalogRows['fonksiyonlar']): CatalogFunction[] {
+  const list: CatalogFunction[] = [];
+  for (const row of rows) {
+    const tur = row.tur as FunctionKind;
+    if (!FUNCTION_KINDS.includes(tur) || row.sema == null || row.ad == null) continue;
+    list.push({
+      sema: row.sema,
+      ad: row.ad,
+      tur,
+      argumanlar: row.argumanlar ?? '',
+      donus: row.donus ?? '',
+      kumeDondurur: pgBool(row.kume),
+      aciklama: row.aciklama ?? null,
+    });
+  }
+  return list.sort((a, b) => compare(a.sema, b.sema) || compare(a.ad, b.ad));
 }
