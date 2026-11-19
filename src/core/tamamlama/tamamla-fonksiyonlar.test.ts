@@ -128,3 +128,23 @@ describe('tamamla: fonksiyonlar, ilişki ve CALL yuvaları', () => {
     expect(fonksiyonlar('CALL arsivle(|')).not.toContain('arsivle');
   });
 });
+
+describe('tamamla: FROM öğesi olarak fonksiyon', () => {
+  it('fonksiyondan sonraki FROM öğeleri kapsamda; fonksiyonun takma adı kolonsuz ilişki', () => {
+    const s = tamamla('SELECT | FROM generate_series(1, 2) g, customers c');
+    expect(etiketler(s, 'property')).toEqual(['id', 'name', 'email']);
+    expect(etiketler(s, 'variable')).toEqual(['g', 'c']);
+    expect(oneri(s, 'g')).toMatchObject({ detail: 'fonksiyon', oncelik: ONCELIK.KAPSAM });
+  });
+
+  it('takma ad niteleyicisi katalogdan çözülmez; açık kolon listesi kolonlarıdır', () => {
+    expect(tamamla('SELECT g.| FROM generate_series(1, 2) g')).toBeNull();
+    const s = tamamla('SELECT g.| FROM generate_series(1, 2) AS g(n)');
+    expect(etiketler(s)).toEqual(['n']);
+    expect(oneri(s, 'n')).toMatchObject({ tur: 'property', detail: 'fonksiyon' });
+  });
+
+  it('takma adsız fonksiyon adıyla anılır', () => {
+    expect(etiketler(tamamla('SELECT | FROM generate_series(1, 2) JOIN customers c ON true'), 'variable')).toEqual(['generate_series', 'c']);
+  });
+});

@@ -2,7 +2,8 @@
  * Bir sorgu düzeyinin ilişkileri: FROM / JOIN / UPDATE / INSERT INTO / DELETE FROM öğeleri,
  * imleçten bağımsız olarak düzeyin tamamından (`SELECT | FROM t` t'yi görür).
  *
- * Alt sorgu (`FROM (SELECT …) s`) `altsorgu` kaynağıyla eklenir; CTE adları burada katalog
+ * Alt sorgu (`FROM (SELECT …) s`) `altsorgu`, FROM'daki fonksiyon (`generate_series(1, 3) g`)
+ * `fonksiyon` kaynağıyla eklenir; CTE adları burada katalog
  * ilişkisi gibi okunur, `baglam.ts` görünen CTE'lere bağlar.
  */
 import { RESERVED } from './adlar';
@@ -40,15 +41,21 @@ function oge(simgeler: readonly DuzeySimgesi[], i: number, fromYaDaJoin: boolean
     ad = adDegeri(simgeler[i + 1]!)!;
     i += 2;
   }
-  // Ardından `(` gelen ad fonksiyon çağrısıdır (ticket 04: set-returning fonksiyon), ilişki değil.
-  if (fromYaDaJoin && simgeler[i]?.tur === 'grup') return { iliski: null, sonraki: i + 1 };
+  // FROM/JOIN'de ardından `(` gelen ad set-returning fonksiyon çağrısıdır: takma adıyla (yoksa
+  // fonksiyon adıyla) anılan, kolonları yalnızca açık listeden (`AS g(n)`) bilinen ilişki.
+  const fonksiyon = fromYaDaJoin && simgeler[i]?.tur === 'grup';
+  if (fonksiyon) i++;
   if (kelime(simgeler[i]) === 'AS') i++;
   let takmaAd: string | null = null;
   if (adMi(simgeler[i])) {
     takmaAd = adDegeri(simgeler[i]!)!;
     i++;
   }
-  return { iliski: { sema, ad, takmaAd, kaynak: { tur: 'katalog' } }, sonraki: i };
+  if (!fonksiyon) return { iliski: { sema, ad, takmaAd, kaynak: { tur: 'katalog' } }, sonraki: i };
+  const liste = simgeler[i];
+  const kolonlar = liste?.tur === 'grup' ? kolonListesi(liste.ic) : null;
+  if (liste?.tur === 'grup') i++;
+  return { iliski: { sema: null, ad: takmaAd ?? ad, takmaAd: null, kaynak: { tur: 'fonksiyon', kolonlar } }, sonraki: i };
 }
 
 /**

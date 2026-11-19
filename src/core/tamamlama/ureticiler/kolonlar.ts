@@ -11,7 +11,7 @@ import type { Baglam, KapsamIliskisi, Oneri, Uretici } from '../tipler';
 
 /** Kapsam ilişkisinin katalogdaki karşılığı (CTE / alt sorgu değilse). */
 export function kataloktaki(b: Baglam, r: KapsamIliskisi): CatalogRelation | null {
-  if (r.kaynak.tur === 'cte' || r.kaynak.tur === 'altsorgu') return null;
+  if (r.kaynak.tur !== 'katalog' && r.kaynak.tur !== 'ortuk') return null;
   return iliskiBul(b, r.sema, r.ad);
 }
 
@@ -21,13 +21,13 @@ interface Kolon {
   detail: string;
 }
 
-const KAYNAK_ADI = { cte: 'CTE', altsorgu: 'alt sorgu' } as const;
+export const KAYNAK_ADI = { cte: 'CTE', altsorgu: 'alt sorgu', fonksiyon: 'fonksiyon' } as const;
 
 const katalogKolonlari = (r: CatalogRelation | null): Kolon[] => (r?.kolonlar ?? []).map((k) => ({ ad: k.ad, detail: k.tip }));
 
 /** Kapsam ilişkisinin kolonları; bilinmiyorsa boş. */
 function iliskiKolonlari(b: Baglam, r: KapsamIliskisi): Kolon[] {
-  if (r.kaynak.tur === 'cte' || r.kaynak.tur === 'altsorgu') {
+  if (r.kaynak.tur !== 'katalog' && r.kaynak.tur !== 'ortuk') {
     const detail = KAYNAK_ADI[r.kaynak.tur];
     return (r.kaynak.kolonlar ?? []).map((ad) => ({ ad, detail }));
   }

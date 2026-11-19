@@ -20,3 +20,4 @@ Spec: [Fonksiyonlar](../spec.md#fonksiyonlar), [core: Katalog](../spec.md#core-k
 
 - Spec'e işlendi: SRF'ler yalnızca `FROM`/`JOIN` sonrası (UPDATE/INSERT INTO/DELETE FROM değil); yeni `cagri` yuvası (`CALL `), `CALL p(` içi ifade; `defaultSchema` dışı şemaların fonksiyonları `DIGER_SEMA` bandında; `info` biçimi; prosedürde `donus` boş.
 - `FROM f(...) takma` (SRF'nin kapsam ilişkisi olarak eklenmesi) bu ticket'ta yapılmadı; kapsam okuyucusu `ad(` dalını hâlâ atlıyor.
+- İnceleme: kapsam okuyucusu FROM/JOIN'deki `f(…) [AS] takma [(kolonlar)]`'ı `fonksiyon` kaynaklı ilişki olarak ekler (takma adsızsa fonksiyon adıyla); sonraki FROM öğeleri artık düşmez. Kolonlar yalnızca açık listeden (`AS g(n)`), dönüş tipinden çıkarılmaz; takma ad ifade yuvasında `detail` = `fonksiyon`. `INSERT INTO t (` kolon listesi fonksiyon çağrısı sayılmaz (`RETURNING` t'nin kolonlarını görür).

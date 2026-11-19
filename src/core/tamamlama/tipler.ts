@@ -48,11 +48,12 @@ export interface TamamlamaSecenekleri {
 // --- Bağlam (motorun içi; testler buna değil `tamamla`'ya bakar) ---
 
 /**
- * Metinden çıkan ilişki kaynağı: CTE ya da FROM'daki alt sorgu. `kolonlar`: açık kolon listesi
- * ya da iç SELECT listesinin adları; çıkarılamıyorsa (`*`, adsız ifade) `null`.
+ * Metinden çıkan ilişki kaynağı: CTE, FROM'daki alt sorgu ya da fonksiyon. `kolonlar`: açık kolon
+ * listesi ya da (CTE / alt sorguda) iç SELECT listesinin adları; çıkarılamıyorsa (`*`, adsız
+ * ifade, kolon listesiz fonksiyon) `null`.
  */
 export interface TuretilmisKaynak {
-  tur: 'cte' | 'altsorgu';
+  tur: 'cte' | 'altsorgu' | 'fonksiyon';
   kolonlar: string[] | null;
 }
 
