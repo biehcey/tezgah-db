@@ -2,12 +2,13 @@
  * Bir sorgu düzeyinin ilişkileri: FROM / JOIN / UPDATE / INSERT INTO / DELETE FROM öğeleri,
  * imleçten bağımsız olarak düzeyin tamamından (`SELECT | FROM t` t'yi görür).
  *
- * Alt sorgu (`FROM (SELECT …) s`) ve CTE ilişkileri ticket 02'de buraya eklenir: `grup` simgesi
- * bugün atlanıyor (bkz. `oge`).
+ * Alt sorgu (`FROM (SELECT …) s`) `altsorgu` kaynağıyla eklenir; CTE adları burada katalog
+ * ilişkisi gibi okunur, `baglam.ts` görünen CTE'lere bağlar.
  */
 import { RESERVED } from './adlar';
 import { adDegeri, kelime, sembol } from './simge';
 import type { Duzey, DuzeySimgesi, KapsamIliskisi } from './tipler';
+import { kolonListesi, secimKolonlari } from './turetilmis';
 
 /** Ardından ilişki listesi gelen kelimeler (öncekiyle birlikte). */
 function iliskiListesiBaslar(simgeler: readonly DuzeySimgesi[], i: number): boolean {
@@ -26,6 +27,7 @@ function oge(simgeler: readonly DuzeySimgesi[], i: number): { iliski: KapsamIlis
   const ilk = simgeler[i];
   const adMi = (s: DuzeySimgesi | undefined) =>
     s !== undefined && (s.tur === 'ad' || (s.tur === 'kelime' && !TAKMA_AD_OLAMAZ.has(s.deger.toLowerCase())));
+  if (ilk?.tur === 'grup') return altSorgu(simgeler, i, adMi);
   if (!ilk || !adMi(ilk)) return { iliski: null, sonraki: i };
   let sema: string | null = null;
   let ad = adDegeri(ilk)!;
@@ -44,6 +46,28 @@ function oge(simgeler: readonly DuzeySimgesi[], i: number): { iliski: KapsamIlis
     i++;
   }
   return { iliski: { sema, ad, takmaAd, kaynak: { tur: 'katalog' } }, sonraki: i };
+}
+
+/**
+ * `(SELECT …) [AS] takma [(kolonlar)]`: takma adlı alt sorgu ilişkisi. Takma adsız alt sorgu ve
+ * sorgu olmayan grup ilişki eklemez.
+ */
+function altSorgu(
+  simgeler: readonly DuzeySimgesi[],
+  i: number,
+  adMi: (s: DuzeySimgesi | undefined) => boolean,
+): { iliski: KapsamIliskisi | null; sonraki: number } {
+  const grup = simgeler[i] as Extract<DuzeySimgesi, { tur: 'grup' }>;
+  i++;
+  if (!grup.ic.sorgu) return { iliski: null, sonraki: i };
+  if (kelime(simgeler[i]) === 'AS') i++;
+  if (!adMi(simgeler[i])) return { iliski: null, sonraki: i };
+  const ad = adDegeri(simgeler[i]!)!;
+  i++;
+  const liste = simgeler[i];
+  const kolonlar = liste?.tur === 'grup' ? kolonListesi(liste.ic) : secimKolonlari(grup.ic);
+  if (liste?.tur === 'grup') i++;
+  return { iliski: { sema: null, ad, takmaAd: null, kaynak: { tur: 'altsorgu', kolonlar } }, sonraki: i };
 }
 
 /** Sorgu düzeyinin ilişkileri, metindeki sırayla. */

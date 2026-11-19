@@ -11,7 +11,7 @@ export const takmaAdlar: Uretici = (b) => {
     // Örtük tablonun kolonları zaten öneksiz; adı ayrıca önerilmez.
     if (r.kaynak.tur === 'ortuk' || gorulen.has(ad)) return [];
     gorulen.add(ad);
-    const tam = r.sema !== null ? `${r.sema}.${r.ad}` : r.ad;
+    const tam = r.kaynak.tur === 'altsorgu' ? 'alt sorgu' : r.sema !== null ? `${r.sema}.${r.ad}` : r.ad;
     return [{ ...adMetni(b, [ad]), tur: 'variable' as const, detail: tam, oncelik: ONCELIK.KAPSAM }];
   });
 };
