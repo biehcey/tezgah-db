@@ -17,6 +17,7 @@ const catalog = (iliskiler: CatalogRelation[], defaultSchema: string | null = 'p
   iliskiler,
   tipler: {},
   kullaniciTipleri: [],
+  fonksiyonlar: [],
 });
 
 describe('searchTables', () => {

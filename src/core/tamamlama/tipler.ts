@@ -82,13 +82,15 @@ export interface KapsamIliskisi {
  * - `kolon`: yalnızca bir ilişkinin kolonları (`INSERT INTO t (`, `SET` sol tarafı)
  * - `tip`: yalnızca tipler (`::`, `CAST(… AS`, kolon tanımı; `yuvalar-ddl.ts`)
  * - `anahtar`: yalnızca anahtar kelimeler (tanınmayan DDL dahil: ilişki/kolon/fonksiyon yok)
+ * - `cagri`: `CALL` sonrası, yalnızca prosedürler
  */
 export type Yuva =
   | { tur: 'iliski' }
   | { tur: 'ifade' }
   | { tur: 'kolon'; iliski: KapsamIliskisi }
   | { tur: 'tip' }
-  | { tur: 'anahtar' };
+  | { tur: 'anahtar' }
+  | { tur: 'cagri' };
 
 /** Bir parantez düzeyindeki simge: alt parantez grupları tek `grup` simgesine katlanır. */
 export type DuzeySimgesi =
