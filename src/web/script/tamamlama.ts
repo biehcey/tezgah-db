@@ -20,7 +20,7 @@ import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { Facet, Prec, type Extension } from '@codemirror/state';
 import { keymap, type Command, type EditorView } from '@codemirror/view';
 import type { Catalog } from '../../core/katalog';
-import { tamamla, type Oneri, type OrtukTablo } from '../../core/tamamlama';
+import { popupAcilir, tabAraligi, tamamla, type Oneri, type OrtukTablo } from '../../core/tamamlama';
 
 /** Editörün tamamlama girdisi; katalog yoksa da motor anahtar kelime ve takma ad önerir. */
 export interface TamamlamaGirdisi {
@@ -57,9 +57,7 @@ const kaynak: CompletionSource = (ctx) => {
     gorunurSemalar: girdi?.gorunurSemalar ?? [],
     ...(girdi?.ortukTablo && { ortukTablo: girdi.ortukTablo }),
   });
-  if (!sonuc) return null;
-  // Yazarken boşluktan sonra açılmaz; `.` sonrası ve Ctrl+Space ile açılır.
-  if (!ctx.explicit && sonuc.from === ctx.pos && metin[ctx.pos - 1] !== '.') return null;
+  if (!sonuc || !popupAcilir(metin, sonuc, ctx.pos, ctx.explicit)) return null;
   const aralik = { from: sonuc.from, to: sonuc.to };
   return {
     from: sonuc.from,
@@ -83,8 +81,8 @@ const tabIleDegistir: Command = (view) => {
   if (completionStatus(view.state) !== 'active') return false;
   const secenek = selectedCompletion(view.state) as MotorSecenegi | null;
   if (!secenek?.aralik) return false;
-  const imlec = view.state.selection.main.head;
-  uygula(view, secenek, secenek.aralik.from, Math.max(secenek.aralik.to, imlec));
+  const { from, to } = tabAraligi(secenek.aralik, view.state.selection.main.head);
+  uygula(view, secenek, from, to);
   closeCompletion(view);
   return true;
 };

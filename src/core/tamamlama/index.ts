@@ -10,6 +10,7 @@ import { URETICILER } from './ureticiler';
 
 export type { Oneri, OneriTuru, OrtukTablo, TamamlamaSecenekleri, TamamlamaSonucu } from './tipler';
 export { ONCELIK } from './oncelik';
+export { popupAcilir, tabAraligi } from './editor';
 
 /** İmleçteki öneriler; imleç yorumda / dizgedeyse ya da öneri yoksa `null`. */
 export function tamamla(metin: string, imlec: number, katalog: Catalog | null, secenekler: TamamlamaSecenekleri): TamamlamaSonucu | null {
