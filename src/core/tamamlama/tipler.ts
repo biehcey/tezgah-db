@@ -65,13 +65,14 @@ export interface KapsamIliskisi {
  * - `iliski`: ilişki adı (FROM, JOIN, UPDATE, INSERT INTO, DELETE FROM, …)
  * - `ifade`: kolon/takma ad/fonksiyon içeren ifade (SELECT listesi, WHERE, ON, ORDER BY, …)
  * - `kolon`: yalnızca bir ilişkinin kolonları (`INSERT INTO t (`, `SET` sol tarafı)
- * - `anahtar`: yalnızca anahtar kelimeler
- * Yeni yuvalar (tip, DDL; ticket 05) bu birleşime eklenir.
+ * - `tip`: yalnızca tipler (`::`, `CAST(… AS`, kolon tanımı; `yuvalar-ddl.ts`)
+ * - `anahtar`: yalnızca anahtar kelimeler (tanınmayan DDL dahil: ilişki/kolon/fonksiyon yok)
  */
 export type Yuva =
   | { tur: 'iliski' }
   | { tur: 'ifade' }
   | { tur: 'kolon'; iliski: KapsamIliskisi }
+  | { tur: 'tip' }
   | { tur: 'anahtar' };
 
 /** Bir parantez düzeyindeki simge: alt parantez grupları tek `grup` simgesine katlanır. */

@@ -31,7 +31,7 @@ function niteleyiciIliskisi(b: Baglam, niteleyici: readonly string[]): CatalogRe
 }
 
 export const kolonlar: Uretici = (b) => {
-  if (b.yuva.tur === 'iliski') return [];
+  if (b.yuva.tur !== 'ifade' && b.yuva.tur !== 'kolon') return [];
   if (b.niteleyici) return kolonOnerileri(b, niteleyiciIliskisi(b, b.niteleyici));
   if (b.yuva.tur === 'kolon') return kolonOnerileri(b, kataloktaki(b, b.yuva.iliski));
   if (b.yuva.tur !== 'ifade') return [];

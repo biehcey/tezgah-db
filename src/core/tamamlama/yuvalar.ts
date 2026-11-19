@@ -2,11 +2,11 @@
  * Yuva tespiti: imleçte ne beklendiği. `YUVA_KURALLARI` sırayla denenir, `null` döndürmeyen ilk
  * kural kazanır; hiçbiri uymazsa yan cümle tablosuna (`YAN_CUMLELER`) bakılır.
  *
- * Yeni yuvalar kendi kuralını ekler: tip yuvası (`::`, `CAST(… AS`, kolon tanımı) ve DDL
- * yuvaları (ticket 05) `YUVA_KURALLARI`'nın başına, DDL ilişki yuvaları (`ALTER TABLE`, `DROP
- * TABLE`, `TRUNCATE`…) `YAN_CUMLELER`'e.
+ * Yeni yuvalar kendi kuralını ekler. Tip yuvası (`::`, `CAST(… AS`) ve DDL ifadeleri
+ * (`yuvalar-ddl.ts`) kuralların başındadır: DDL kuralı tanıdığı ifadenin yuvasını tümüyle verir.
  */
 import { adDegeri, kelime, sembol } from './simge';
+import { ddlKurali, tipKurali } from './yuvalar-ddl';
 import type { Baglam, DuzeySimgesi, KapsamIliskisi, Yuva, ZincirHalkasi } from './tipler';
 
 /** Kuralların gördüğü bağlam (yuva henüz yok). */
@@ -83,7 +83,7 @@ export const YAN_CUMLELER: Record<string, (sonra: readonly DuzeySimgesi[], once:
 };
 
 /** Kural tablosu: ilk uyan kazanır. */
-export const YUVA_KURALLARI: YuvaKurali[] = [insertKolonListesi, setSolTarafi];
+export const YUVA_KURALLARI: YuvaKurali[] = [tipKurali, ddlKurali, insertKolonListesi, setSolTarafi];
 
 /** Halkada son yan cümle kelimesine göre yuva; yan cümle yoksa `null`. */
 function yanCumle({ onceki }: ZincirHalkasi): Yuva | null {

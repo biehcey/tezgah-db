@@ -92,10 +92,10 @@ Katalog önbelleği FK'leri ve fonksiyonları da okur. Katalog yokken motor yaln
 
 ### Tipler ve DDL
 
-49. Geliştirici olarak `::` sonrasında, `CAST(x AS ` içinde ve `CREATE TABLE`/`ADD COLUMN` kolon tanımında tiplerin (yaygın tipler + katalogdaki kullanıcı tipleri) önerilmesini istiyorum.
+49. Geliştirici olarak `::` sonrasında, `CAST(x AS ` içinde ve `CREATE TABLE`/`ADD COLUMN` kolon tanımında ve `ALTER COLUMN c [SET DATA] TYPE ` sonrasında tiplerin (yaygın tipler + katalogdaki kullanıcı tipleri) önerilmesini istiyorum.
 50. Geliştirici olarak `ALTER TABLE t ALTER COLUMN `, `DROP COLUMN `, `RENAME COLUMN ` sonrasında t'nin kolonlarını görmek istiyorum.
 51. Geliştirici olarak `CREATE [UNIQUE] INDEX … ON t (` içinde t'nin kolonlarını görmek istiyorum.
-52. Geliştirici olarak `ALTER TABLE `, `DROP TABLE `, `DROP VIEW `, `TRUNCATE `, `COMMENT ON TABLE ` sonrasında ilişkileri görmek istiyorum.
+52. Geliştirici olarak `ALTER TABLE `, `DROP TABLE `, `DROP [MATERIALIZED] VIEW `, `TRUNCATE `, `COMMENT ON TABLE `, `CREATE [UNIQUE] INDEX … ON ` sonrasında ilişkileri görmek istiyorum.
 53. Geliştirici olarak bunların dışındaki DDL'de yalnızca bağlama uygun anahtar kelimelerin önerilmesini istiyorum.
 
 ### Anahtar kelimeler
@@ -148,7 +148,7 @@ Katalog önbelleği FK'leri ve fonksiyonları da okur. Katalog yokken motor yaln
 - İmlecin ifadesi ifade bölücünün sınırlarıyla bulunur; motor yalnızca o ifadenin metnine bakar. İfade içinde parantez derinliğiyle kapsam ağacı kurulur: her `SELECT`/`WITH` kapsamı kendi FROM ilişkilerini (ad, takma ad, kaynak: katalog ilişkisi / CTE / alt sorgu) taşır; iç kapsam dıştakileri görür (ilişkili alt sorgu).
 - FROM'u imleçten sonra gelen ifadeler (`SELECT | FROM t`) için kapsamın tüm FROM'u imleçten bağımsız toplanır.
 - CTE ve alt sorgu kolonları: açık kolon listesi varsa o; yoksa iç SELECT listesindeki her öğe için `AS ad` ya da tek tanımlayıcı/`x.ad` ise son parça; `*` ya da adsız ifade içeren listede kolonlar "bilinmiyor" (yalnızca ad önerilir).
-- Yuva türleri: `ilişki` (FROM/JOIN/UPDATE/INSERT INTO/DELETE FROM/listelenen DDL'ler), `ifade` (SELECT listesi, WHERE, ON, HAVING, ORDER BY, GROUP BY, SET, RETURNING, VALUES dışı ifade yerleri), `kolon` (INSERT kolon listesi, `SET` sol tarafı, DDL kolon yerleri, `CREATE INDEX … (`), `tip` (`::`, `CAST(… AS`, kolon tanımı), `anahtar` (diğer). `x.` / `a.b.` sonrası ayrı bir yuva değil, yuvanın üstüne binen niteleyicidir: x şema mı ilişki mi takma ad mı motor çözer.
+- Yuva türleri: `ilişki` (FROM/JOIN/UPDATE/INSERT INTO/DELETE FROM/listelenen DDL'ler), `ifade` (SELECT listesi, WHERE, ON, HAVING, ORDER BY, GROUP BY, SET, RETURNING, VALUES dışı ifade yerleri), `kolon` (INSERT kolon listesi, `SET` sol tarafı, DDL kolon yerleri, `CREATE INDEX … (`), `tip` (`::`, `CAST(… AS`, kolon tanımı, `ALTER COLUMN … TYPE`), `anahtar` (diğer; listelenmeyen DDL yerleri dahil, `x.` niteleyicisinden sonra da ilişki/kolon önermez). DDL (`CREATE`/`ALTER`/`DROP`/`TRUNCATE`/`COMMENT`/`GRANT`/`REVOKE` ile başlayan ifade) içindeki sorgu (`CREATE VIEW v AS SELECT …`, alt sorgu) olağan yuvaları kullanır. `x.` / `a.b.` sonrası ayrı bir yuva değil, yuvanın üstüne binen niteleyicidir: x şema mı ilişki mi takma ad mı motor çözer.
 - Belirsiz kolon: aynı kapsamda birden çok ilişkide aynı adlı kolon varsa her biri ayrı öneri, `detail` = `tip · ilişki`, `eklenecek` = `takma_ad_ya_da_tablo.kolon`.
 - JOIN önerisi: JOIN anahtar kelimesinden sonraki ilişki yuvasında, kapsamdaki katalog ilişkileriyle (CTE/alt sorgu değil) FK'si olan her ilişki ve her FK için bir öneri. `eklenecek` = `<yeni ilişki adı, gerekirse şema önekli> ON <yeni>.<k1> = <taraf>.<r1> [AND …]`; taraf takma adı varsa takma ad. `ON` yuvasında son JOIN'lenen ilişkiyle diğerleri arasındaki FK koşulları ayrıca önerilir.
 - Fonksiyonlar: ifade yuvasında tümü; ilişki yuvasında yalnızca set-returning; `CALL` sonrasında yalnızca prosedürler. Ad başına tek öneri; `detail` = ilk imza `(argümanlar) → dönüş` ve aşırı yükleme varsa ` +N`; `info` = tüm imzalar + açıklama. `eklenecek` = `ad()`; imleç parantezin içinde, ancak tek imza ve argümansızsa sonunda. `pg_catalog` fonksiyonları öneksiz, diğer şemalarınki `defaultSchema` değilse şema önekli.
