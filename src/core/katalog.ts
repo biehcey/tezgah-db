@@ -45,6 +45,22 @@ export interface Catalog {
   tipler: Record<string, string>;
   /** Görünür şemalardaki kullanıcı tipleri (enum, domain, bileşik, aralık…), `format_type` adıyla. */
   kullaniciTipleri: string[];
+  /** İki ucu da görünür şemalarda olan FK'ler; kaynak şema, ilişki, FK adı sırasıyla. */
+  fkler: CatalogForeignKey[];
+}
+
+/** FK'nin bir ucu; `kolonlar` FK sırasıyla, öbür ucun `kolonlar`'ıyla eşleşik. */
+export interface CatalogForeignKeyEnd {
+  sema: string;
+  ad: string;
+  kolonlar: string[];
+}
+
+/** `pg_constraint` (`contype = 'f'`): `kaynak` referans veren, `hedef` referans verilen ilişki. */
+export interface CatalogForeignKey {
+  ad: string;
+  kaynak: CatalogForeignKeyEnd;
+  hedef: CatalogForeignKeyEnd;
 }
 
 /** Katalogun tip eşlemesi; "INSERT olarak kopyala" OID'leri bununla çözer. */
@@ -98,6 +114,8 @@ export interface CatalogRows {
   /** İlişki başına en az bir satır; kolonu olmayan ilişkide kolon alanları `null`. */
   iliskiler: readonly Record<string, string | null>[];
   tipler: readonly Record<string, string | null>[];
+  /** FK kolon çifti başına bir satır (`sira`: FK içindeki 1 tabanlı sıra). */
+  fkler: readonly Record<string, string | null>[];
 }
 
 /** Postgres'in `bool` metni (`t` ya da `::text` ile `true`). */
@@ -107,7 +125,7 @@ export const pgBool = (v: string | null | undefined) => v === 't' || v === 'true
  * Sorgu satırlarından katalog: kolon satırları ilişkilerine toplanır, PK kolonları indeks sırasına
  * dizilir. Tanınmayan `relkind` atlanır.
  */
-export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler }: CatalogRows): Catalog {
+export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fkler }: CatalogRows): Catalog {
   const relations = new Map<string, CatalogRelation & { pkSira: { ad: string; sira: number }[] }>();
   for (const row of iliskiler) {
     const tur = row.tur as RelationKind;
@@ -140,5 +158,38 @@ export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler }: Cata
     typeNames[row.oid] = row.ad;
     if (pgBool(row.kullanici)) userTypes.push(row.ad);
   }
-  return { defaultSchema, semalar: [...semalar], iliskiler: list, tipler: typeNames, kullaniciTipleri: userTypes.sort(compare) };
+  return {
+    defaultSchema,
+    semalar: [...semalar],
+    iliskiler: list,
+    tipler: typeNames,
+    kullaniciTipleri: userTypes.sort(compare),
+    fkler: buildForeignKeys(fkler),
+  };
+}
+
+const FK_FIELDS = ['ad', 'kaynak_sema', 'kaynak_ad', 'hedef_sema', 'hedef_ad', 'kaynak_kolon', 'hedef_kolon', 'sira'] as const;
+
+/** FK kolon satırlarını FK başına toplar (anahtar: kaynak şema, ilişki, FK adı); eksik alanlı satır atlanır. */
+function buildForeignKeys(rows: CatalogRows['fkler']): CatalogForeignKey[] {
+  const fks = new Map<string, { fk: CatalogForeignKey; pairs: { sira: number; kaynak: string; hedef: string }[] }>();
+  for (const row of rows) {
+    if (FK_FIELDS.some((f) => row[f] == null)) continue;
+    const r = row as Record<(typeof FK_FIELDS)[number], string>;
+    const key = `${r.kaynak_sema}\u0000${r.kaynak_ad}\u0000${r.ad}`;
+    let entry = fks.get(key);
+    if (!entry) {
+      entry = {
+        fk: { ad: r.ad, kaynak: { sema: r.kaynak_sema, ad: r.kaynak_ad, kolonlar: [] }, hedef: { sema: r.hedef_sema, ad: r.hedef_ad, kolonlar: [] } },
+        pairs: [],
+      };
+      fks.set(key, entry);
+    }
+    entry.pairs.push({ sira: Number(r.sira), kaynak: r.kaynak_kolon, hedef: r.hedef_kolon });
+  }
+  const list = [...fks.values()].map(({ fk, pairs }) => {
+    pairs.sort((a, b) => a.sira - b.sira);
+    return { ...fk, kaynak: { ...fk.kaynak, kolonlar: pairs.map((p) => p.kaynak) }, hedef: { ...fk.hedef, kolonlar: pairs.map((p) => p.hedef) } };
+  });
+  return list.sort((a, b) => compare(a.kaynak.sema, b.kaynak.sema) || compare(a.kaynak.ad, b.kaynak.ad) || compare(a.ad, b.ad));
 }

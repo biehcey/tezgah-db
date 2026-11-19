@@ -14,6 +14,9 @@ const RELATION_COLUMNS = ['sema', 'ad', 'tur', 'satir', 'kolon', 'tip', 'tip_oid
 let schemas: string[];
 let firstSchema: string;
 let relationRows: (string | null)[][];
+let fkRows: (string | null)[][];
+
+const FK_COLUMNS = ['ad', 'kaynak_sema', 'kaynak_ad', 'hedef_sema', 'hedef_ad', 'kaynak_kolon', 'hedef_kolon', 'sira'];
 
 const result = (columns: string[], rows: (string | null)[][]): FakeResult => ({ columns, rows, command: `SELECT ${rows.length}` });
 
@@ -29,7 +32,11 @@ beforeEach(async () => {
     ['app', 'kalem', 'r', '-1', 'siparis', 'integer', '23', 't', 'f', '', '2'],
     ['app', 'kalem', 'r', '-1', 'sira', 'integer', '23', 't', 'f', '', '1'],
   ];
+  fkRows = [
+    ['kalem_siparis_fk', 'app', 'kalem', 'public', 'users', 'siparis', 'id', '1'],
+  ];
   fake.resultFor = (sql) => {
+    if (sql.includes('pg_catalog.pg_constraint')) return result(FK_COLUMNS, fkRows);
     if (sql.includes('pg_catalog.pg_attribute')) return result(RELATION_COLUMNS, relationRows);
     if (sql.includes('pg_catalog.pg_type')) {
       return result(['oid', 'ad', 'kullanici'], [
@@ -52,7 +59,8 @@ afterEach(async () => {
 const createConnection = () => addFakeConnection(t, fake.port);
 
 const catalogUrl = (id: string, database = 'postgres') => `/api/baglantilar/${id}/veritabanlari/${database}/katalog`;
-const catalogQueries = () => fake.queries.filter((q) => q.includes('pg_catalog.pg_attribute'));
+const catalogQueries = () => fake.queries.filter((q) => q.includes('pg_catalog.pg_attribute') && !q.includes('pg_catalog.pg_constraint'));
+const fkQuery = () => fake.queries.find((q) => q.includes('pg_catalog.pg_constraint'));
 
 const tab = (): Promise<TestSocket> => t.socket();
 
@@ -92,6 +100,13 @@ describe('Katalog önbelleği: içerik', () => {
       ],
       tipler: { '23': 'integer', '16400': 'durum' },
       kullaniciTipleri: ['durum'],
+      fkler: [
+        {
+          ad: 'kalem_siparis_fk',
+          kaynak: { sema: 'app', ad: 'kalem', kolonlar: ['siparis'] },
+          hedef: { sema: 'public', ad: 'users', kolonlar: ['id'] },
+        },
+      ],
     });
   });
 
@@ -103,6 +118,8 @@ describe('Katalog önbelleği: içerik', () => {
     const [relations] = catalogQueries();
     expect(relations).toContain("IN (E'public')");
     expect(fake.queries.find((q) => q.includes('pg_catalog.pg_type'))).toContain("IN (E'pg_catalog', E'public')");
+    // FK'nin iki ucu da görünür şemalarda olmalı.
+    expect(fkQuery()?.match(/IN \(E'public'\)/g)).toHaveLength(2);
     expect(fake.queries.some((q) => /^BEGIN .*READ ONLY/.test(q))).toBe(true);
   });
 
@@ -210,6 +227,7 @@ describePg('Katalog önbelleği: gerçek Postgres', () => {
     database: decodeURIComponent(url.pathname.slice(1)) || 'postgres',
   };
   const SCHEMA = 'tezgah_katalog';
+  const GIZLI = 'tezgah_katalog_gizli';
   let admin: pg.Client;
 
   beforeAll(async () => {
@@ -221,10 +239,33 @@ describePg('Katalog önbelleği: gerçek Postgres', () => {
     await admin.query(`CREATE TABLE ${SCHEMA}."Kalem" (sira int, siparis int DEFAULT 1, d ${SCHEMA}.durum,
       iki int GENERATED ALWAYS AS (sira * 2) STORED, PRIMARY KEY (siparis, sira))`);
     await admin.query(`CREATE VIEW ${SCHEMA}.v AS SELECT 1 AS bir`);
+    // Bileşik FK, kolonları tablo sırasından farklı sırada; görünmez şemaya giden ve oradan gelen FK.
+    await admin.query(`CREATE TABLE ${SCHEMA}.not_ (id serial PRIMARY KEY, sira int, siparis int,
+      CONSTRAINT not_kalem_fk FOREIGN KEY (siparis, sira) REFERENCES ${SCHEMA}."Kalem" (siparis, sira))`);
+    await admin.query(`DROP SCHEMA IF EXISTS ${GIZLI} CASCADE`);
+    await admin.query(`CREATE SCHEMA ${GIZLI}`);
+    await admin.query(`CREATE TABLE ${GIZLI}.h (id int PRIMARY KEY, not_id int REFERENCES ${SCHEMA}.not_ (id))`);
+    await admin.query(`ALTER TABLE ${SCHEMA}.not_ ADD COLUMN h_id int REFERENCES ${GIZLI}.h (id)`);
   });
   afterAll(async () => {
+    await admin.query(`DROP SCHEMA IF EXISTS ${GIZLI} CASCADE`);
     await admin.query(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
     await admin.end();
+  });
+
+  it('FK kolonları conkey/confkey sırasıyla gelir; iki ucu görünür şemalarda olmayan FK alınmaz', async () => {
+    const res = await t.api('POST', '/api/baglantilar', { name: 'Gerçek', sslmode: 'prefer', ...real });
+    const id = res.body.connection.id;
+    await t.api('PUT', `/api/baglantilar/${id}/veritabani-secimi`, [{ database: real.database, schemas: [SCHEMA] }]);
+    const { status, body } = await t.api('GET', catalogUrl(id, real.database));
+    expect(status).toBe(200);
+    expect(body.fkler).toEqual([
+      {
+        ad: 'not_kalem_fk',
+        kaynak: { sema: SCHEMA, ad: 'not_', kolonlar: ['siparis', 'sira'] },
+        hedef: { sema: SCHEMA, ad: 'Kalem', kolonlar: ['siparis', 'sira'] },
+      },
+    ]);
   });
 
   it('ilişkiler, kolonlar, PK sırası ve kullanıcı tipleri okunur', async () => {

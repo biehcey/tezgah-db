@@ -5,7 +5,8 @@
 import type { Uretici } from '../tipler';
 import { anahtarKelimeler } from './anahtar-kelimeler';
 import { iliskiler } from './iliskiler';
+import { join } from './join';
 import { kolonlar } from './kolonlar';
 import { takmaAdlar } from './takma-adlar';
 
-export const URETICILER: readonly Uretici[] = [kolonlar, takmaAdlar, iliskiler, anahtarKelimeler];
+export const URETICILER: readonly Uretici[] = [kolonlar, takmaAdlar, join, iliskiler, anahtarKelimeler];
