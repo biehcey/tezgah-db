@@ -48,8 +48,23 @@ export interface TamamlamaSecenekleri {
 // --- Bağlam (motorun içi; testler buna değil `tamamla`'ya bakar) ---
 
 /**
+ * Metinden çıkan ilişki kaynağı: CTE ya da FROM'daki alt sorgu. `kolonlar`: açık kolon listesi
+ * ya da iç SELECT listesinin adları; çıkarılamıyorsa (`*`, adsız ifade) `null`.
+ */
+export interface TuretilmisKaynak {
+  tur: 'cte' | 'altsorgu';
+  kolonlar: string[] | null;
+}
+
+/** İmlecin gördüğü bir CTE (`WITH ad [(kolonlar)] AS (…)`). */
+export interface Cte {
+  ad: string;
+  kolonlar: string[] | null;
+}
+
+/**
  * Kapsamdaki bir ilişki (FROM/JOIN/UPDATE/INSERT INTO/DELETE FROM öğesi).
- * `kaynak`: katalog ilişkisi adayı; CTE ve alt sorgu (ticket 02) yeni türler ekler.
+ * `kaynak`: katalog ilişkisi adayı, örtük tablo, CTE ya da alt sorgu.
  */
 export interface KapsamIliskisi {
   /** Yazıldığı gibi nitelik (`şema`), çözülmüş ad (çıplak ad küçük harfe katlanır). */
@@ -57,7 +72,7 @@ export interface KapsamIliskisi {
   ad: string;
   /** Takma ad (çözülmüş); yoksa `null`. */
   takmaAd: string | null;
-  kaynak: { tur: 'katalog' } | { tur: 'ortuk' };
+  kaynak: { tur: 'katalog' } | { tur: 'ortuk' } | TuretilmisKaynak;
 }
 
 /**
@@ -119,6 +134,8 @@ export interface Baglam {
   zincir: ZincirHalkasi[];
   /** İçten dışa: imlecin sorgu kapsamının ve dış kapsamların ilişkileri (ilişkili alt sorgu). */
   kapsamlar: KapsamIliskisi[][];
+  /** İmlecin gördüğü CTE'ler (iç `WITH` dıştakini gölgeler; RECURSIVE değilse yalnızca öncekiler). */
+  cteler: Cte[];
   katalog: Catalog | null;
   secenekler: TamamlamaSecenekleri;
 }

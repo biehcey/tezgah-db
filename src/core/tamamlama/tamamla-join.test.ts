@@ -118,6 +118,12 @@ describe('JOIN yuvası: FK önerileri', () => {
     expect(joinler('SELECT * FROM customer_orders o, |')).toEqual([]);
   });
 
+  it('CTE ve alt sorgu FK kaynağı değildir (katalog tablosuyla aynı adlı CTE de)', () => {
+    expect(joinler('WITH customers AS (SELECT 1 AS id) SELECT * FROM customers c JOIN |')).toEqual([]);
+    expect(joinler('SELECT * FROM (SELECT * FROM customers) c JOIN |')).toEqual([]);
+    expect(joinler('WITH x AS (SELECT 1) SELECT * FROM x, customer_orders o JOIN |')).toEqual(['customers ON customers.id = o.customer_id']);
+  });
+
   it('katalog yokken JOIN önerisi yok', () => {
     expect(etiketler(tamamlaIsaretli('SELECT * FROM customers c JOIN |', { katalog: null }), 'text')).toEqual([]);
   });
