@@ -25,10 +25,10 @@ export const identSql = (ad: string, tirnak = false) => (tirnak || !isBareIdent(
 
 /**
  * Nitelikli adın (`[şema, ad]` ya da `[ad]`) etiketi ve eklenecek metni. Kullanıcı `"` ile
- * başladıysa ilk parça her zaman tırnaklıdır ve etiket eklenecekle aynıdır (CodeMirror yazılan
- * `"Mus`'u etiketle eşleştirir).
+ * başladıysa her parça tırnaklıdır (`"satis"."siparis"`) ve etiket eklenecekle aynıdır
+ * (CodeMirror yazılan `"Mus`'u etiketle eşleştirir).
  */
 export function adMetni(b: Pick<Baglam, 'tirnakli'>, parcalar: readonly string[]): { etiket: string; eklenecek: string } {
-  const eklenecek = parcalar.map((p, i) => identSql(p, b.tirnakli && i === 0)).join('.');
+  const eklenecek = parcalar.map((p) => identSql(p, b.tirnakli)).join('.');
   return { etiket: b.tirnakli ? eklenecek : parcalar.join('.'), eklenecek };
 }

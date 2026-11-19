@@ -144,6 +144,12 @@ describe('tamamla: tırnaklama', () => {
     expect(etiketler(s, 'keyword')).toEqual([]);
   });
 
+  it('" ile başlanınca şema önekli adın her parçası tırnaklı', () => {
+    const s = tamamlaIsaretli('SELECT * FROM "sa|');
+    expect(oneri(s, '"satis"."aylik_ozet"')).toMatchObject({ eklenecek: '"satis"."aylik_ozet"' });
+    expect(etiketler(s).filter((e) => e.includes('satis'))).toEqual(['"satis"."aylik_ozet"', '"satis"."siparis"']);
+  });
+
   it('kapanmış tırnaklı adın ortasında imleç: aralık kapanış tırnağına kadar', () => {
     expect(tamamlaIsaretli('SELECT * FROM "Mü|şteri"')).toMatchObject({ from: 14, to: 23 });
   });
