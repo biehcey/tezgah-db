@@ -48,7 +48,7 @@ function niteleyiciKolonlari(b: Baglam, niteleyici: readonly string[]): Kolon[] 
 }
 
 export const kolonlar: Uretici = (b) => {
-  if (b.yuva.tur === 'iliski') return [];
+  if (b.yuva.tur !== 'ifade' && b.yuva.tur !== 'kolon') return [];
   if (b.niteleyici) return niteleyiciKolonlari(b, b.niteleyici).map((k) => kolonOnerisi(b, k));
   if (b.yuva.tur === 'kolon') return iliskiKolonlari(b, b.yuva.iliski).map((k) => kolonOnerisi(b, k));
   if (b.yuva.tur !== 'ifade') return [];

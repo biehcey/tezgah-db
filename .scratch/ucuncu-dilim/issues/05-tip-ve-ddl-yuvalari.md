@@ -6,10 +6,10 @@ Spec: [Tipler ve DDL](../spec.md#tipler-ve-ddl), [core: Tamamlama motoru](../spe
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (76d9097)
 
-- [ ] Tip yuvası: `::`, `CAST(… AS`, `CREATE TABLE … (` ve `ADD COLUMN ad ` sonrası kolon tipi yeri. Yaygın tip listesi "+ Kolon" formuyla aynı kaynaktan; kullanıcı tipleri `kullaniciTipleri`'nden. Katalog `null` iken yalnızca yaygın tipler.
-- [ ] Kolon yuvaları: `ALTER TABLE t ALTER COLUMN `, `DROP COLUMN `, `RENAME COLUMN `; `CREATE [UNIQUE] INDEX [CONCURRENTLY] [ad] ON t (`.
-- [ ] İlişki yuvaları: `ALTER TABLE `, `DROP TABLE `, `DROP VIEW `, `TRUNCATE `, `COMMENT ON TABLE `.
-- [ ] Diğer DDL'de yalnızca anahtar kelimeler (ilişki/kolon/fonksiyon önerilmez).
-- [ ] Testler (core `tamamla`): her tip yuvası, kullanıcı tipi, katalog `null`; her DDL kolon ve ilişki yuvası; listelenmeyen bir DDL'de (ör. `CREATE TRIGGER`) yalnızca anahtar kelime.
+- [x] Tip yuvası: `::`, `CAST(… AS`, `CREATE TABLE … (` ve `ADD COLUMN ad ` sonrası kolon tipi yeri. Yaygın tip listesi "+ Kolon" formuyla aynı kaynaktan; kullanıcı tipleri `kullaniciTipleri`'nden. Katalog `null` iken yalnızca yaygın tipler.
+- [x] Kolon yuvaları: `ALTER TABLE t ALTER COLUMN `, `DROP COLUMN `, `RENAME COLUMN `; `CREATE [UNIQUE] INDEX [CONCURRENTLY] [ad] ON t (`.
+- [x] İlişki yuvaları: `ALTER TABLE `, `DROP TABLE `, `DROP VIEW `, `TRUNCATE `, `COMMENT ON TABLE `.
+- [x] Diğer DDL'de yalnızca anahtar kelimeler (ilişki/kolon/fonksiyon önerilmez).
+- [x] Testler (core `tamamla`): her tip yuvası, kullanıcı tipi, katalog `null`; her DDL kolon ve ilişki yuvası; listelenmeyen bir DDL'de (ör. `CREATE TRIGGER`) yalnızca anahtar kelime.
