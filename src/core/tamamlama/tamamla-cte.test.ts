@@ -98,31 +98,36 @@ describe('tamamla: ilişkili alt sorgu ve gölgeleme', () => {
     const idler = s!.oneriler.filter((o) => o.etiket === 'id');
     expect(idler.map((o) => [o.eklenecek, o.detail])).toEqual([
       ['id', 'integer'],
-      ['c.id', 'integer · c'],
+      ['c.id', 'integer · customers c'],
     ]);
     expect(oneri(s, 'email')).toMatchObject({ eklenecek: 'email', detail: 'text' });
   });
 });
 
 describe('tamamla: belirsiz kolonlar', () => {
-  it('aynı adlı kolon her ilişki için ayrı öneri, takma adla nitelikli', () => {
+  it('aynı adlı kolon her ilişki için ayrı öneri, takma adla nitelikli; detail’de ilişki adı ve takma ad', () => {
     const s = tamamlaIsaretli('SELECT | FROM customers c JOIN customer_orders o ON o.customer_id = c.id');
     const idler = s!.oneriler.filter((o) => o.etiket === 'id');
     expect(idler.map((o) => [o.eklenecek, o.detail, o.tur])).toEqual([
-      ['c.id', 'integer · c', 'property'],
-      ['o.id', 'integer · o', 'property'],
+      ['c.id', 'integer · customers c', 'property'],
+      ['o.id', 'integer · customer_orders o', 'property'],
     ]);
     expect(oneri(s, 'name')).toMatchObject({ eklenecek: 'name', detail: 'text' });
     expect(oneri(s, 'total')).toMatchObject({ eklenecek: 'total', detail: 'numeric(12,2)' });
   });
 
-  it('takma adsız ilişkide tablo adıyla; tırnak gereken ad tırnaklı', () => {
+  it('takma adsız ilişkide tablo adıyla (detail’de yazıldığı gibi); tırnak gereken ad tırnaklı', () => {
     const s = tamamlaIsaretli('SELECT | FROM satis.siparis, "Müşteri"');
     const idler = s!.oneriler.filter((o) => o.etiket === 'id');
     expect(idler.map((o) => [o.eklenecek, o.detail])).toEqual([
-      ['siparis.id', 'integer · siparis'],
+      ['siparis.id', 'integer · satis.siparis'],
       ['"Müşteri".id', 'integer · Müşteri'],
     ]);
+  });
+
+  it('aynı ilişki iki takma adla: detail takma adla ayrışır', () => {
+    const s = tamamlaIsaretli('SELECT | FROM customers a JOIN customers b ON true');
+    expect(s!.oneriler.filter((o) => o.etiket === 'id').map((o) => o.detail)).toEqual(['integer · customers a', 'integer · customers b']);
   });
 
   it('CTE ve alt sorgu kolonlarında da; detail’de kaynak', () => {

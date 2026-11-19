@@ -55,19 +55,22 @@ export const kolonlar: Uretici = (b) => {
   return kapsamKolonlari(b);
 };
 
+/** İlişkinin FROM'da yazıldığı gibi: `[şema.]ad [takma]` (alt sorgu / fonksiyonda yalnızca takma ad). */
+const yazilis = (r: KapsamIliskisi) => [r.sema !== null ? `${r.sema}.${r.ad}` : r.ad, ...(r.takmaAd !== null ? [r.takmaAd] : [])].join(' ');
+
 /**
  * İfade yuvası: kapsamların kolonları, içten dışa. Aynı kapsamda birden çok ilişkide bulunan
- * (belirsiz) ya da iç kapsamdaki bir kolonla gölgelenen kolon `ilişki.kolon` olarak eklenir,
- * `detail` = `tip · ilişki`; diğerleri öneksiz.
+ * (belirsiz) ya da iç kapsamdaki bir kolonla gölgelenen kolon `takma_ad_ya_da_ilişki.kolon` olarak
+ * eklenir, `detail` = `tip · ilişki [takma_ad]`; diğerleri öneksiz.
  */
 function kapsamKolonlari(b: Baglam): Oneri[] {
   const oneriler: Oneri[] = [];
   const icteki = new Set<string>();
   for (const kapsam of b.kapsamlar) {
-    const listeler = kapsam.map((r) => ({ gorunen: r.takmaAd ?? r.ad, kolonlar: iliskiKolonlari(b, r) }));
+    const listeler = kapsam.map((r) => ({ gorunen: r.takmaAd ?? r.ad, yazilis: yazilis(r), kolonlar: iliskiKolonlari(b, r) }));
     const sayi = new Map<string, number>();
     for (const { kolonlar } of listeler) for (const k of new Set(kolonlar.map((k) => k.ad))) sayi.set(k, (sayi.get(k) ?? 0) + 1);
-    for (const { gorunen, kolonlar } of listeler) {
+    for (const { gorunen, yazilis, kolonlar } of listeler) {
       for (const k of kolonlar) {
         const nitelikli = sayi.get(k.ad)! > 1 || icteki.has(k.ad);
         if (!nitelikli) {
@@ -77,7 +80,7 @@ function kapsamKolonlari(b: Baglam): Oneri[] {
         oneriler.push({
           etiket: adMetni(b, [k.ad]).etiket,
           tur: 'property',
-          detail: `${k.detail} · ${gorunen}`,
+          detail: `${k.detail} · ${yazilis}`,
           eklenecek: `${identSql(gorunen)}.${identSql(k.ad)}`,
           oncelik: ONCELIK.KAPSAM,
         });
