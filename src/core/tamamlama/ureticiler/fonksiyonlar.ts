@@ -11,6 +11,7 @@ import { ONCELIK } from '../oncelik';
 import { kelime } from '../simge';
 import type { Baglam, Oneri, Uretici } from '../tipler';
 import { sonYanCumle } from '../yuvalar';
+import { harfDurumu } from './anahtar-kelimeler';
 
 /** Öneksiz yazılan, her zaman aranan şema. */
 const PG_CATALOG = 'pg_catalog';
@@ -81,7 +82,29 @@ function semaninOnerileri(b: Baglam, sema: string, uygun: Suzgec, onekli: boolea
   });
 }
 
-export const fonksiyonlar: Uretici = (b) => {
+/**
+ * `pg_proc`'ta olmayan (ayrıştırıcının tanıdığı) SQL standardı fonksiyon benzeri yapılar: ad →
+ * `detail`, `info`. Yalnızca ifade yuvasında, katalogsuz da; ad anahtar kelime gibi yazılır.
+ */
+const STANDART_YAPILAR: Readonly<Record<string, readonly [detail: string, info: string]>> = {
+  COALESCE: ['(değer, …)', 'İlk NULL olmayan argümanı döndürür.'],
+  NULLIF: ['(a, b)', 'a = b ise NULL, değilse a.'],
+  GREATEST: ['(değer, …)', 'En büyük argüman (NULL olanlar yok sayılır).'],
+  LEAST: ['(değer, …)', 'En küçük argüman (NULL olanlar yok sayılır).'],
+  CAST: ['(ifade AS tip)', 'Tip dönüşümü (ifade::tip).'],
+};
+
+function standartYapilar(b: Baglam): Oneri[] {
+  if (b.yuva.tur !== 'ifade' || b.niteleyici || b.tirnakli) return [];
+  return Object.entries(STANDART_YAPILAR).map(([anahtar, [detail, info]]) => {
+    const ad = harfDurumu(b, anahtar);
+    return { etiket: ad, tur: 'function', detail, info, eklenecek: `${ad}()`, imlec: ad.length + 1, oncelik: ONCELIK.FONKSIYON };
+  });
+}
+
+export const fonksiyonlar: Uretici = (b) => [...standartYapilar(b), ...katalogFonksiyonlari(b)];
+
+function katalogFonksiyonlari(b: Baglam): Oneri[] {
   const uygun = suzgec(b);
   if (!b.katalog || !uygun) return [];
   const gorunur = b.secenekler.gorunurSemalar;
@@ -97,4 +120,4 @@ export const fonksiyonlar: Uretici = (b) => {
     const oneksiz = sema === PG_CATALOG || varsayilanSemada(b, sema);
     return semaninOnerileri(b, sema, uygun, !oneksiz, oneksiz ? ONCELIK.FONKSIYON : ONCELIK.DIGER_SEMA);
   });
-};
+}

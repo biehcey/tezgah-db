@@ -67,6 +67,13 @@ describe('tamamla: bağlama göre anahtar kelimeler', () => {
     expect(s!.oneriler.filter((o) => o.tur !== 'keyword')).toEqual([]);
   });
 
+  it('terim beklenen yerde parantezsiz SQL değer fonksiyonları anahtar kelimedir', () => {
+    expect(anahtarlar('SELECT * FROM customers WHERE id = |')).toEqual(
+      expect.arrayContaining(['CURRENT_DATE', 'CURRENT_TIMESTAMP', 'CURRENT_TIME', 'LOCALTIMESTAMP', 'CURRENT_USER']),
+    );
+    expect(anahtarlar('SELECT * FROM customers WHERE id |')).not.toContain('CURRENT_DATE');
+  });
+
   it('terim beklenen yerde kolonlar ve anahtar kelimeler birlikte', () => {
     const s = tamamlaIsaretli('SELECT * FROM customers WHERE id = 1 AND |');
     expect(etiketler(s, 'property')).toEqual(['id', 'name', 'email']);
