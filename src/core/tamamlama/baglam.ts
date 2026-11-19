@@ -7,8 +7,9 @@ import type { Catalog } from '../katalog';
 import { lex, type Token } from '../ifade-bolme';
 import { kapsamIliskileri } from './kapsam';
 import { adDegeri, kelime } from './simge';
-import type { Baglam, Duzey, KapsamIliskisi, TamamlamaSecenekleri, ZincirHalkasi } from './tipler';
-import { yuvaBul } from './yuvalar';
+import type { Baglam, Cte, Duzey, KapsamIliskisi, TamamlamaSecenekleri, ZincirHalkasi } from './tipler';
+import { duzeyinCteleri } from './turetilmis';
+import { YAN_CUMLELER, yuvaBul } from './yuvalar';
 
 /** Sorgu düzeyini başlatan kelimeler (`( SELECT …`). */
 const SORGU_BASLARI = new Set(['SELECT', 'WITH', 'VALUES', 'TABLE']);
@@ -69,10 +70,11 @@ export function baglamCikar(metin: string, imlec: number, katalog: Catalog | nul
   const yapisal = simgeler.filter((t, i) => i !== kelimeIndeksi && !(t.from >= ucu && t.to <= from));
   const { kok, zincir } = duzeyleriKur(yapisal, imlec);
 
+  const cteZinciri = gorunurCteler(zincir);
   const kapsamlar: KapsamIliskisi[][] = [];
-  for (const halka of zincir) {
-    if (!halka.duzey.sorgu) continue;
-    const iliskiler = kapsamIliskileri(halka.duzey);
+  for (const [i, halka] of zincir.entries()) {
+    if (!halka.duzey.sorgu || kardesleriGormez(halka, zincir[i - 1])) continue;
+    const iliskiler = kapsamIliskileri(halka.duzey).map((r) => cteyeBagla(r, cteZinciri[i]!));
     if (halka.duzey === kok && secenekler.ortukTablo) {
       const { sema, tablo } = secenekler.ortukTablo;
       iliskiler.unshift({ sema, ad: tablo, takmaAd: null, kaynak: { tur: 'ortuk' } });
@@ -91,10 +93,47 @@ export function baglamCikar(metin: string, imlec: number, katalog: Catalog | nul
     onceki: zincir[0]!.onceki,
     zincir,
     kapsamlar,
+    cteler: cteZinciri[0]!,
     katalog,
     secenekler,
   };
   return { ...taslak, yuva: yuvaBul(taslak) };
+}
+
+/**
+ * Her halkadan görünen CTE'ler: halkanın kendi `WITH`'i ve dış halkalarınki; aynı adda içteki
+ * dıştakini gölgeler.
+ */
+function gorunurCteler(zincir: readonly ZincirHalkasi[]): Cte[][] {
+  const sonuc: Cte[][] = [];
+  let dis: Cte[] = [];
+  for (let i = zincir.length - 1; i >= 0; i--) {
+    const kendi = duzeyinCteleri(zincir[i]!.duzey, zincir[i - 1]?.duzey ?? null);
+    const adlar = new Set(kendi.map((c) => c.ad));
+    dis = [...kendi, ...dis.filter((c) => !adlar.has(c.ad))];
+    sonuc[i] = dis;
+  }
+  return sonuc;
+}
+
+/**
+ * İmleci içeren `cocuk` grubu `ust` düzeyinin bir FROM öğesi (LATERAL değil) ya da CTE gövdesi
+ * mi: öyleyse grup `ust`'ün ilişkilerini görmez (dış kapsamları görmeye devam eder).
+ */
+function kardesleriGormez(ust: ZincirHalkasi, cocuk: ZincirHalkasi | undefined): boolean {
+  if (!cocuk) return false;
+  const { onceki } = ust;
+  if (kelime(onceki.at(-1)) === 'LATERAL') return false;
+  const yanCumle = onceki.findLast((s) => YAN_CUMLELER[kelime(s) ?? ''] !== undefined);
+  const k = kelime(yanCumle);
+  return k === 'FROM' || k === 'JOIN' || k === 'WITH';
+}
+
+/** Şemasız katalog ilişkisi adı görünen bir CTE'nin adıysa o CTE'dir. */
+function cteyeBagla(r: KapsamIliskisi, cteler: readonly Cte[]): KapsamIliskisi {
+  if (r.sema !== null || r.kaynak.tur !== 'katalog') return r;
+  const cte = cteler.find((c) => c.ad === r.ad);
+  return cte ? { ...r, kaynak: { tur: 'cte', kolonlar: cte.kolonlar } } : r;
 }
 
 /**
