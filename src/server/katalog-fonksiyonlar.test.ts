@@ -74,6 +74,7 @@ describePg('Katalog önbelleği: fonksiyonlar (gerçek Postgres)', () => {
     await admin.query(`CREATE FUNCTION ${SCHEMA}.sayilar(n integer) RETURNS SETOF integer LANGUAGE sql AS 'SELECT generate_series(1, n)'`);
     await admin.query(`CREATE PROCEDURE ${SCHEMA}.arsivle() LANGUAGE sql AS 'SELECT 1'`);
     await admin.query(`CREATE FUNCTION ${SCHEMA}.tetik() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'`);
+    await admin.query(`CREATE OPERATOR ${SCHEMA}.<~> (LEFTARG = integer, RIGHTARG = integer, FUNCTION = ${SCHEMA}.topla)`);
   });
   afterAll(async () => {
     await admin.query(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
@@ -109,6 +110,7 @@ describePg('Katalog önbelleği: fonksiyonlar (gerçek Postgres)', () => {
     expect(bul(f, SCHEMA, 'arsivle')).toEqual([expect.objectContaining({ tur: 'p', argumanlar: '' })]);
     // Kullanıcının kendi trigger fonksiyonu süzülmez; süzme yalnızca pg_catalog'da.
     expect(bul(f, SCHEMA, 'tetik')).toHaveLength(1);
+    // Operatör gerçekleştiren kullanıcı fonksiyonu da (`<~>` → `topla`) süzülmez: yukarıda iki aşırı yüklemesiyle geldi.
 
     expect(bul(f, 'pg_catalog', 'count').map((x) => x.tur)).toContain('a');
     expect(bul(f, 'pg_catalog', 'row_number')).toEqual([expect.objectContaining({ tur: 'w', donus: 'bigint' })]);
@@ -118,6 +120,12 @@ describePg('Katalog önbelleği: fonksiyonlar (gerçek Postgres)', () => {
     for (const ad of ['array_agg_transfn', 'suppress_redundant_updates_trigger', 'heap_tableam_handler', 'plpgsql_call_handler', 'bthandler']) {
       expect(bul(f, 'pg_catalog', ad), ad).toEqual([]);
     }
+    // cstring'li G/Ç fonksiyonları ve yalnızca bir operatörü gerçekleştiren fonksiyonlar
+    for (const ad of ['aclitemin', 'aclitemout', 'aclitemeq', 'date_eq_timestamp', 'date_pl_interval', 'date_mi_interval', 'int4pl']) {
+      expect(bul(f, 'pg_catalog', ad), ad).toEqual([]);
+    }
+    // Operatörü gerçekleştirse de doğrudan çağrılmak için açıklaması olan kalır (`anyarray || anyelement`).
+    expect(bul(f, 'pg_catalog', 'array_append')).toHaveLength(1);
     // Görünür olmayan şemalar okunmaz.
     expect(f.every((x) => x.sema === SCHEMA || x.sema === 'pg_catalog')).toBe(true);
   });
