@@ -20,8 +20,11 @@ function iliskiListesiBaslar(simgeler: readonly DuzeySimgesi[], i: number): bool
 /** Takma ad olamayan (bir sonraki yan cümleyi başlatan) çıplak kelimeler. */
 const TAKMA_AD_OLAMAZ = new Set([...RESERVED, 'set', 'values', 'overriding', 'default']);
 
-/** `i`'deki öğeyi (`ad[.ad] [AS] [takma]`) okur; sonraki indeksle. */
-function oge(simgeler: readonly DuzeySimgesi[], i: number): { iliski: KapsamIliskisi | null; sonraki: number } {
+/**
+ * `i`'deki öğeyi (`ad[.ad] [AS] [takma]`) okur; sonraki indeksle. `fromYaDaJoin`: öğe FROM/JOIN
+ * listesinde (orada `ad(` fonksiyon çağrısıdır; `INSERT INTO t (` ise kolon listesidir).
+ */
+function oge(simgeler: readonly DuzeySimgesi[], i: number, fromYaDaJoin: boolean): { iliski: KapsamIliskisi | null; sonraki: number } {
   // ONLY / LATERAL gibi önekler atlanır.
   while (kelime(simgeler[i]) === 'ONLY' || kelime(simgeler[i]) === 'LATERAL') i++;
   const ilk = simgeler[i];
@@ -38,7 +41,7 @@ function oge(simgeler: readonly DuzeySimgesi[], i: number): { iliski: KapsamIlis
     i += 2;
   }
   // Ardından `(` gelen ad fonksiyon çağrısıdır (ticket 04: set-returning fonksiyon), ilişki değil.
-  if (simgeler[i]?.tur === 'grup') return { iliski: null, sonraki: i + 1 };
+  if (fromYaDaJoin && simgeler[i]?.tur === 'grup') return { iliski: null, sonraki: i + 1 };
   if (kelime(simgeler[i]) === 'AS') i++;
   let takmaAd: string | null = null;
   if (adMi(simgeler[i])) {
@@ -78,7 +81,8 @@ export function kapsamIliskileri(duzey: Duzey): KapsamIliskisi[] {
     if (!iliskiListesiBaslar(simgeler, i)) continue;
     let j = i + 1;
     for (;;) {
-      const { iliski, sonraki } = oge(simgeler, j);
+      const k = kelime(simgeler[i]);
+      const { iliski, sonraki } = oge(simgeler, j, k === 'FROM' || k === 'JOIN');
       if (iliski) iliskiler.push(iliski);
       j = sonraki;
       // Virgülle ayrılmış FROM listesi.

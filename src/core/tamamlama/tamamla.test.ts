@@ -51,6 +51,7 @@ describe('tamamla: ifade yuvası', () => {
     ['DELETE … WHERE', 'DELETE FROM customers WHERE |'],
     ['UPDATE … SET sağ taraf', 'UPDATE customers SET name = |'],
     ['RETURNING', 'DELETE FROM customers RETURNING |'],
+    ['kolon listeli INSERT … RETURNING', "INSERT INTO customers (name) VALUES ('x') RETURNING |"],
     ['fonksiyon argümanı', 'SELECT coalesce(| FROM customers'],
   ])('%s: FROM ilişkisinin kolonları öneksiz, tip detail’de', (_, metin) => {
     const s = tamamlaIsaretli(metin);
