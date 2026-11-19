@@ -6,7 +6,7 @@ Spec: [Performans](../spec.md#performans), [core: Tamamlama motoru](../spec.md#c
 
 **Blocked by:** 02, 03, 04
 
-**Status:** ready-for-agent
+**Status:** done (3c0eb5d)
 
 - [x] Dizinler katalog nesnesine bağlı olarak önbelleğe alınır (aynı katalog → aynı dizin; yenilenen katalog → yeni dizin).
 - [x] Büyük fixture (5.000 tablo, ~20 kolon/tablo, 3.000 fonksiyon, 2.000 FK) ile tek `tamamla` çağrısı, dizin kurulduktan sonra 10 ms bütçesinin altında (CI'da makine farkına karşı cömert bir eşik ve tekrar sayısıyla).
