@@ -1612,6 +1612,27 @@ button.kucuk {
   height: var(--grid-baslik);
 }
 
+/* Köşe (#) tümünü, satır numarası satırı seçip kopyalar. */
+button.grid-kose {
+  margin: 0;
+  border-top: 0;
+  border-left: 0;
+  border-radius: 0;
+  font: inherit;
+  min-height: 0;
+}
+
+button.grid-kose,
+.grid-veri-satiri .grid-satir-no {
+  cursor: pointer;
+  user-select: none;
+}
+
+button.grid-kose:hover,
+.grid-veri-satiri .grid-satir-no:hover {
+  color: var(--metin);
+}
+
 .grid-kolon-tutamaci {
   position: absolute;
   top: 0;
