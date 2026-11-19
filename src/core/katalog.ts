@@ -1,10 +1,9 @@
 /**
  * Katalog önbelleği (GLOSSARY): bir hedefin görünür şemalarındaki ilişkiler, kolonları ve tipleri.
- * Sunucu okur ve tutar; arayüz bundan editör tamamlamasını, tablo listesini ve tablo aramasını kurar.
- * Fonksiyonlar tamamlamaya girmez.
+ * Sunucu okur ve tutar; arayüz bundan editör tamamlamasını (`tamamlama/`), tablo listesini ve tablo
+ * aramasını kurar.
  */
 import type { Statement } from './ifade-bolme';
-import { quoteIdent } from './grid/sql';
 
 /** `pg_class.relkind`: tablo, view, materialized view, bölümlü tablo, foreign tablo. */
 export type RelationKind = 'r' | 'v' | 'm' | 'p' | 'f';
@@ -34,6 +33,25 @@ export interface CatalogRelation {
   reltuples: number;
 }
 
+/** `pg_proc.prokind`: fonksiyon, prosedür, aggregate, window. */
+export type FunctionKind = 'f' | 'p' | 'a' | 'w';
+export const FUNCTION_KINDS: readonly FunctionKind[] = ['f', 'p', 'a', 'w'];
+
+/** Bir fonksiyonun bir aşırı yüklemesi (`pg_proc` satırı). */
+export interface CatalogFunction {
+  sema: string;
+  ad: string;
+  tur: FunctionKind;
+  /** `pg_get_function_arguments`, ör. `a integer, b text DEFAULT ''::text`. */
+  argumanlar: string;
+  /** `pg_get_function_result`, ör. `SETOF integer`; prosedürde boş. */
+  donus: string;
+  /** `proretset`: set-returning (FROM'da kullanılabilir). */
+  kumeDondurur: boolean;
+  /** `obj_description(oid, 'pg_proc')`. */
+  aciklama: string | null;
+}
+
 /** `GET …/katalog` yanıtı. */
 export interface Catalog {
   /** `(current_schemas(false))[1]`: `search_path`'in ilk (var olan) şeması; yoksa `null`. */
@@ -46,6 +64,27 @@ export interface Catalog {
   tipler: Record<string, string>;
   /** Görünür şemalardaki kullanıcı tipleri (enum, domain, bileşik, aralık…), `format_type` adıyla. */
   kullaniciTipleri: string[];
+  /**
+   * Görünür şemalar + `pg_catalog` (iç kullanım tipli olanlar süzülmüş); şema, ad sırasıyla,
+   * aşırı yükleme başına bir satır.
+   */
+  fonksiyonlar: CatalogFunction[];
+  /** İki ucu da görünür şemalarda olan FK'ler; kaynak şema, ilişki, FK adı sırasıyla. */
+  fkler: CatalogForeignKey[];
+}
+
+/** FK'nin bir ucu; `kolonlar` FK sırasıyla, öbür ucun `kolonlar`'ıyla eşleşik. */
+export interface CatalogForeignKeyEnd {
+  sema: string;
+  ad: string;
+  kolonlar: string[];
+}
+
+/** `pg_constraint` (`contype = 'f'`): `kaynak` referans veren, `hedef` referans verilen ilişki. */
+export interface CatalogForeignKey {
+  ad: string;
+  kaynak: CatalogForeignKeyEnd;
+  hedef: CatalogForeignKeyEnd;
 }
 
 /** Katalogun tip eşlemesi; "INSERT olarak kopyala" OID'leri bununla çözer. */
@@ -53,89 +92,7 @@ export function typeMap(catalog: Catalog): Map<number, string> {
   return new Map(Object.entries(catalog.tipler).map(([oid, ad]) => [Number(oid), ad]));
 }
 
-// --- Tamamlama ---
-
-/** `@codemirror/lang-sql`'in `Completion`'ıyla yapısal olarak uyumlu öneri. */
-export interface CompletionOption {
-  label: string;
-  type: string;
-  detail?: string;
-  apply?: string;
-}
-
-/** `@codemirror/lang-sql`'in `SQLNamespace`'iyle yapısal olarak uyumlu ağaç. */
-export type CompletionNamespace =
-  | { [name: string]: CompletionNamespace }
-  | { self: CompletionOption; children: CompletionNamespace }
-  | readonly CompletionOption[];
-
-export interface CompletionConfig {
-  schema: CompletionNamespace;
-  /** Verilirse bu şemanın tabloları öneksiz önerilir. */
-  defaultSchema?: string;
-  /** Verilirse bu tablonun (`defaultSchema`'da) kolonları öneksiz önerilir. */
-  defaultTable?: string;
-}
-
-const KIND_LABELS: Record<RelationKind, string> = {
-  r: 'tablo',
-  v: 'view',
-  m: 'materialized view',
-  p: 'bölümlü tablo',
-  f: 'foreign tablo',
-};
-
-/** Postgres'in ayrılmış anahtar kelimeleri: tanımlayıcı olarak tırnak ister. */
-const RESERVED = new Set(
-  (
-    'all analyse analyze and any array as asc asymmetric authorization binary both case cast check collate collation ' +
-    'column concurrently constraint create cross current_catalog current_date current_role current_schema current_time ' +
-    'current_timestamp current_user default deferrable desc distinct do else end except false fetch for foreign freeze ' +
-    'from full grant group having ilike in initially inner intersect into is isnull join lateral leading left like limit ' +
-    'localtime localtimestamp natural not notnull null offset on only or order outer overlaps placing primary references ' +
-    'returning right select session_user similar some symmetric system_user table tablesample then to trailing true union ' +
-    'unique user using variadic verbose when where window with'
-  ).split(' '),
-);
-
-/** Çıplak yazılınca aynı adı veren tanımlayıcı mı (küçük harf, anahtar kelime değil). */
-function isBareIdent(name: string): boolean {
-  return /^[a-z_][a-z0-9_$]*$/.test(name) && !RESERVED.has(name);
-}
-
-function option(label: string, type: string, detail?: string): CompletionOption {
-  return { label, type, ...(detail !== undefined && { detail }), ...(!isBareIdent(label) && { apply: quoteIdent(label) }) };
-}
-
-/** lang-sql nesne anahtarlarındaki `.`'yı yol ayırıcısı sayar; adın parçası olan nokta kaçışlanır. */
-const namespaceKey = (name: string) => name.replaceAll('.', '\\.');
-
-/**
- * Katalog → editör tamamlaması: görünür şemaların ilişkileri ve kolonları (tip `detail`'de).
- * `defaultSchema` görünürse onun tabloları öneksiz de önerilir.
- */
-export function catalogCompletion(catalog: Catalog, visibleSchemas: readonly string[]): CompletionConfig {
-  const visible = new Set(visibleSchemas);
-  const schema: Record<string, { self: CompletionOption; children: Record<string, CompletionNamespace> }> = {};
-  for (const r of catalog.iliskiler) {
-    if (!visible.has(r.sema)) continue;
-    const entry = (schema[namespaceKey(r.sema)] ??= { self: option(r.sema, 'namespace'), children: {} });
-    entry.children[namespaceKey(r.ad)] = {
-      self: option(r.ad, 'type', KIND_LABELS[r.tur]),
-      children: r.kolonlar.map((k) => option(k.ad, 'property', k.tip)),
-    };
-  }
-  const defaultSchema = catalog.defaultSchema;
-  return { schema, ...(defaultSchema !== null && visible.has(defaultSchema) && { defaultSchema }) };
-}
-
-/**
- * Tablo sekmesinin `WHERE` / `ORDER BY` kutuları: editörle aynı ağaç, ama varsayılan şema tablonun
- * şeması ve tablonun kolonları öneksiz önerilir.
- */
-export function filterCompletion(catalog: Catalog, visibleSchemas: readonly string[], sema: string, tablo: string): CompletionConfig {
-  return { schema: catalogCompletion(catalog, visibleSchemas).schema, defaultSchema: sema, defaultTable: tablo };
-}
+// --- Tablo araması ---
 
 /**
  * Tablo listesi ve Cmd/Ctrl+K tablo araması: görünür şemaların ilişkileri, büyük/küçük harf
@@ -181,21 +138,27 @@ export interface CatalogRows {
   /** İlişki başına en az bir satır; kolonu olmayan ilişkide kolon alanları `null`. */
   iliskiler: readonly Record<string, string | null>[];
   tipler: readonly Record<string, string | null>[];
+  fonksiyonlar: readonly Record<string, string | null>[];
+  /** FK kolon çifti başına bir satır (`sira`: FK içindeki 1 tabanlı sıra). */
+  fkler: readonly Record<string, string | null>[];
 }
 
 /** Postgres'in `bool` metni (`t` ya da `::text` ile `true`). */
 export const pgBool = (v: string | null | undefined) => v === 't' || v === 'true';
 
+/** İlişkinin (şema, ad) çiftinden tekil `Map` anahtarı. */
+export const iliskiAnahtari = (sema: string, ad: string) => `${sema}\u0000${ad}`;
+
 /**
  * Sorgu satırlarından katalog: kolon satırları ilişkilerine toplanır, PK kolonları indeks sırasına
  * dizilir. Tanınmayan `relkind` atlanır.
  */
-export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler }: CatalogRows): Catalog {
+export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksiyonlar, fkler }: CatalogRows): Catalog {
   const relations = new Map<string, CatalogRelation & { pkSira: { ad: string; sira: number }[] }>();
   for (const row of iliskiler) {
     const tur = row.tur as RelationKind;
     if (!RELATION_KINDS.includes(tur) || row.sema == null || row.ad == null) continue;
-    const key = `${row.sema}\u0000${row.ad}`;
+    const key = iliskiAnahtari(row.sema, row.ad);
     let r = relations.get(key);
     if (!r) {
       const reltuples = Number(row.satir);
@@ -223,5 +186,58 @@ export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler }: Cata
     typeNames[row.oid] = row.ad;
     if (pgBool(row.kullanici)) userTypes.push(row.ad);
   }
-  return { defaultSchema, semalar: [...semalar], iliskiler: list, tipler: typeNames, kullaniciTipleri: userTypes.sort(compare) };
+  return {
+    defaultSchema,
+    semalar: [...semalar],
+    iliskiler: list,
+    tipler: typeNames,
+    kullaniciTipleri: userTypes.sort(compare),
+    fonksiyonlar: buildFunctions(fonksiyonlar),
+    fkler: buildForeignKeys(fkler),
+  };
+}
+
+/** Fonksiyon satırları; tanınmayan `prokind` ya da adsız satır atlanır. Aşırı yüklemeler okunduğu sırada kalır. */
+function buildFunctions(rows: CatalogRows['fonksiyonlar']): CatalogFunction[] {
+  const list: CatalogFunction[] = [];
+  for (const row of rows) {
+    const tur = row.tur as FunctionKind;
+    if (!FUNCTION_KINDS.includes(tur) || row.sema == null || row.ad == null) continue;
+    list.push({
+      sema: row.sema,
+      ad: row.ad,
+      tur,
+      argumanlar: row.argumanlar ?? '',
+      donus: row.donus ?? '',
+      kumeDondurur: pgBool(row.kume),
+      aciklama: row.aciklama ?? null,
+    });
+  }
+  return list.sort((a, b) => compare(a.sema, b.sema) || compare(a.ad, b.ad));
+}
+
+const FK_FIELDS = ['ad', 'kaynak_sema', 'kaynak_ad', 'hedef_sema', 'hedef_ad', 'kaynak_kolon', 'hedef_kolon', 'sira'] as const;
+
+/** FK kolon satırlarını FK başına toplar (anahtar: kaynak şema, ilişki, FK adı); eksik alanlı satır atlanır. */
+function buildForeignKeys(rows: CatalogRows['fkler']): CatalogForeignKey[] {
+  const fks = new Map<string, { fk: CatalogForeignKey; pairs: { sira: number; kaynak: string; hedef: string }[] }>();
+  for (const row of rows) {
+    if (FK_FIELDS.some((f) => row[f] == null)) continue;
+    const r = row as Record<(typeof FK_FIELDS)[number], string>;
+    const key = `${iliskiAnahtari(r.kaynak_sema, r.kaynak_ad)}\u0000${r.ad}`;
+    let entry = fks.get(key);
+    if (!entry) {
+      entry = {
+        fk: { ad: r.ad, kaynak: { sema: r.kaynak_sema, ad: r.kaynak_ad, kolonlar: [] }, hedef: { sema: r.hedef_sema, ad: r.hedef_ad, kolonlar: [] } },
+        pairs: [],
+      };
+      fks.set(key, entry);
+    }
+    entry.pairs.push({ sira: Number(r.sira), kaynak: r.kaynak_kolon, hedef: r.hedef_kolon });
+  }
+  const list = [...fks.values()].map(({ fk, pairs }) => {
+    pairs.sort((a, b) => a.sira - b.sira);
+    return { ...fk, kaynak: { ...fk.kaynak, kolonlar: pairs.map((p) => p.kaynak) }, hedef: { ...fk.hedef, kolonlar: pairs.map((p) => p.hedef) } };
+  });
+  return list.sort((a, b) => compare(a.kaynak.sema, b.kaynak.sema) || compare(a.kaynak.ad, b.kaynak.ad) || compare(a.ad, b.ad));
 }

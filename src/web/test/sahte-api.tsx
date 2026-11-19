@@ -188,7 +188,7 @@ export interface FakeConnections {
 
 /** Hiç ilişkisi olmayan katalog. */
 export function emptyCatalog(overrides: Partial<Catalog> = {}): Catalog {
-  return { defaultSchema: 'public', semalar: ['public'], iliskiler: [], tipler: {}, kullaniciTipleri: [], ...overrides };
+  return { defaultSchema: 'public', semalar: ['public'], iliskiler: [], tipler: {}, kullaniciTipleri: [], fonksiyonlar: [], fkler: [], ...overrides };
 }
 
 export interface FakeServer {

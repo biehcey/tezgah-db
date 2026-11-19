@@ -51,8 +51,12 @@ Tablo sekmesinde yapılmış ama henüz uygulanmamış hücre düzenlemesi, sat�
 _Avoid_: Taslak, dirty satır, pending edit
 
 **Katalog önbelleği**:
-Bir hedefin görünür şemalarındaki tablo, view ve kolonların (tipleri, PK'ları ve tahmini satır sayılarıyla) ve tip adlarının sunucu belleğindeki kopyası; tamamlama, tablo listesi ve "INSERT olarak kopyala"nın tip adları bundan beslenir. Yalnızca kullanıcının o oturumdaki bir eylemiyle doldurulur; DDL'li script bitince ya da elle yenilenir.
+Bir hedefin görünür şemalarındaki tablo, view ve kolonların (tipleri, PK'ları ve tahmini satır sayılarıyla), FK'lerin, fonksiyonların (imzaları ve açıklamalarıyla) ve tip adlarının sunucu belleğindeki kopyası; tamamlama, tablo listesi ve "INSERT olarak kopyala"nın tip adları bundan beslenir. Yalnızca kullanıcının o oturumdaki bir eylemiyle doldurulur; DDL'li script bitince ya da elle yenilenir.
 _Avoid_: Metadata, şema önbelleği, introspection
+
+**Tamamlama bağlamı**:
+İmlecin bulunduğu yerin tamamlama açısından anlamı: ifade türü ve yuvası (ilişki adı beklenen yer, ifade/kolon beklenen yer, tip beklenen yer, `x.` sonrası, yalnızca anahtar kelime), o kapsamda görünen ilişkiler ve takma adları (CTE'ler, alt sorgular, ilişkili alt sorguda dıştakiler dahil). Metinden çıkarılır; katalog yalnızca adları ve kolonları doldurur. Tablo sekmesinin `WHERE`/`ORDER BY` kutularında örtük FROM o tablodur.
+_Avoid_: Kapsam, scope, context
 
 ## Script çalıştırma
 

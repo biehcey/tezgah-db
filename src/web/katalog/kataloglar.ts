@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Connection } from '../../core/baglanti';
-import { catalogCompletion, typeMap, type Catalog, type CompletionConfig } from '../../core/katalog';
+import { typeMap, type Catalog } from '../../core/katalog';
 import { targetSchemas, type Target } from '../../core/veritabani-secimi';
 import type { ApiClient } from '../api/client';
+import type { TamamlamaGirdisi } from '../script/tamamlama';
 
 /**
  * Bir hedefin arayüzdeki katalog durumu. Yenilenirken ve okunamayınca önceki katalog (varsa)
@@ -113,12 +114,12 @@ export type Catalogs = ReturnType<typeof useCatalogs>;
 
 /** Editör tamamlaması ve INSERT tip adları: Veritabanı seçiminin şu an görünür şemalarıyla. */
 export interface CatalogUse {
-  completion: CompletionConfig | null;
+  completion: TamamlamaGirdisi | null;
   tipAdlari: ReadonlyMap<number, string> | undefined;
 }
 
 export function catalogUse(entry: CatalogEntry | undefined, connection: Connection, database: string): CatalogUse {
   const katalog = entry?.katalog;
   if (!katalog) return { completion: null, tipAdlari: undefined };
-  return { completion: catalogCompletion(katalog, targetSchemas(connection, database, katalog.semalar)), tipAdlari: typeMap(katalog) };
+  return { completion: { katalog, gorunurSemalar: targetSchemas(connection, database, katalog.semalar) }, tipAdlari: typeMap(katalog) };
 }

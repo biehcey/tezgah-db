@@ -1,21 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import pg from 'pg';
 import type { Connection } from '../core/baglanti';
-import { RELATION_KINDS, buildCatalog, pgBool, type Catalog } from '../core/katalog';
+import { FUNCTION_KINDS, RELATION_KINDS, buildCatalog, pgBool, type Catalog } from '../core/katalog';
 import { selectionEntry, visibleSchemas } from '../core/veritabani-secimi';
 import type { SettingsStore } from './ayar-deposu';
 import { RAW_TYPES, TargetError, targetQueryError, type PoolManager } from './havuzlar';
+import { foreignKeysSql } from './katalog-fk';
 import { json, methodNotAllowed, notFound } from './http';
+import { inList } from './sql-listesi';
 
 /** Büyük veritabanlarında katalog okuması panelin kısa sorgularından uzun sürebilir. */
 const TIMEOUT_MS = 30_000;
-
-/**
- * Metin literal'i, `standard_conforming_strings`'ten bağımsız: `E'…'` içinde ters bölü ve tek
- * tırnak kaçışlanır. Sahte Postgres parametreli sorguya satır döndürmediğinden adlar gömülür.
- */
-const literal = (value: string) => `E'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`;
-const inList = (values: readonly string[]) => `IN (${values.map(literal).join(', ')})`;
 
 const SCHEMAS_SQL = `SELECT nspname AS ad, (nspname = (current_schemas(false))[1])::text AS varsayilan
   FROM pg_catalog.pg_namespace WHERE nspname !~ '^pg_(toast_)?temp_' ORDER BY nspname`;
@@ -38,6 +33,22 @@ const typesSql = (schemas: readonly string[]) => `SELECT t.oid::text AS oid, for
   JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
   LEFT JOIN pg_catalog.pg_class r ON r.oid = t.typrelid
   WHERE n.nspname ${inList(['pg_catalog', ...schemas])}`;
+
+/** `pg_catalog`'da argümanı ya da dönüşü bunlardan biri olan fonksiyonlar iç kullanımdır, okunmaz. */
+const INTERNAL_TYPES = ['internal', 'trigger', 'event_trigger', 'language_handler', 'fdw_handler', 'index_am_handler', 'table_am_handler', 'tsm_handler'];
+
+/** Fonksiyonlar (aşırı yükleme başına bir satır, OID sırasıyla): görünür şemalar + süzülmüş `pg_catalog`. */
+const functionsSql = (schemas: readonly string[]) => `SELECT n.nspname AS sema, p.proname AS ad, p.prokind::text AS tur,
+    pg_get_function_arguments(p.oid) AS argumanlar, pg_get_function_result(p.oid) AS donus,
+    p.proretset::text AS kume, obj_description(p.oid, 'pg_proc') AS aciklama
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE p.prokind ${inList(FUNCTION_KINDS)} AND n.nspname ${inList(['pg_catalog', ...schemas])}
+    AND NOT (n.nspname = 'pg_catalog' AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_type it
+      WHERE it.oid = ANY (array_prepend(p.prorettype, p.proargtypes::oid[]))
+        AND it.typnamespace = 'pg_catalog'::regnamespace AND it.typname ${inList(INTERNAL_TYPES)}))
+  ORDER BY n.nspname, p.proname, p.oid`;
 
 async function query(client: pg.ClientBase, text: string): Promise<Record<string, string | null>[]> {
   // `query_timeout` sorgu başına desteklenir ama @types/pg'de tanımlı değil.
@@ -79,8 +90,10 @@ export function createCatalogCache({ pools }: CatalogCacheDeps) {
         const defaultSchema = schemaRows.find((r) => pgBool(r.varsayilan))?.ad ?? null;
         const iliskiler = semalar.length > 0 ? await query(client, relationsSql(semalar)) : [];
         const tipler = await query(client, typesSql(semalar));
+        const fonksiyonlar = await query(client, functionsSql(semalar));
+        const fkler = semalar.length > 0 ? await query(client, foreignKeysSql(semalar)) : [];
         await client.query('COMMIT');
-        return buildCatalog({ semalar, defaultSchema, iliskiler, tipler });
+        return buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksiyonlar, fkler });
       } catch (err) {
         // Transaction açık kalmış olabilir: client pool'a dönmez.
         discard();

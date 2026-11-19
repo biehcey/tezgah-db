@@ -7,7 +7,7 @@ import { TABS_VERSION, type SavedTabs } from '../../core/konsol-sekmeleri';
 import type { TablePageResponse } from '../../core/tablo-sayfasi';
 import { ApiError } from '../api/client';
 import { App } from '../App';
-import { completionConfig } from '../script/ScriptEditoru';
+import { tamamlamaGirdisi } from '../script/tamamlama';
 import { connection, createFakeConnections, emptyCatalog, renderWithApi } from '../test/sahte-api';
 
 const DEV = connection({ id: 'd1', name: 'Yerel', databaseSelection: [{ database: 'postgres', schemas: null }] });
@@ -393,11 +393,12 @@ describe('Tablo sekmesi: WHERE ve ORDER BY', () => {
     expect(fake.tablePageRequests).toHaveLength(4);
   });
 
-  it('kutularda katalog tamamlaması: tablonun kolonları öneksiz', async () => {
+  it('kutular tamamlamaya tabloyu örtük tablo olarak, kutu türüyle verir', async () => {
     const { user, fake } = await setup();
     await openUsers(user, fake);
-    const config = EditorView.findFromDOM(filterBox('WHERE'))!.state.facet(completionConfig);
-    expect(config).toMatchObject({ defaultSchema: 'public', defaultTable: 'users' });
+    const girdi = (kutu: 'WHERE' | 'ORDER BY') => EditorView.findFromDOM(filterBox(kutu))!.state.facet(tamamlamaGirdisi);
+    expect(girdi('WHERE')!.ortukTablo).toEqual({ sema: 'public', tablo: 'users', kutu: 'where' });
+    expect(girdi('ORDER BY')!.ortukTablo).toEqual({ sema: 'public', tablo: 'users', kutu: 'orderBy' });
   });
 
   it('geri gelen sekmenin filtresi kutularda durur; "Yükle" onunla çeker', async () => {

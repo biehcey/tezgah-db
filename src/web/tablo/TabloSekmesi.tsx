@@ -20,7 +20,7 @@ import type { Cell } from '../../core/grid/secim';
 import { shortcutKey, tableShortcut, type TableShortcut } from '../../core/kisayollar';
 import { typeName } from '../../core/grid/tipler';
 import { startDecision, type DecisionTimer } from '../../core/karar-suresi';
-import { filterCompletion, typeMap } from '../../core/katalog';
+import { typeMap } from '../../core/katalog';
 import type { TableTab } from '../../core/konsol-sekmeleri';
 import { ROW_LIMIT_MESSAGE, applyEvent, startRunView, targetLock, type RunView } from '../../core/script-calistirma';
 import { writeLockState } from '../../core/yazma-kilidi';
@@ -50,6 +50,7 @@ import { BekleyenListesi } from './BekleyenListesi';
 import { APPLE, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
+import type { TamamlamaGirdisi } from '../script/tamamlama';
 import { KolonFormu } from './KolonFormu';
 import { tableHasRows } from '../../core/kolon-ekle';
 import type { CatalogReason } from '../katalog/kataloglar';
@@ -310,9 +311,11 @@ export function TabloSekmesi({
 
   const tipAdlari = useMemo(() => (catalog?.katalog ? typeMap(catalog.katalog) : undefined), [catalog]);
   const katalog = catalog?.katalog;
+  /** Kutuların tamamlama girdisi: örtük FROM bu tablo; katalog yoksa da anahtar kelimeler. */
   const completion = useMemo(() => {
-    if (!katalog || !target) return null;
-    return filterCompletion(katalog, targetSchemas(target.connection, target.database, katalog.semalar), tab.sema, tab.tablo);
+    const gorunurSemalar = katalog && target ? targetSchemas(target.connection, target.database, katalog.semalar) : [];
+    const girdi = (kutu: FilterBox): TamamlamaGirdisi => ({ katalog: katalog ?? null, gorunurSemalar, ortukTablo: { sema: tab.sema, tablo: tab.tablo, kutu } });
+    return { where: girdi('where'), orderBy: girdi('orderBy') };
   }, [katalog, target, tab.sema, tab.tablo]);
 
   const sayfa = view.durum === 'hazir' ? view.sayfa : null;
@@ -634,7 +637,7 @@ export function TabloSekmesi({
                   value={draft[kutu]}
                   onChange={(text) => setDraft({ ...draftRef.current, [kutu]: text })}
                   onApply={() => target && apply(draftRef.current)}
-                  completion={completion}
+                  completion={completion[kutu]}
                   invalid={error?.kutu === kutu}
                 />
                 {errorLine(kutu)}

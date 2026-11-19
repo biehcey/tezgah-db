@@ -166,6 +166,8 @@ describe('searchCatalogTables: "Tablolar" grubu', () => {
     iliskiler,
     tipler: {},
     kullaniciTipleri: [],
+    fonksiyonlar: [],
+    fkler: [],
   });
   const catalogs = [
     { connectionId: 'b1', database: 'app', katalog: katalog([rel('public', 'musteri_siparis'), rel('gizli', 'siparis_yedek')]) },
