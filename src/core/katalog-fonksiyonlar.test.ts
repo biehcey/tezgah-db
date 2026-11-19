@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildCatalog } from './katalog';
 
 const satirlar = (fonksiyonlar: Record<string, string | null>[]) =>
-  buildCatalog({ semalar: ['public'], defaultSchema: 'public', iliskiler: [], tipler: [], fonksiyonlar });
+  buildCatalog({ semalar: ['public'], defaultSchema: 'public', iliskiler: [], tipler: [], fonksiyonlar, fkler: [] });
 
 describe('buildCatalog: fonksiyonlar', () => {
   it('aşırı yükleme başına bir satır; tür, imza, küme döndürme ve açıklama dönüştürülür; şema, ad sırasıyla', () => {

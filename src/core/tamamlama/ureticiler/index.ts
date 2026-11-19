@@ -7,8 +7,9 @@ import { anahtarKelimeler } from './anahtar-kelimeler';
 import { cteAdlari } from './cte';
 import { fonksiyonlar } from './fonksiyonlar';
 import { iliskiler } from './iliskiler';
+import { join } from './join';
 import { kolonlar } from './kolonlar';
 import { takmaAdlar } from './takma-adlar';
 import { tipler } from './tipler';
 
-export const URETICILER: readonly Uretici[] = [kolonlar, takmaAdlar, cteAdlari, iliskiler, tipler, anahtarKelimeler, fonksiyonlar];
+export const URETICILER: readonly Uretici[] = [kolonlar, takmaAdlar, cteAdlari, join, iliskiler, tipler, anahtarKelimeler, fonksiyonlar];

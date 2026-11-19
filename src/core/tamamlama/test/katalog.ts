@@ -32,6 +32,7 @@ export const KATALOG: Catalog = {
   tipler: {},
   kullaniciTipleri: [],
   fonksiyonlar: [],
+  fkler: [],
 };
 
 /** Veritabanı seçiminde görünür şemalar (`gizli` değil). */

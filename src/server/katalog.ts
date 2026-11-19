@@ -5,6 +5,7 @@ import { FUNCTION_KINDS, RELATION_KINDS, buildCatalog, pgBool, type Catalog } fr
 import { selectionEntry, visibleSchemas } from '../core/veritabani-secimi';
 import type { SettingsStore } from './ayar-deposu';
 import { RAW_TYPES, TargetError, targetQueryError, type PoolManager } from './havuzlar';
+import { foreignKeysSql } from './katalog-fk';
 import { json, methodNotAllowed, notFound } from './http';
 
 /** Büyük veritabanlarında katalog okuması panelin kısa sorgularından uzun sürebilir. */
@@ -96,8 +97,9 @@ export function createCatalogCache({ pools }: CatalogCacheDeps) {
         const iliskiler = semalar.length > 0 ? await query(client, relationsSql(semalar)) : [];
         const tipler = await query(client, typesSql(semalar));
         const fonksiyonlar = await query(client, functionsSql(semalar));
+        const fkler = semalar.length > 0 ? await query(client, foreignKeysSql(inList(semalar))) : [];
         await client.query('COMMIT');
-        return buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksiyonlar });
+        return buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksiyonlar, fkler });
       } catch (err) {
         // Transaction açık kalmış olabilir: client pool'a dönmez.
         discard();
