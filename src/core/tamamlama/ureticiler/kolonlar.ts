@@ -6,6 +6,7 @@
 import type { CatalogRelation } from '../../katalog';
 import { adMetni, identSql } from '../adlar';
 import { iliskiBul } from '../dizin';
+import { gorunenAd } from '../kapsam';
 import { ONCELIK } from '../oncelik';
 import type { Baglam, KapsamIliskisi, Oneri, Uretici } from '../tipler';
 
@@ -41,7 +42,7 @@ function niteleyiciKolonlari(b: Baglam, niteleyici: readonly string[]): Kolon[] 
   if (niteleyici.length === 2) return katalogKolonlari(iliskiBul(b, niteleyici[0]!, niteleyici[1]!));
   const ad = niteleyici[0]!;
   for (const kapsam of b.kapsamlar) {
-    const r = kapsam.find((r) => (r.takmaAd ?? r.ad) === ad);
+    const r = kapsam.find((r) => gorunenAd(r) === ad);
     if (r) return iliskiKolonlari(b, r);
   }
   return katalogKolonlari(iliskiBul(b, null, ad));
@@ -67,7 +68,7 @@ function kapsamKolonlari(b: Baglam): Oneri[] {
   const oneriler: Oneri[] = [];
   const icteki = new Set<string>();
   for (const kapsam of b.kapsamlar) {
-    const listeler = kapsam.map((r) => ({ gorunen: r.takmaAd ?? r.ad, yazilis: yazilis(r), kolonlar: iliskiKolonlari(b, r) }));
+    const listeler = kapsam.map((r) => ({ gorunen: gorunenAd(r), yazilis: yazilis(r), kolonlar: iliskiKolonlari(b, r) }));
     const sayi = new Map<string, number>();
     for (const { kolonlar } of listeler) for (const k of new Set(kolonlar.map((k) => k.ad))) sayi.set(k, (sayi.get(k) ?? 0) + 1);
     for (const { gorunen, yazilis, kolonlar } of listeler) {

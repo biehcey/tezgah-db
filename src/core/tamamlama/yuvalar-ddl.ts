@@ -6,13 +6,10 @@
  *   ilişki, kolon ve tip yuvası verir; geri kalan her yerde `anahtar` (ilişki/kolon/fonksiyon
  *   önerilmez). DDL içindeki sorgu (`CREATE VIEW v AS SELECT …`, alt sorgu) olağan kurallara kalır.
  */
-import { adDegeri, kelime, sembol } from './simge';
-import type { DuzeySimgesi, KapsamIliskisi, Yuva } from './tipler';
+import { katalogIliskisi } from './kapsam';
+import { adDegeri, adOku, kelime, sembol } from './simge';
+import { ANAHTAR, ILISKI, TIP, type DuzeySimgesi, type KapsamIliskisi, type Yuva } from './tipler';
 import type { YuvaGirdisi, YuvaKurali } from './yuvalar';
-
-const TIP: Yuva = { tur: 'tip' };
-const ILISKI: Yuva = { tur: 'iliski' };
-const ANAHTAR: Yuva = { tur: 'anahtar' };
 
 /** `x::|` (iki ayrı `:` simgesi) ve `CAST(x AS |`. */
 export const tipKurali: YuvaKurali = ({ onceki, zincir }) => {
@@ -23,8 +20,11 @@ export const tipKurali: YuvaKurali = ({ onceki, zincir }) => {
 
 /** Kökteki ilk kelimesi bunlardan biri olan ifade DDL sayılır. */
 const DDL_BASLARI = new Set(['CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'COMMENT', 'GRANT', 'REVOKE']);
-/** DDL içinde olağan kurallara bırakılan sorgu başları (`CREATE VIEW v AS SELECT`). */
-const SORGU_BASLARI = new Set(['SELECT', 'WITH', 'VALUES']);
+/**
+ * DDL içinde olağan kurallara bırakılan sorgu başları (`CREATE VIEW v AS SELECT`). `TABLE` yok:
+ * DDL'de (`CREATE TABLE`) sorgu başlatmaz.
+ */
+const DDL_ICI_SORGU_BASLARI = new Set(['SELECT', 'WITH', 'VALUES']);
 /** Ad listelerinde atlanan niteleyici kelimeler (`IF [NOT] EXISTS`, `ONLY`). */
 const DOLGU = new Set(['IF', 'NOT', 'EXISTS', 'ONLY']);
 /** `CREATE TABLE` grubunda kolon değil kısıt başlatan kelimeler. */
@@ -40,17 +40,7 @@ const ILISKI_LISTELERI: { bas: string[]; virgullu: boolean }[] = [
   { bas: ['COMMENT', 'ON', 'TABLE'], virgullu: false },
 ];
 
-const katalogIliskisi = (ad: { sema: string | null; ad: string }): KapsamIliskisi => ({ ...ad, takmaAd: null, kaynak: { tur: 'katalog' } });
-
 const dolgusuz = (simgeler: readonly DuzeySimgesi[]) => simgeler.filter((s) => !DOLGU.has(kelime(s) ?? ''));
-
-/** `simgeler`'in `i`'den başlayan `ad` ya da `şema.ad`'ı ve ardından gelen indeks; yoksa `null`. */
-function adOku(simgeler: readonly DuzeySimgesi[], i: number): { sema: string | null; ad: string; son: number } | null {
-  const ilk = simgeler[i] && adDegeri(simgeler[i]!);
-  if (!ilk) return null;
-  const ikinci = sembol(simgeler[i + 1], '.') && simgeler[i + 2] ? adDegeri(simgeler[i + 2]!) : null;
-  return ikinci ? { sema: ilk, ad: ikinci, son: i + 3 } : { sema: null, ad: ilk, son: i + 1 };
-}
 
 /** `simgeler` verilen kelimelerle mi başlıyor. */
 const ileBaslar = (simgeler: readonly DuzeySimgesi[], kelimeler: readonly string[]) => kelimeler.every((k, i) => kelime(simgeler[i]) === k);
@@ -135,7 +125,7 @@ export const ddlKurali: YuvaKurali = ({ zincir }: YuvaGirdisi) => {
   if (!DDL_BASLARI.has(kelime(kok[0]) ?? '')) return null;
   // DDL içindeki sorgu olağan kurallara kalır.
   if (zincir.some((h) => h.duzey.sorgu && h !== zincir.at(-1))) return null;
-  if (kok.some((s) => SORGU_BASLARI.has(kelime(s) ?? ''))) return null;
+  if (kok.some((s) => DDL_ICI_SORGU_BASLARI.has(kelime(s) ?? ''))) return null;
   if (zincir.length === 1) return kokYuvasi(kok);
   if (zincir.length === 2) return grupYuvasi(zincir[0]!.onceki, kok);
   return ANAHTAR;

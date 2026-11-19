@@ -3,15 +3,13 @@
  * ilişkilerinden birine FK ile bağlı her ilişki için (her FK ve her yönde ayrı) `yeni ON yeni.k =
  * taraf.r [AND …]`; `ON |` ifade yuvasında son JOIN'lenen ilişkiyle öncekiler arasındaki koşullar.
  */
-import type { CatalogForeignKey, CatalogForeignKeyEnd, CatalogRelation } from '../../katalog';
+import { iliskiAnahtari, type CatalogForeignKey, type CatalogForeignKeyEnd, type CatalogRelation } from '../../katalog';
 import { adMetni, identSql } from '../adlar';
 import { iliskiBul, katalogaBagli, varsayilanSemada } from '../dizin';
 import { kapsamIliskileri } from '../kapsam';
 import { ONCELIK } from '../oncelik';
 import { kelime } from '../simge';
 import type { Baglam, KapsamIliskisi, Oneri, Uretici } from '../tipler';
-
-const anahtar = (sema: string, ad: string) => `${sema}\u0000${ad}`;
 
 /** FK'nin bir ilişkiden görünüşü: `bu` ilişkinin ucu, `obur` öbür uç. */
 interface FkYonu {
@@ -24,7 +22,7 @@ interface FkYonu {
 const fkDizini = katalogaBagli((katalog) => {
   const dizin = new Map<string, FkYonu[]>();
   const ekle = (uc: CatalogForeignKeyEnd, yon: FkYonu) => {
-    const k = anahtar(uc.sema, uc.ad);
+    const k = iliskiAnahtari(uc.sema, uc.ad);
     const liste = dizin.get(k);
     if (liste) liste.push(yon);
     else dizin.set(k, [yon]);
@@ -60,7 +58,7 @@ function joinOnerileri(b: Baglam): Oneri[] {
   const dizin = fkDizini(b.katalog);
   return oncekiKatalogIliskileri(b).flatMap(({ kapsam, katalog }) => {
     const taraf = anilanAd(kapsam);
-    return (dizin.get(anahtar(katalog.sema, katalog.ad)) ?? []).flatMap(({ fk, bu, obur }) => {
+    return (dizin.get(iliskiAnahtari(katalog.sema, katalog.ad)) ?? []).flatMap(({ fk, bu, obur }) => {
       // Öbür uç görünür şemada olmalı.
       const yeni = iliskiBul(b, obur.sema, obur.ad);
       if (!yeni) return [];
@@ -82,7 +80,7 @@ function onOnerileri(b: Baglam): Oneri[] {
   if (!son) return [];
   const yeni = anilanAd(son.kapsam);
   const digerleri = iliskiler.slice(0, -1);
-  return (fkDizini(b.katalog).get(anahtar(son.katalog.sema, son.katalog.ad)) ?? []).flatMap(({ fk, bu, obur }) =>
+  return (fkDizini(b.katalog).get(iliskiAnahtari(son.katalog.sema, son.katalog.ad)) ?? []).flatMap(({ fk, bu, obur }) =>
     digerleri
       .filter((r) => r.katalog.sema === obur.sema && r.katalog.ad === obur.ad)
       .map((taraf): Oneri => {

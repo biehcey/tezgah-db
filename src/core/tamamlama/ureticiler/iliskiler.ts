@@ -2,6 +2,7 @@
 import type { CatalogRelation, RelationKind } from '../../katalog';
 import { adMetni } from '../adlar';
 import { semaninIliskileri, varsayilanSemada } from '../dizin';
+import { kapsamdaMi } from '../kapsam';
 import { ONCELIK } from '../oncelik';
 import type { Baglam, Oneri, Uretici } from '../tipler';
 
@@ -22,7 +23,7 @@ export const iliskiler: Uretici = (b) => {
     // `şema.`: o şemanın ilişkileri öneksiz. İfade yuvasında da (spec 18: tablolar); takma adla
     // çakışan niteleyiciyi kolon üreticisi karşılar.
     if (b.niteleyici.length !== 1 || (b.yuva.tur !== 'ifade' && b.yuva.tur !== 'iliski')) return [];
-    if (b.yuva.tur === 'ifade' && b.kapsamlar.flat().some((r) => (r.takmaAd ?? r.ad) === b.niteleyici![0])) return [];
+    if (b.yuva.tur === 'ifade' && kapsamdaMi(b.kapsamlar, b.niteleyici[0]!)) return [];
     return semaninIliskileri(b, b.niteleyici[0]!).map((r) => iliskiOnerisi(b, r, false, ONCELIK.ILISKI));
   }
   if (b.yuva.tur !== 'iliski') return [];

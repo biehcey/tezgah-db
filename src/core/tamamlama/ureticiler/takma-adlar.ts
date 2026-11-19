@@ -1,5 +1,6 @@
 /** İfade yuvasında kapsamdaki takma adlar ve takma adsız ilişki adları (katalog gerekmez). */
 import { adMetni } from '../adlar';
+import { gorunenAd } from '../kapsam';
 import { ONCELIK } from '../oncelik';
 import type { Uretici } from '../tipler';
 import { KAYNAK_ADI } from './kolonlar';
@@ -8,7 +9,7 @@ export const takmaAdlar: Uretici = (b) => {
   if (b.yuva.tur !== 'ifade' || b.niteleyici) return [];
   const gorulen = new Set<string>();
   return b.kapsamlar.flat().flatMap((r) => {
-    const ad = r.takmaAd ?? r.ad;
+    const ad = gorunenAd(r);
     // Örtük tablonun kolonları zaten öneksiz; adı ayrıca önerilmez.
     if (r.kaynak.tur === 'ortuk' || gorulen.has(ad)) return [];
     gorulen.add(ad);

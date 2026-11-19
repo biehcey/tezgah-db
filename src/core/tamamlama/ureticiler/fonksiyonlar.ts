@@ -6,10 +6,11 @@
 import type { CatalogFunction } from '../../katalog';
 import { adMetni } from '../adlar';
 import { katalogaBagli, varsayilanSemada } from '../dizin';
+import { kapsamdaMi } from '../kapsam';
 import { ONCELIK } from '../oncelik';
 import { kelime } from '../simge';
 import type { Baglam, Oneri, Uretici } from '../tipler';
-import { YAN_CUMLELER } from '../yuvalar';
+import { sonYanCumle } from '../yuvalar';
 
 /** Öneksiz yazılan, her zaman aranan şema. */
 const PG_CATALOG = 'pg_catalog';
@@ -45,7 +46,7 @@ function suzgec(b: Baglam): Suzgec | null {
 
 /** İlişki yuvası `FROM` (DELETE FROM değil) ya da `JOIN`'den mi (UPDATE / INSERT INTO / DDL değil). */
 function fromYaDaJoin({ onceki }: Baglam): boolean {
-  const i = onceki.findLastIndex((s) => YAN_CUMLELER[kelime(s) ?? ''] !== undefined);
+  const i = sonYanCumle(onceki);
   const yanCumle = kelime(onceki[i]);
   return yanCumle === 'JOIN' || (yanCumle === 'FROM' && kelime(onceki[i - 1]) !== 'DELETE');
 }
@@ -88,7 +89,7 @@ export const fonksiyonlar: Uretici = (b) => {
     // `şema.`: o şemanın fonksiyonları öneksiz; takma ad / ilişki niteleyicisi kolon üreticisinindir.
     if (b.niteleyici.length !== 1) return [];
     const sema = b.niteleyici[0]!;
-    if (b.kapsamlar.flat().some((r) => (r.takmaAd ?? r.ad) === sema)) return [];
+    if (kapsamdaMi(b.kapsamlar, sema)) return [];
     if (sema !== PG_CATALOG && !gorunur.includes(sema)) return [];
     return semaninOnerileri(b, sema, uygun, false, ONCELIK.FONKSIYON);
   }

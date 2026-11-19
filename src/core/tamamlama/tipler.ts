@@ -93,6 +93,13 @@ export type Yuva =
   | { tur: 'anahtar' }
   | { tur: 'cagri' };
 
+/** Parametresiz yuvalar (yuva kurallarının ortak sabitleri). */
+export const ILISKI: Yuva = { tur: 'iliski' };
+export const IFADE: Yuva = { tur: 'ifade' };
+export const TIP: Yuva = { tur: 'tip' };
+export const ANAHTAR: Yuva = { tur: 'anahtar' };
+export const CAGRI: Yuva = { tur: 'cagri' };
+
 /** Bir parantez düzeyindeki simge: alt parantez grupları tek `grup` simgesine katlanır. */
 export type DuzeySimgesi =
   | { tur: 'kelime'; deger: string; from: number; to: number }

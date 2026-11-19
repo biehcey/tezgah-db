@@ -2,7 +2,7 @@
  * Katalogdan arama dizinleri: katalog nesnesine bağlı olarak bir kez kurulur, her tuşta değil.
  * Her üretici kendi dizinini `katalogaBagli` ile kendi dosyasında tanımlar (FK, fonksiyon…).
  */
-import type { Catalog, CatalogRelation } from '../katalog';
+import { iliskiAnahtari, type Catalog, type CatalogRelation } from '../katalog';
 import type { Baglam } from './tipler';
 
 /** `kur(katalog)`'u katalog nesnesi başına önbelleğe alan fonksiyon. */
@@ -18,13 +18,11 @@ export function katalogaBagli<T>(kur: (katalog: Catalog) => T): (katalog: Catalo
   };
 }
 
-const anahtar = (sema: string, ad: string) => `${sema}\u0000${ad}`;
-
 const iliskiDizini = katalogaBagli((katalog) => {
   const adla = new Map<string, CatalogRelation>();
   const semayla = new Map<string, CatalogRelation[]>();
   for (const r of katalog.iliskiler) {
-    adla.set(anahtar(r.sema, r.ad), r);
+    adla.set(iliskiAnahtari(r.sema, r.ad), r);
     const liste = semayla.get(r.sema);
     if (liste) liste.push(r);
     else semayla.set(r.sema, [r]);
@@ -49,7 +47,7 @@ export function iliskiBul(b: Baglam, sema: string | null, ad: string): CatalogRe
   const adaylar = sema !== null ? [sema] : [...(b.katalog.defaultSchema !== null ? [b.katalog.defaultSchema] : []), ...gorunur];
   for (const s of adaylar) {
     if (!gorunur.includes(s)) continue;
-    const r = adla.get(anahtar(s, ad));
+    const r = adla.get(iliskiAnahtari(s, ad));
     if (r) return r;
   }
   return null;

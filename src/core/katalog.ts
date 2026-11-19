@@ -146,6 +146,9 @@ export interface CatalogRows {
 /** Postgres'in `bool` metni (`t` ya da `::text` ile `true`). */
 export const pgBool = (v: string | null | undefined) => v === 't' || v === 'true';
 
+/** İlişkinin (şema, ad) çiftinden tekil `Map` anahtarı. */
+export const iliskiAnahtari = (sema: string, ad: string) => `${sema}\u0000${ad}`;
+
 /**
  * Sorgu satırlarından katalog: kolon satırları ilişkilerine toplanır, PK kolonları indeks sırasına
  * dizilir. Tanınmayan `relkind` atlanır.
@@ -155,7 +158,7 @@ export function buildCatalog({ semalar, defaultSchema, iliskiler, tipler, fonksi
   for (const row of iliskiler) {
     const tur = row.tur as RelationKind;
     if (!RELATION_KINDS.includes(tur) || row.sema == null || row.ad == null) continue;
-    const key = `${row.sema}\u0000${row.ad}`;
+    const key = iliskiAnahtari(row.sema, row.ad);
     let r = relations.get(key);
     if (!r) {
       const reltuples = Number(row.satir);
@@ -221,7 +224,7 @@ function buildForeignKeys(rows: CatalogRows['fkler']): CatalogForeignKey[] {
   for (const row of rows) {
     if (FK_FIELDS.some((f) => row[f] == null)) continue;
     const r = row as Record<(typeof FK_FIELDS)[number], string>;
-    const key = `${r.kaynak_sema}\u0000${r.kaynak_ad}\u0000${r.ad}`;
+    const key = `${iliskiAnahtari(r.kaynak_sema, r.kaynak_ad)}\u0000${r.ad}`;
     let entry = fks.get(key);
     if (!entry) {
       entry = {

@@ -5,25 +5,24 @@
  * Yeni yuvalar kendi kuralını ekler. Tip yuvası (`::`, `CAST(… AS`) ve DDL ifadeleri
  * (`yuvalar-ddl.ts`) kuralların başındadır: DDL kuralı tanıdığı ifadenin yuvasını tümüyle verir.
  */
-import { adDegeri, kelime, sembol } from './simge';
+import { katalogIliskisi } from './kapsam';
+import { adOku, kelime, sembol } from './simge';
 import { ddlKurali, tipKurali } from './yuvalar-ddl';
-import type { Baglam, DuzeySimgesi, KapsamIliskisi, Yuva, ZincirHalkasi } from './tipler';
+import { ANAHTAR, CAGRI, IFADE, ILISKI, type Baglam, type DuzeySimgesi, type Yuva, type ZincirHalkasi } from './tipler';
 
 /** Kuralların gördüğü bağlam (yuva henüz yok). */
 export type YuvaGirdisi = Omit<Baglam, 'yuva'>;
 export type YuvaKurali = (g: YuvaGirdisi) => Yuva | null;
 
-/** `onceki`'nin sonundaki `ad` ya da `ad.ad`; yoksa `null`. */
+/** `onceki`'nin sonundaki `ad` ya da `ad.ad` ve başladığı indeks; yoksa `null`. */
 function sondakiAd(onceki: readonly DuzeySimgesi[]): { sema: string | null; ad: string; bas: number } | null {
   const n = onceki.length;
-  const son = onceki[n - 1];
-  const ad = son && adDegeri(son);
-  if (!ad) return null;
-  const sema = sembol(onceki[n - 2], '.') && onceki[n - 3] ? adDegeri(onceki[n - 3]!) : null;
-  return sema ? { sema, ad, bas: n - 3 } : { sema: null, ad, bas: n - 1 };
+  for (const bas of [n - 3, n - 1]) {
+    const ad = adOku(onceki, bas);
+    if (ad?.son === n) return { sema: ad.sema, ad: ad.ad, bas };
+  }
+  return null;
 }
-
-const katalogIliskisi = (sema: string | null, ad: string): KapsamIliskisi => ({ sema, ad, takmaAd: null, kaynak: { tur: 'katalog' } });
 
 /** `INSERT INTO t (|`: grubun hemen önünde `INSERT INTO ad` varsa o ilişkinin kolonları. */
 const insertKolonListesi: YuvaKurali = ({ zincir }) => {
@@ -31,23 +30,20 @@ const insertKolonListesi: YuvaKurali = ({ zincir }) => {
   if (!ic || !ust || ic.duzey.sorgu) return null;
   const hedef = sondakiAd(ust.onceki);
   if (!hedef || kelime(ust.onceki[hedef.bas - 1]) !== 'INTO' || kelime(ust.onceki[hedef.bas - 2]) !== 'INSERT') return null;
-  return { tur: 'kolon', iliski: katalogIliskisi(hedef.sema, hedef.ad) };
+  return { tur: 'kolon', iliski: katalogIliskisi(hedef) };
 };
 
 /** `UPDATE t SET |` ve `SET a = 1, |`: atanan kolon, yani UPDATE'in ilişkisinin kolonları. */
 const setSolTarafi: YuvaKurali = ({ onceki }) => {
   const set = onceki.findLastIndex((s) => kelime(s) === 'SET');
-  if (set === -1 || onceki.slice(set + 1).some((s) => YAN_CUMLELER[kelime(s) ?? ''])) return null;
+  if (set === -1 || sonYanCumle(onceki) !== set) return null;
   const son = onceki.at(-1)!;
   if (son !== onceki[set] && !sembol(son, ',')) return null;
   const update = onceki.findLastIndex((s, i) => i < set && kelime(s) === 'UPDATE');
   if (update === -1) return null;
   // `UPDATE [ONLY] [şema.]ad [[AS] takma] SET`
-  const ara = onceki.slice(update + 1, set).filter((s) => kelime(s) !== 'ONLY');
-  const nitelikli = sembol(ara[1], '.') && ara[2] !== undefined;
-  const ad = ara[nitelikli ? 2 : 0] && adDegeri(ara[nitelikli ? 2 : 0]!);
-  if (!ad) return null;
-  return { tur: 'kolon', iliski: katalogIliskisi(nitelikli ? adDegeri(ara[0]!) : null, ad) };
+  const ad = adOku(onceki.slice(update + 1, set).filter((s) => kelime(s) !== 'ONLY'), 0);
+  return ad ? { tur: 'kolon', iliski: katalogIliskisi(ad) } : null;
 };
 
 /** `a IS |`, `a IS NOT |`: yalnızca `NULL`, `TRUE`, `DISTINCT FROM`… gelir. */
@@ -59,11 +55,6 @@ const isSonrasi: YuvaKurali = ({ onceki }) => {
 /** Önceki simgeler bir ilişki listesinde yeni öğe bekliyor mu (`FROM |`, `FROM a, |`). */
 const yeniOge = (sonra: readonly DuzeySimgesi[], virgul: boolean) =>
   sonra.length === 0 || (virgul && sembol(sonra.at(-1), ','));
-
-const ILISKI: Yuva = { tur: 'iliski' };
-const IFADE: Yuva = { tur: 'ifade' };
-const ANAHTAR: Yuva = { tur: 'anahtar' };
-const CAGRI: Yuva = { tur: 'cagri' };
 
 /**
  * Yan cümle başlatan kelime → yuva. `sonra`: kelimeden imlece kadarki simgeler (bu düzeyde),
@@ -94,9 +85,14 @@ export const YAN_CUMLELER: Record<string, (sonra: readonly DuzeySimgesi[], once:
 /** Kural tablosu: ilk uyan kazanır. */
 export const YUVA_KURALLARI: YuvaKurali[] = [tipKurali, ddlKurali, insertKolonListesi, setSolTarafi, isSonrasi];
 
+/** Simgelerdeki son yan cümle kelimesinin (`YAN_CUMLELER`) indeksi; yoksa `-1`. */
+export function sonYanCumle(onceki: readonly DuzeySimgesi[]): number {
+  return onceki.findLastIndex((s) => YAN_CUMLELER[kelime(s) ?? ''] !== undefined);
+}
+
 /** Halkada son yan cümle kelimesine göre yuva; yan cümle yoksa `null`. */
 function yanCumle({ onceki }: ZincirHalkasi): Yuva | null {
-  const i = onceki.findLastIndex((s) => YAN_CUMLELER[kelime(s) ?? ''] !== undefined);
+  const i = sonYanCumle(onceki);
   if (i === -1) return null;
   return YAN_CUMLELER[kelime(onceki[i])!]!(onceki.slice(i + 1), onceki.slice(0, i));
 }

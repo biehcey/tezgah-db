@@ -11,6 +11,15 @@ import { adDegeri, kelime, sembol } from './simge';
 import type { Duzey, DuzeySimgesi, KapsamIliskisi } from './tipler';
 import { kolonListesi, secimKolonlari } from './turetilmis';
 
+/** Takma adsız katalog ilişkisi adayı (`[şema.]ad`). */
+export const katalogIliskisi = ({ sema, ad }: { sema: string | null; ad: string }): KapsamIliskisi => ({ sema, ad, takmaAd: null, kaynak: { tur: 'katalog' } });
+
+/** İlişkinin sorguda göründüğü ad: takma ad, yoksa ad. */
+export const gorunenAd = (r: KapsamIliskisi) => r.takmaAd ?? r.ad;
+
+/** `ad` kapsamlardan birinde bir ilişkinin görünen adı mı (`x.` niteleyicisi takma ad mı şema mı). */
+export const kapsamdaMi = (kapsamlar: readonly (readonly KapsamIliskisi[])[], ad: string) => kapsamlar.some((k) => k.some((r) => gorunenAd(r) === ad));
+
 /** Ardından ilişki listesi gelen kelimeler (öncekiyle birlikte). */
 function iliskiListesiBaslar(simgeler: readonly DuzeySimgesi[], i: number): boolean {
   const k = kelime(simgeler[i]);
@@ -51,7 +60,7 @@ function oge(simgeler: readonly DuzeySimgesi[], i: number, fromYaDaJoin: boolean
     takmaAd = adDegeri(simgeler[i]!)!;
     i++;
   }
-  if (!fonksiyon) return { iliski: { sema, ad, takmaAd, kaynak: { tur: 'katalog' } }, sonraki: i };
+  if (!fonksiyon) return { iliski: { ...katalogIliskisi({ sema, ad }), takmaAd }, sonraki: i };
   const liste = simgeler[i];
   const kolonlar = liste?.tur === 'grup' ? kolonListesi(liste.ic) : null;
   if (liste?.tur === 'grup') i++;

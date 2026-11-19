@@ -9,7 +9,7 @@ import { kapsamIliskileri } from './kapsam';
 import { adDegeri, kelime } from './simge';
 import type { Baglam, Cte, Duzey, KapsamIliskisi, TamamlamaSecenekleri, ZincirHalkasi } from './tipler';
 import { duzeyinCteleri } from './turetilmis';
-import { YAN_CUMLELER, yuvaBul } from './yuvalar';
+import { sonYanCumle, yuvaBul } from './yuvalar';
 
 /** Sorgu düzeyini başlatan kelimeler (`( SELECT …`). */
 const SORGU_BASLARI = new Set(['SELECT', 'WITH', 'VALUES', 'TABLE']);
@@ -124,8 +124,7 @@ function kardesleriGormez(ust: ZincirHalkasi, cocuk: ZincirHalkasi | undefined):
   if (!cocuk) return false;
   const { onceki } = ust;
   if (kelime(onceki.at(-1)) === 'LATERAL') return false;
-  const yanCumle = onceki.findLast((s) => YAN_CUMLELER[kelime(s) ?? ''] !== undefined);
-  const k = kelime(yanCumle);
+  const k = kelime(onceki[sonYanCumle(onceki)]);
   return k === 'FROM' || k === 'JOIN' || k === 'WITH';
 }
 

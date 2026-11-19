@@ -14,3 +14,11 @@ export const kelime = (s: DuzeySimgesi | undefined): string | null => (s?.tur ==
 
 /** Verilen tek karakterlik sembol mü. */
 export const sembol = (s: DuzeySimgesi | undefined, deger: string): boolean => s?.tur === 'sembol' && s.deger === deger;
+
+/** `simgeler`'in `i`'den başlayan `ad` ya da `şema.ad`'ı ve ardından gelen indeks; yoksa `null`. */
+export function adOku(simgeler: readonly DuzeySimgesi[], i: number): { sema: string | null; ad: string; son: number } | null {
+  const ilk = simgeler[i] && adDegeri(simgeler[i]!);
+  if (!ilk) return null;
+  const ikinci = sembol(simgeler[i + 1], '.') && simgeler[i + 2] ? adDegeri(simgeler[i + 2]!) : null;
+  return ikinci ? { sema: ilk, ad: ikinci, son: i + 3 } : { sema: null, ad: ilk, son: i + 1 };
+}
