@@ -41,9 +41,13 @@ const KATALOG_F: Catalog = {
 const tamamla = (metin: string, secenekler: IsaretliSecenekler = {}) => tamamlaIsaretli(metin, { katalog: KATALOG_F, ...secenekler });
 const fonksiyonlar = (metin: string) => etiketler(tamamla(metin), 'function');
 
+/** pg_proc'ta olmayan, her ifade yuvasında önerilen yapılar. */
+const STANDART = ['COALESCE', 'NULLIF', 'GREATEST', 'LEAST', 'CAST'];
+
 describe('tamamla: fonksiyonlar, ifade yuvası', () => {
   it('görünür şemalar ve pg_catalog: fonksiyon, aggregate, window; prosedür ve görünmez şema yok', () => {
     expect(fonksiyonlar('SELECT | FROM customers')).toEqual([
+      ...STANDART,
       'count',
       'generate_series',
       'lower',
@@ -90,9 +94,36 @@ describe('tamamla: fonksiyonlar, ifade yuvası', () => {
     expect(fonksiyonlar('SELECT gizli.|')).toEqual([]);
   });
 
-  it('takma adla nitelenmiş adda fonksiyon yok; katalog yokken fonksiyon yok', () => {
+  it('takma adla nitelenmiş adda fonksiyon yok; katalog yokken yalnızca SQL standardı yapılar', () => {
     expect(fonksiyonlar('SELECT c.| FROM customers c')).toEqual([]);
-    expect(etiketler(tamamla('SELECT |', { katalog: null }), 'function')).toEqual([]);
+    expect(etiketler(tamamla('SELECT |', { katalog: null }), 'function')).toEqual(STANDART);
+  });
+});
+
+describe('tamamla: pg_proc\'ta olmayan SQL standardı fonksiyon benzeri yapılar', () => {
+  it('ifade yuvasında fonksiyon bandında; ad() eklenir, imleç parantezin içinde', () => {
+    const s = tamamla('SELECT * FROM customers WHERE |');
+    expect(oneri(s, 'COALESCE', 'function')).toMatchObject({
+      eklenecek: 'COALESCE()',
+      imlec: 'COALESCE('.length,
+      detail: '(değer, …)',
+      oncelik: ONCELIK.FONKSIYON,
+    });
+    expect(oneri(s, 'NULLIF', 'function').detail).toBe('(a, b)');
+    expect(oneri(s, 'CAST', 'function').detail).toBe('(ifade AS tip)');
+  });
+
+  it('anahtar kelime harf durumu: küçük önekle küçük harf', () => {
+    const s = tamamla('SELECT coalesc|');
+    expect(oneri(s, 'coalesce', 'function')).toMatchObject({ eklenecek: 'coalesce()', imlec: 'coalesce('.length });
+    expect(etiketler(s, 'function')).not.toContain('COALESCE');
+  });
+
+  it('katalog yokken de; şema niteleyicisinden sonra, ilişki ve CALL yuvalarında yok', () => {
+    expect(etiketler(tamamla('SELECT |', { katalog: null }), 'function')).toEqual(STANDART);
+    expect(fonksiyonlar('SELECT pg_catalog.|')).not.toContain('COALESCE');
+    expect(fonksiyonlar('SELECT * FROM |')).not.toContain('COALESCE');
+    expect(fonksiyonlar('CALL |')).not.toContain('COALESCE');
   });
 });
 

@@ -14,8 +14,14 @@ export const IFADE_BASI = [
 /** Alt sorgu başı (`IN (|`, `EXISTS (|`, `FROM (|`). */
 export const ALT_SORGU_BASI = ['SELECT', 'WITH', 'VALUES'] as const;
 
-/** İfadede terim beklenen yer (`WHERE |`, `a = |`, `AND |`). */
-export const TERIM = ['NOT', 'EXISTS', 'NULL', 'TRUE', 'FALSE', 'CASE'] as const;
+/**
+ * İfadede terim beklenen yer (`WHERE |`, `a = |`, `AND |`). Parantezsiz SQL değer fonksiyonları
+ * (`CURRENT_DATE`…) `pg_proc`'ta yoktur, anahtar kelimedir.
+ */
+export const TERIM = [
+  'NOT', 'EXISTS', 'NULL', 'TRUE', 'FALSE', 'CASE',
+  'CURRENT_DATE', 'CURRENT_TIMESTAMP', 'CURRENT_TIME', 'LOCALTIMESTAMP', 'CURRENT_USER',
+] as const;
 
 /** İfadede terimden sonra (`WHERE a |`). */
 export const OPERATOR = [

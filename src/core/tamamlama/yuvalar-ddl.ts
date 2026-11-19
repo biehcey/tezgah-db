@@ -125,7 +125,9 @@ export const ddlKurali: YuvaKurali = ({ zincir }: YuvaGirdisi) => {
   if (!DDL_BASLARI.has(kelime(kok[0]) ?? '')) return null;
   // DDL içindeki sorgu olağan kurallara kalır.
   if (zincir.some((h) => h.duzey.sorgu && h !== zincir.at(-1))) return null;
-  if (kok.some((s) => DDL_ICI_SORGU_BASLARI.has(kelime(s) ?? ''))) return null;
+  // `GRANT SELECT ON`: SELECT bir yetkidir, sorgu değil.
+  const yetki = kelime(kok[0]) === 'GRANT' || kelime(kok[0]) === 'REVOKE';
+  if (!yetki && kok.some((s) => DDL_ICI_SORGU_BASLARI.has(kelime(s) ?? ''))) return null;
   if (zincir.length === 1) return kokYuvasi(kok);
   if (zincir.length === 2) return grupYuvasi(zincir[0]!.onceki, kok);
   return ANAHTAR;

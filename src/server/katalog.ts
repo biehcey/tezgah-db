@@ -34,20 +34,33 @@ const typesSql = (schemas: readonly string[]) => `SELECT t.oid::text AS oid, for
   LEFT JOIN pg_catalog.pg_class r ON r.oid = t.typrelid
   WHERE n.nspname ${inList(['pg_catalog', ...schemas])}`;
 
-/** `pg_catalog`'da argümanı ya da dönüşü bunlardan biri olan fonksiyonlar iç kullanımdır, okunmaz. */
-const INTERNAL_TYPES = ['internal', 'trigger', 'event_trigger', 'language_handler', 'fdw_handler', 'index_am_handler', 'table_am_handler', 'tsm_handler'];
+/**
+ * `pg_catalog`'da argümanı ya da dönüşü bunlardan biri olan fonksiyonlar iç kullanımdır, okunmaz
+ * (`cstring`: tiplerin G/Ç fonksiyonları, `aclitemin` gibi).
+ */
+const INTERNAL_TYPES = [
+  'internal', 'trigger', 'event_trigger', 'language_handler', 'fdw_handler', 'index_am_handler', 'table_am_handler', 'tsm_handler', 'cstring',
+];
 
-/** Fonksiyonlar (aşırı yükleme başına bir satır, OID sırasıyla): görünür şemalar + süzülmüş `pg_catalog`. */
+/**
+ * Fonksiyonlar (aşırı yükleme başına bir satır, OID sırasıyla): görünür şemalar + süzülmüş
+ * `pg_catalog` (iç tipliler ve yalnızca bir operatörü gerçekleştirenler, `date_pl_interval` gibi,
+ * dışarıda). Postgres operatör fonksiyonuna, doğrudan çağrılmak için değilse "implementation of
+ * … operator" açıklamasını verir; kendi açıklaması olan (`array_append`, `||`) kalır.
+ */
 const functionsSql = (schemas: readonly string[]) => `SELECT n.nspname AS sema, p.proname AS ad, p.prokind::text AS tur,
     pg_get_function_arguments(p.oid) AS argumanlar, pg_get_function_result(p.oid) AS donus,
     p.proretset::text AS kume, obj_description(p.oid, 'pg_proc') AS aciklama
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
   WHERE p.prokind ${inList(FUNCTION_KINDS)} AND n.nspname ${inList(['pg_catalog', ...schemas])}
-    AND NOT (n.nspname = 'pg_catalog' AND EXISTS (
-      SELECT 1 FROM pg_catalog.pg_type it
-      WHERE it.oid = ANY (array_prepend(p.prorettype, p.proargtypes::oid[]))
-        AND it.typnamespace = 'pg_catalog'::regnamespace AND it.typname ${inList(INTERNAL_TYPES)}))
+    AND NOT (n.nspname = 'pg_catalog' AND (
+      EXISTS (
+        SELECT 1 FROM pg_catalog.pg_type it
+        WHERE it.oid = ANY (array_prepend(p.prorettype, p.proargtypes::oid[]))
+          AND it.typnamespace = 'pg_catalog'::regnamespace AND it.typname ${inList(INTERNAL_TYPES)})
+      OR (EXISTS (SELECT 1 FROM pg_catalog.pg_operator o WHERE o.oprcode = p.oid)
+        AND obj_description(p.oid, 'pg_proc') LIKE 'implementation of %')))
   ORDER BY n.nspname, p.proname, p.oid`;
 
 async function query(client: pg.ClientBase, text: string): Promise<Record<string, string | null>[]> {

@@ -1,6 +1,7 @@
 /** `tamamla`: bağlama göre anahtar kelimeler (ticket 06). */
 import { describe, expect, it } from 'vitest';
 import { ONCELIK } from './oncelik';
+import { KATALOG } from './test/katalog';
 import { etiketler, oneri, tamamlaIsaretli } from './test/yardimci';
 
 const anahtarlar = (metin: string, secenekler?: Parameters<typeof tamamlaIsaretli>[1]) =>
@@ -51,6 +52,34 @@ describe('tamamla: bağlama göre anahtar kelimeler', () => {
     expect(etiketler(tamamlaIsaretli(metin))).toEqual(beklenen);
   });
 
+  it.each([
+    ['WHERE terimi', 'SELECT * FROM customers WHERE id |', {}],
+    ['WHERE terimi, yazılan kelimeyle', 'SELECT * FROM customers c WHERE c.id a|', {}],
+    ['ORDER BY öğesi', 'SELECT * FROM customers ORDER BY name |', {}],
+    ['ON koşulu', 'SELECT * FROM customers c JOIN customer_orders o ON o.customer_id = c.id |', {}],
+    ['fonksiyon argümanı', 'SELECT lower(name | FROM customers', {}],
+    ['ORDER BY kutusu', 'tutar |', { ortukTablo: { sema: 'satis', tablo: 'siparis', kutu: 'orderBy' } }],
+    ['WHERE kutusu', 'tutar > 1 |', { ortukTablo: { sema: 'satis', tablo: 'siparis', kutu: 'where' } }],
+  ] as const)('terimden sonra (operatör beklenirken) yalnızca anahtar kelimeler: %s', (_, metin, secenekler) => {
+    const katalog = { ...KATALOG, fonksiyonlar: [{ sema: 'pg_catalog', ad: 'lower', tur: 'f' as const, argumanlar: 'text', donus: 'text', kumeDondurur: false, aciklama: null }] };
+    const s = tamamlaIsaretli(metin, { katalog, ...secenekler });
+    expect(etiketler(s)).not.toEqual([]);
+    expect(s!.oneriler.filter((o) => o.tur !== 'keyword')).toEqual([]);
+  });
+
+  it('terim beklenen yerde parantezsiz SQL değer fonksiyonları anahtar kelimedir', () => {
+    expect(anahtarlar('SELECT * FROM customers WHERE id = |')).toEqual(
+      expect.arrayContaining(['CURRENT_DATE', 'CURRENT_TIMESTAMP', 'CURRENT_TIME', 'LOCALTIMESTAMP', 'CURRENT_USER']),
+    );
+    expect(anahtarlar('SELECT * FROM customers WHERE id |')).not.toContain('CURRENT_DATE');
+  });
+
+  it('terim beklenen yerde kolonlar ve anahtar kelimeler birlikte', () => {
+    const s = tamamlaIsaretli('SELECT * FROM customers WHERE id = 1 AND |');
+    expect(etiketler(s, 'property')).toEqual(['id', 'name', 'email']);
+    expect(etiketler(s, 'keyword')).toContain('NOT');
+  });
+
   it('takma ad yazılırken (AS sonrası) anahtar kelime yok', () => {
     expect(anahtarlar('SELECT * FROM customers AS |')).toEqual([]);
   });
@@ -80,10 +109,9 @@ describe('tamamla: bağlama göre anahtar kelimeler', () => {
 describe('tamamla: kutularda anahtar kelimeler', () => {
   const ortukTablo = { sema: 'satis', tablo: 'siparis' };
 
-  it('ORDER BY kutusu: kolondan sonra ASC/DESC/NULLS FIRST|LAST, sonraki yan cümle yok', () => {
+  it('ORDER BY kutusu: kolondan sonra yalnızca ASC/DESC/NULLS FIRST|LAST, sonraki yan cümle yok', () => {
     const s = tamamlaIsaretli('tutar |', { ortukTablo: { ...ortukTablo, kutu: 'orderBy' } });
-    expect(etiketler(s, 'keyword')).toEqual(['ASC', 'DESC', 'NULLS FIRST', 'NULLS LAST']);
-    expect(etiketler(s, 'property')).toEqual(['id', 'musteri_id', 'tutar']);
+    expect(etiketler(s)).toEqual(['ASC', 'DESC', 'NULLS FIRST', 'NULLS LAST']);
   });
 
   it('WHERE kutusu: ifade anahtar kelimeleri, sonraki yan cümle yok', () => {

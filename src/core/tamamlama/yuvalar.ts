@@ -7,6 +7,7 @@
  */
 import { katalogIliskisi } from './kapsam';
 import { adOku, kelime, sembol } from './simge';
+import { terimBekleniyor } from './terim';
 import { ddlKurali, tipKurali } from './yuvalar-ddl';
 import { ANAHTAR, CAGRI, IFADE, ILISKI, type Baglam, type DuzeySimgesi, type Yuva, type ZincirHalkasi } from './tipler';
 
@@ -97,7 +98,16 @@ function yanCumle({ onceki }: ZincirHalkasi): Yuva | null {
   return YAN_CUMLELER[kelime(onceki[i])!]!(onceki.slice(i + 1), onceki.slice(0, i));
 }
 
+/**
+ * İfade yuvasında terim bitmişse (`WHERE id |`, `ORDER BY ad |`) operatör / değiştirici beklenir:
+ * yuva `anahtar` olur, kolon / takma ad / fonksiyon önerilmez.
+ */
 export function yuvaBul(g: YuvaGirdisi): Yuva {
+  const yuva = yanCumleYuvasi(g);
+  return yuva.tur === 'ifade' && !terimBekleniyor(g.onceki) ? ANAHTAR : yuva;
+}
+
+function yanCumleYuvasi(g: YuvaGirdisi): Yuva {
   for (const kural of YUVA_KURALLARI) {
     const yuva = kural(g);
     if (yuva) return yuva;

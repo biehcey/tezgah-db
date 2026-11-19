@@ -79,7 +79,8 @@ export interface KapsamIliskisi {
 /**
  * İmlecin yuvası: orada ne beklendiği.
  * - `iliski`: ilişki adı (FROM, JOIN, UPDATE, INSERT INTO, DELETE FROM, …)
- * - `ifade`: kolon/takma ad/fonksiyon içeren ifade (SELECT listesi, WHERE, ON, ORDER BY, …)
+ * - `ifade`: kolon/takma ad/fonksiyon içeren ifade (SELECT listesi, WHERE, ON, ORDER BY, …), terim
+ *   beklenen yerde; terim bitmişse (`WHERE id |`) yuva `anahtar`dır (`terim.ts`)
  * - `kolon`: yalnızca bir ilişkinin kolonları (`INSERT INTO t (`, `SET` sol tarafı)
  * - `tip`: yalnızca tipler (`::`, `CAST(… AS`, kolon tanımı; `yuvalar-ddl.ts`)
  * - `anahtar`: yalnızca anahtar kelimeler (tanınmayan DDL dahil: ilişki/kolon/fonksiyon yok)
