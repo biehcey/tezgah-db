@@ -50,6 +50,12 @@ const setSolTarafi: YuvaKurali = ({ onceki }) => {
   return { tur: 'kolon', iliski: katalogIliskisi(nitelikli ? adDegeri(ara[0]!) : null, ad) };
 };
 
+/** `a IS |`, `a IS NOT |`: yalnızca `NULL`, `TRUE`, `DISTINCT FROM`… gelir. */
+const isSonrasi: YuvaKurali = ({ onceki }) => {
+  const son = kelime(onceki.at(-1));
+  return son === 'IS' || (son === 'NOT' && kelime(onceki.at(-2)) === 'IS') ? ANAHTAR : null;
+};
+
 /** Önceki simgeler bir ilişki listesinde yeni öğe bekliyor mu (`FROM |`, `FROM a, |`). */
 const yeniOge = (sonra: readonly DuzeySimgesi[], virgul: boolean) =>
   sonra.length === 0 || (virgul && sembol(sonra.at(-1), ','));
@@ -86,7 +92,7 @@ export const YAN_CUMLELER: Record<string, (sonra: readonly DuzeySimgesi[], once:
 };
 
 /** Kural tablosu: ilk uyan kazanır. */
-export const YUVA_KURALLARI: YuvaKurali[] = [tipKurali, ddlKurali, insertKolonListesi, setSolTarafi];
+export const YUVA_KURALLARI: YuvaKurali[] = [tipKurali, ddlKurali, insertKolonListesi, setSolTarafi, isSonrasi];
 
 /** Halkada son yan cümle kelimesine göre yuva; yan cümle yoksa `null`. */
 function yanCumle({ onceki }: ZincirHalkasi): Yuva | null {

@@ -43,6 +43,14 @@ describe('tamamla: bağlama göre anahtar kelimeler', () => {
     for (const o of olmayan) expect(k).not.toContain(o);
   });
 
+  it.each([
+    ['IS', 'SELECT * FROM customers c WHERE c.email IS |', ['NULL', 'NOT NULL', 'TRUE', 'FALSE', 'DISTINCT FROM', 'NOT DISTINCT FROM']],
+    ['IS NOT', 'SELECT * FROM customers c WHERE c.email IS NOT |', ['NULL', 'TRUE', 'FALSE', 'DISTINCT FROM']],
+    ['yazılan kelimeyle', 'SELECT * FROM customers c WHERE c.email IS N|', ['NULL', 'NOT NULL', 'TRUE', 'FALSE', 'DISTINCT FROM', 'NOT DISTINCT FROM']],
+  ])('%s sonrası yalnızca anahtar kelimeler (kolon, takma ad, fonksiyon yok)', (_, metin, beklenen) => {
+    expect(etiketler(tamamlaIsaretli(metin))).toEqual(beklenen);
+  });
+
   it('takma ad yazılırken (AS sonrası) anahtar kelime yok', () => {
     expect(anahtarlar('SELECT * FROM customers AS |')).toEqual([]);
   });
