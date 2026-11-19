@@ -81,6 +81,33 @@ describe('Script ekranı: çalıştırma başlatma', () => {
     expect(screen.queryByRole('button', { name: '▶ Çalıştır' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '■ İptal' })).toBeInTheDocument();
   });
+
+  it('editörde Ctrl/Cmd+Enter çalıştırır; editöre satır eklenmez', async () => {
+    const { user, fake } = setup();
+    setEditorScript('SELECT 1');
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(fake.last()).toMatchObject({ script: 'SELECT 1', deneme: false });
+    expect(editorScript()).toBe('SELECT 1');
+  });
+
+  it('Ctrl/Cmd+Shift+Enter Dene ile başlar', async () => {
+    const { user, fake } = setup();
+    setEditorScript('DELETE FROM t');
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('{Meta>}{Shift>}{Enter}{/Shift}{/Meta}');
+    expect(fake.last()).toMatchObject({ script: 'DELETE FROM t', deneme: true });
+  });
+
+  it('Çalıştır kapalıyken (hedef yok) Ctrl+Enter bir şey yapmaz', async () => {
+    const user = userEvent.setup();
+    const fake = createFakeScriptRuns();
+    renderWithApi(<Ekran target={null} onChangeTarget={() => {}} />, createFakeApi({ runScript: fake.runScript }));
+    setEditorScript('SELECT 1');
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(fake.runs).toHaveLength(0);
+  });
 });
 
 describe('Script ekranı: canlı olaylar', () => {

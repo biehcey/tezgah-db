@@ -27,6 +27,14 @@ export function tableShortcut(e: ShortcutKey): TableShortcut | null {
   return e.shift ? 'dene' : 'uygula';
 }
 
+export type ScriptShortcut = 'calistir' | 'dene';
+
+/** Script editörü: Ctrl/Cmd+Enter Çalıştır, +Shift Dene; Alt'lı ve diğerleri `null`. */
+export function scriptShortcut(e: ShortcutKey): ScriptShortcut | null {
+  if (e.key !== 'Enter' || !(e.ctrl || e.meta) || e.alt || e.altGraph) return null;
+  return e.shift ? 'dene' : 'calistir';
+}
+
 /**
  * Grid odaktayken satır görünümü: Shift+Enter açar/kapatır, açıkken Esc kapatır. Değiştiricili
  * Shift+Enter (Ctrl/Cmd: Dene) bu kısayol değildir. Düzenleyicinin Shift+Enter'ı (yeni satır) grid'e ulaşmaz.

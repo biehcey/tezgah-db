@@ -3,6 +3,7 @@ import { isProd, type Connection } from '../../core/baglanti';
 import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } from '../../core/calistirma-modu';
 import { positionOf, splitStatements, type Statement } from '../../core/ifade-bolme';
 import { formatRemaining, startDecision, type DecisionTimer } from '../../core/karar-suresi';
+import { scriptShortcut, shortcutKey } from '../../core/kisayollar';
 import { Degisiklikler, DenemeProdUyarisi } from './Degisiklikler';
 import { BekletmeGostergesi } from './BekletmeGostergesi';
 import { KararKarti, resultText, useCountdown } from './KararKarti';
@@ -225,6 +226,20 @@ export function ScriptEkrani({
   }
 
   /**
+   * Editörde Ctrl/Cmd+Enter Çalıştır, +Shift Dene: düğmesi kapalıysa hiçbir şey yapmaz. Yakalama
+   * evresinde: CodeMirror'ın Mod-Enter'ı (boş satır ekle) çalışmasın.
+   */
+  function onEditorShortcut(e: KeyboardEvent<HTMLElement>) {
+    const eylem = scriptShortcut(shortcutKey(e.nativeEvent));
+    if (!eylem) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!target || busy || !hasStatements) return;
+    if (eylem === 'calistir' ? blocked : tryBlocked) return;
+    start(eylem === 'dene');
+  }
+
+  /**
    * Grid sona yaklaştı: transaction açıksa ve sonucun devamı varsa bir sayfa daha istenir. Yanıt
    * gelene kadar aynı sonuç için ikinci istek gitmez (görünüm güncellenmeden gelen kaydırmalar dahil).
    */
@@ -308,7 +323,7 @@ export function ScriptEkrani({
       {runOnProd && run?.deneme && <DenemeProdUyarisi />}
       <div className="script-govde">
         <div className="script-sol">
-          <section aria-label="Script editörü" className="editor-alani">
+          <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
             <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} />
           </section>
           {!busy && blocked && <BlockReasons reasons={reasons} />}
@@ -337,13 +352,21 @@ export function ScriptEkrani({
               <>
                 <button
                   type='button'
-                  title={tryBlocked ? tryReasons.map(formatReason).join('\n') : 'Çalıştır ve her zaman geri al'}
+                  title={tryBlocked ? tryReasons.map(formatReason).join('\n') : 'Çalıştır ve her zaman geri al (Ctrl/Cmd+Shift+Enter)'}
+                  aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
                   onClick={() => start(true)}
                   disabled={!target || busy || !hasStatements || tryBlocked}
                 >
                   ⟲ Dene
                 </button>
-                <button type="button" className="birincil" onClick={() => start(false)} disabled={!target || busy || !hasStatements || blocked}>
+                <button
+                  type="button"
+                  className="birincil"
+                  title="Ctrl/Cmd+Enter"
+                  aria-keyshortcuts="Control+Enter Meta+Enter"
+                  onClick={() => start(false)}
+                  disabled={!target || busy || !hasStatements || blocked}
+                >
                   ▶ Çalıştır
                 </button>
               </>
