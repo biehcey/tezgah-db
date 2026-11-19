@@ -93,7 +93,7 @@ describe('Katalog: yalnızca kullanıcı eylemiyle istenir', () => {
     view.dispatch({ selection: { anchor: view.state.doc.length } });
     view.focus();
     fireEvent.keyDown(content, { key: ' ', code: 'Space', ctrlKey: true });
-    await waitFor(() => expect(currentCompletions(view.state).map((c) => c.label)).toContain('AND'));
+    await waitFor(() => expect(currentCompletions(view.state).map((c) => c.label)).toContain('NOT'));
     expect(fake.catalogRequests).toEqual([]);
   });
 

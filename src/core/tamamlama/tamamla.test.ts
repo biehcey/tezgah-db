@@ -61,7 +61,7 @@ describe('tamamla: ifade yuvası', () => {
   it('ifade yuvasında ilişkiler önerilmez, anahtar kelimeler önerilir', () => {
     const s = tamamlaIsaretli('SELECT * FROM customers WHERE |');
     expect(etiketler(s, 'type')).toEqual([]);
-    expect(etiketler(s, 'keyword')).toContain('AND');
+    expect(etiketler(s, 'keyword')).toContain('NOT');
   });
 
   it('JOIN’li FROM: tüm ilişkilerin kolonları, takma adlar ve takma adsız ilişki adı', () => {
@@ -191,7 +191,7 @@ describe('tamamla: anahtar kelimeler', () => {
   it('ifade başında anahtar kelimeler, BÜYÜK harfle', () => {
     const s = tamamlaIsaretli('|');
     expect(etiketler(s, 'keyword')).toContain('SELECT');
-    expect(etiketler(s, 'keyword')).toContain('ORDER BY');
+    expect(etiketler(s, 'keyword')).toContain('INSERT INTO');
     expect(oneri(s, 'SELECT')).toMatchObject({ eklenecek: 'SELECT', oncelik: ONCELIK.ANAHTAR });
   });
 
