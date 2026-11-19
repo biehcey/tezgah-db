@@ -6,7 +6,7 @@ Spec: [Bağlam](../spec.md#bağlam), [Nitelikli adlar](../spec.md#nitelikli-adla
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (188d728)
 
 - [x] core: `tamamla(metin, imleç, katalog | null, seçenekler)` → `{ from, to, öneriler } | null`; seçenekler görünür şemalar ve `örtükTablo` (şema + tablo + kutu türü). Öneri alanları spec'teki gibi (`etiket`, `tür`, `detail`, `info?`, `eklenecek`, imleç konumu, `öncelik`).
 - [x] İfade sınırları ifade bölücüden, tokenlar onun lexer'ından; imleç yorum ya da dizgedeyse `null`. Motor yalnızca imlecin ifadesine bakar.
