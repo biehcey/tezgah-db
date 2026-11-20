@@ -18,5 +18,5 @@ Spec: [Editör temelleri](../spec.md#editör-temelleri), [Editör eklentileri](.
 ## Comments
 
 - Eklentiler `src/web/script/editor-temelleri.ts`'te. Salt okunurken panelde değiştirme satırı hiç kurulmaz; panel açıkken salt okunurluk değişirse panel aynı sorguyla yeniden kurulur (değiştirme kalkar/geri gelir).
-- Renkler 01 bitmeden yazıldı: `styles.css`'te mevcut `--vurgu`, `--dikkat`, `--uyari`, `--cizgi`, `--kenar-zemin` değişkenleri. 01 birleşince bu kurallar token adlarına taşınmalı.
+- Renkler 01'in token'larına bağlı (`--vurgu`, `--dikkat`, `--uyari`, `--cizgi`, `--kenar-zemin`, `--odak-halkasi`, `--yazi-12`, `--yaricap-kucuk`).
 - `closeBrackets` yalnızca `(`, `[`, `'`, `"` için; `{` kapanmaz.
