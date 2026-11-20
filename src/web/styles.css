@@ -1136,25 +1136,61 @@ button.kucuk {
   font-weight: 600;
 }
 
-/* Script ekranı gövdesi: solda editör + çubuk, sağda ≈400px çalıştırma sütunu. */
+/*
+ * Script ekranı gövdesi: üstte editör, yatay bölücü, altta Karar şeridi + Sonuç alanı. Sonuç
+ * bölümünün payı Arayüz tercihlerindeki orandan satır içi `flex-basis` ile verilir.
+ */
 .script-govde {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr) 400px;
-  min-height: 0;
-}
-
-.script-sol {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  min-width: 0;
   min-height: 0;
 }
 
 .editor-alani {
-  flex: 1;
-  min-height: 200px;
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
+}
+
+.sonuc-bolumu {
+  display: flex;
+  flex: 0 0 40%;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Daraltılınca yalnızca Karar şeridi ve sekme şeridi kalır; editör tüm yüksekliği alır. */
+.sonuc-bolumu.daraltilmis {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--cizgi);
+}
+
+/* Sürüklenebilir bölücü; dikey: yan yana, yatay: üst üste bölmeler arasında. */
+.bolucu {
+  flex: 0 0 auto;
+  background: var(--cizgi);
+  touch-action: none;
+}
+
+.bolucu.yatay {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.bolucu.dikey {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.bolucu:hover,
+.bolucu:focus-visible {
+  background: var(--vurgu);
+}
+
+/* Sürüklerken metin seçilmez ve imleç bölücünün imleci kalır. */
+body.bolucu-surukleniyor {
+  user-select: none;
 }
 
 .script-editoru,
@@ -1405,15 +1441,8 @@ button.kucuk {
   justify-content: flex-end;
   gap: var(--bosluk-8);
   padding: var(--bosluk-8) var(--bosluk-12);
-  border-top: 1px solid var(--cizgi);
+  border-bottom: 1px solid var(--cizgi);
   background: var(--kenar-zemin);
-}
-
-.calistirma-sutunu {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-left: 1px solid var(--cizgi);
 }
 
 .karar-karti {
@@ -1710,26 +1739,41 @@ button.kucuk {
   font-style: italic;
 }
 
-/* Editörün altındaki sonuç sekmeleri; sonuç varken editörle alanı paylaşır. */
-.sonuclar {
+/* Sonuç alanı: Sonuç sekmeleri, Log ve Değişiklikler tek şeritte; sağda daralt/aç. */
+.sonuc-alani {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  border-top: 1px solid var(--cizgi);
 }
 
-.sonuclar.bos {
+.sonuc-alani.daraltilmis {
   flex: 0 0 auto;
-  padding: var(--bosluk-6) var(--bosluk-12);
 }
 
-.sonuc-sekmeleri {
+.sonuc-seridi {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--cizgi);
+}
+
+.sonuc-seridi .sekmeler {
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
+  border-bottom: none;
 }
 
-.sonuc-sekmeleri .sekme {
+.sonuc-seridi .sekme {
   white-space: nowrap;
+}
+
+.sonuc-alani-dugmesi {
+  margin: 0 var(--bosluk-8) var(--bosluk-2);
+}
+
+.sonuc-alani .ifade-listesi[hidden] {
+  display: none;
 }
 
 .sonuc-paneli {

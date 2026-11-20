@@ -1,4 +1,19 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, type ArayuzTercihleri } from '../../core/arayuz-tercihleri';
+import {
+  baslangicSecimi,
+  calismaIlerledi,
+  editorBoyu,
+  gosterilenSekme,
+  kendiligindenAcilir,
+  kullaniciSecti,
+  sonucOraniniBul,
+  sonucSekmeleri,
+  type SekmeSecimi,
+  type SonucAlaniSekmesi,
+  type SonucSekmesiAnahtari,
+} from '../../core/sonuc-alani';
+import { Bolucu } from '../ortak/Bolucu';
 import { isProd, type Connection } from '../../core/baglanti';
 import { calisacakAralik, editorSatiri, type AralikYeri } from '../../core/calisacak-aralik';
 import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } from '../../core/calistirma-modu';
@@ -57,6 +72,11 @@ interface Props {
    * kapanmak transaction'ı geri aldırırdı (ADR-0002).
    */
   hidden?: boolean;
+  /** Arayüz tercihlerinden: Sonuç alanının yüksekliğe oranı ve daraltılmışlığı. */
+  sonucOrani: number;
+  sonucDaraltilmis: boolean;
+  /** Oran (sürükleme bitince) ya da daraltılmışlık değişti; tercihe yazılır. */
+  onSonucAlani: (change: Partial<Pick<ArayuzTercihleri, 'sonucOrani' | 'sonucDaraltilmis'>>) => void;
 }
 
 /** Aynı satırda başlayan birden çok ifadede satır işareti en önemli durumu gösterir. */
@@ -78,8 +98,6 @@ const ANALYSIS_DELAY_MS = 200;
 
 const MODE_LABELS: Record<RunMode, string> = { transaction: 'Transaction', autocommit: 'Autocommit', okuma: 'Okuma', karisik: 'Karışık' };
 
-type Tab = 'degisiklikler' | 'log';
-const TAB_LABELS: Record<Tab, string> = { degisiklikler: 'Değişiklikler', log: 'Log' };
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -122,6 +140,9 @@ export function ScriptEkrani({
   catalog,
   onCatalog,
   hidden = false,
+  sonucOrani,
+  sonucDaraltilmis,
+  onSonucAlani,
 }: Props) {
   const api = useApi();
   const prod = target !== null && isProd(target.connection.envTag);
@@ -212,14 +233,21 @@ export function ScriptEkrani({
   /** Kısayolun kısa geri bildirimi (ör. imleçte ifade yok); seçim ya da metin değişince kalkar. */
   const [notice, setNotice] = useState<string | null>(null);
   useEffect(() => setNotice(null), [script, secim]);
-  /** Sonuç sütununun seçili sekmesi; Değişiklikler yalnızca denemede var. */
-  const [tab, setTab] = useState<Tab>('log');
-  const tabs: Tab[] = run?.deneme ? ['degisiklikler', 'log'] : ['log'];
-  const shownTab = run?.deneme ? tab : 'log';
+  /** Sonuç alanının seçili sekmesi; çalıştırma başında ve bitişinde açılış kuralıyla seçilir. */
+  const [sekmeSecimi, setSekmeSecimi] = useState<SekmeSecimi | null>(null);
   /** Çalıştırma sayacı: yeni çalıştırmanın grid'leri eskilerin durumunu (seçim, genişlik) devralmaz. */
   const [runNo, setRunNo] = useState(0);
-  /** Seçili sonuç sekmesinin ifade indeksi; yoksa ilk sonuç. */
-  const [resultTab, setResultTab] = useState<number | null>(null);
+  /** Görünümün bir önceki hâli: bitiş ve kendiliğinden açılma geçişten anlaşılır. */
+  const previousRun = useRef<RunView | null>(null);
+  const sonucDaraltilmisRef = useRef(sonucDaraltilmis);
+  sonucDaraltilmisRef.current = sonucDaraltilmis;
+  useEffect(() => {
+    const onceki = previousRun.current;
+    previousRun.current = run;
+    if (!run || onceki === run) return;
+    setSekmeSecimi((s) => (s ? calismaIlerledi(s, onceki, run) : s));
+    if (sonucDaraltilmisRef.current && kendiligindenAcilir(onceki, run)) onSonucAlani({ sonucDaraltilmis: false });
+  }, [run, onSonucAlani]);
 
   /**
    * `metin` sunucuya bir script olarak gider (ADR-0003, ADR-0006); `yer` onun editördeki yeridir
@@ -239,11 +267,11 @@ export function ScriptEkrani({
     // Açık Okuma transaction'ı da bu soketle birlikte geri alınır.
     handle.current?.close();
     setNotice(null);
-    setRun(startRunView(metin, { deneme, aralik: yer }));
+    const view = startRunView(metin, { deneme, aralik: yer });
+    setRun(view);
     setRunOnProd(prod);
-    setTab(deneme ? 'degisiklikler' : 'log');
+    setSekmeSecimi(baslangicSecimi(view));
     setRunNo((n) => n + 1);
-    setResultTab(null);
     setDeadline(null);
     setPoolFullTabs([]);
     moreAsked.current.clear();
@@ -331,6 +359,23 @@ export function ScriptEkrani({
   /** Okuma'da karar kartı yok; yerinde ince bir durum satırı durur (ADR-0004). */
   const reading = run?.evre === 'okuma' || run?.sonuc === 'okuma';
 
+  /** Editör + Sonuç alanının yüksekliği; ölçülemezse (jsdom) pencere yüksekliği. */
+  const govde = useRef<HTMLDivElement>(null);
+  const [toplam, setToplam] = useState(() => window.innerHeight);
+  useLayoutEffect(() => {
+    const el = govde.current;
+    if (!el) return;
+    const measure = () => setToplam(el.clientHeight || window.innerHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  /** Sürüklenirken oran; bırakınca tercihe yazılır. */
+  const [surukleme, setSurukleme] = useState<number | null>(null);
+  const oran = surukleme ?? sonucOrani;
+
   return (
     <div className="script-ekrani" hidden={hidden}>
       <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}`}>
@@ -381,12 +426,6 @@ export function ScriptEkrani({
         </div>
       )}
       {runOnProd && run?.deneme && <DenemeProdUyarisi />}
-      <div className="script-govde">
-        <div className="script-sol">
-          <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
-            <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} onSelectionChange={setSecim} />
-          </section>
-          {!busy && blocked && <BlockReasons reasons={reasons} />}
           <div className="script-cubugu">
             <span title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
               {MODE_LABELS[analysis.mod]}
@@ -469,41 +508,56 @@ export function ScriptEkrani({
               </>
             )}
           </div>
-          <Sonuclar run={run} runNo={runNo} selected={resultTab} onSelect={setResultTab} onMore={fetchMore} tipAdlari={tipAdlari} />
-        </div>
-        <aside aria-label="Çalıştırma" className="calistirma-sutunu">
-          {run && reading ? (
-            <OkumaDurumu run={run} deadline={run.evre === 'okuma' ? deadline : null} />
-          ) : (
-            <KararKarti
-              run={run}
-              deadline={run?.evre === 'karar' ? deadline : null}
-              onRequest={request}
-              poolFullTabs={poolFullTabs}
-              onGoToTab={onGoToTab}
-            />
-          )}
-          <div role="tablist" className="sekmeler">
-            {tabs.map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={t === shownTab}
-                className={`sekme${t === shownTab ? ' secili' : ''}`}
-                onClick={() => setTab(t)}
-              >
-                {TAB_LABELS[t]}
-              </button>
-            ))}
-          </div>
-          {shownTab === 'degisiklikler' && run ? (
-            <div role="tabpanel" aria-label={TAB_LABELS.degisiklikler} className="ifade-listesi">
-              <Degisiklikler run={run} />
+      {!busy && blocked && <BlockReasons reasons={reasons} />}
+      <div className="script-govde" ref={govde}>
+        <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
+          <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} onSelectionChange={setSecim} />
+        </section>
+        {!sonucDaraltilmis && (
+          <Bolucu
+            yon="yatay"
+            {...editorBoyu(oran, toplam)}
+            adim={16}
+            varsayilan={editorBoyu(ARAYUZ_TERCIHLERI_VARSAYILAN.sonucOrani, toplam).deger}
+            onDegis={(v) => setSurukleme(sonucOraniniBul(v, toplam))}
+            onBitir={(v) => {
+              setSurukleme(null);
+              onSonucAlani({ sonucOrani: sonucOraniniBul(v, toplam) });
+            }}
+            aria-label="Editör ile Sonuç alanı arası"
+          />
+        )}
+        <div className={`sonuc-bolumu${sonucDaraltilmis ? ' daraltilmis' : ''}`} style={sonucDaraltilmis ? undefined : { flexBasis: `${oran * 100}%` }}>
+          {run && (
+            // Karar şeridi: hangi sekme açık olursa olsun görünür.
+            <div className="karar-seridi">
+              {reading ? (
+                <OkumaDurumu run={run} deadline={run.evre === 'okuma' ? deadline : null} />
+              ) : (
+                <KararKarti
+                  run={run}
+                  deadline={run.evre === 'karar' ? deadline : null}
+                  onRequest={request}
+                  poolFullTabs={poolFullTabs}
+                  onGoToTab={onGoToTab}
+                />
+              )}
             </div>
-          ) : (
-            <div role="tabpanel" aria-label={TAB_LABELS.log} className="ifade-listesi">
-              {run ? (
+          )}
+          <SonucAlani
+            run={run}
+            runNo={runNo}
+            shown={gosterilenSekme(sekmeSecimi, run)}
+            onSelect={(anahtar) => {
+              setSekmeSecimi((s) => kullaniciSecti(s ?? { secili: 'log', elle: false }, anahtar));
+              if (sonucDaraltilmis) onSonucAlani({ sonucDaraltilmis: false });
+            }}
+            daraltilmis={sonucDaraltilmis}
+            onToggle={() => onSonucAlani({ sonucDaraltilmis: !sonucDaraltilmis })}
+            onMore={fetchMore}
+            tipAdlari={tipAdlari}
+            log={
+              run ? (
                 <ol className="ifade-kartlari">
                   {run.ifadeler.map((s) => (
                     <IfadeKarti
@@ -517,11 +571,11 @@ export function ScriptEkrani({
                   ))}
                 </ol>
               ) : (
-                <p className="soluk kucuk">Script çalıştırılınca ifadeler burada listelenir.</p>
-              )}
-            </div>
-          )}
-        </aside>
+                <p className="soluk kucuk">Script çalıştırılınca ifadeler ve SELECT sonuçları burada açılır.</p>
+              )
+            }
+          />
+        </div>
       </div>
     </div>
   );
@@ -655,93 +709,121 @@ function StatementDetail({ statement: s, onForceTransaction }: { statement: Stat
 }
 
 /**
- * Editörün altındaki sonuç sekmeleri: satır döndüren her ifadeye bir sekme. Yeni çalıştırmanın
- * görünümünde önizleme yoktur; eski sekmeler kendiliğinden silinir. Gizli sekmelerin grid'leri
- * (seçim, kolon genişliği) yerinde kalır. Sekme şeridi tek sekme durağıdır: oklar ve Home/End
- * sekme seçer.
+ * Sonuç alanı: Sonuç sekmeleri (satır döndüren her ifadeye bir), Log ve (Deneme'de) Değişiklikler
+ * tek şeritte. Yeni çalıştırmanın görünümünde önizleme yoktur; eski Sonuç sekmeleri kendiliğinden
+ * silinir. Gizli sekmelerin grid'leri (seçim, kolon genişliği) yerinde kalır. Şerit tek sekme
+ * durağıdır: oklar ve Home/End sekme seçer. Daraltılınca yalnızca şerit kalır.
  */
-function Sonuclar({
+function SonucAlani({
   run,
   runNo,
-  selected,
+  shown,
   onSelect,
+  daraltilmis,
+  onToggle,
   onMore,
   tipAdlari,
+  log,
 }: {
   run: RunView | null;
   runNo: number;
-  selected: number | null;
-  onSelect: (i: number) => void;
+  shown: SonucSekmesiAnahtari;
+  onSelect: (anahtar: SonucSekmesiAnahtari) => void;
+  daraltilmis: boolean;
+  onToggle: () => void;
   /** `i`. sonucun grid'i yüklü satırların sonuna yaklaştı. */
   onMore: (i: number) => void;
   /** Katalogdan OID → tip adı ("INSERT olarak kopyala"). */
   tipAdlari?: ReadonlyMap<number, string>;
+  /** Log sekmesinin içeriği. */
+  log: ReactNode;
 }) {
   const id = useId();
-  const results = run?.ifadeler.filter((s) => s.onizleme && s.onizleme.kolonlar.length > 0) ?? [];
-  const shown = results.find((s) => s.i === selected) ?? results[0];
-  const tabId = (s: StatementView) => `${id}-sekme-${runNo}-${s.i}`;
-  const panelId = (s: StatementView) => `${id}-panel-${runNo}-${s.i}`;
+  const tabs = sonucSekmeleri(run);
+  const tabId = (t: SonucAlaniSekmesi) => `${id}-sekme-${runNo}-${t.anahtar}`;
+  const panelId = (t: SonucAlaniSekmesi) => `${id}-panel-${runNo}-${t.anahtar}`;
 
   function onTabKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const at = results.indexOf(shown!);
-    const last = results.length - 1;
+    const at = tabs.findIndex((t) => t.anahtar === shown);
+    const last = tabs.length - 1;
     const to = { ArrowRight: at === last ? 0 : at + 1, ArrowLeft: at === 0 ? last : at - 1, Home: 0, End: last }[e.key];
     if (to === undefined) return;
     e.preventDefault();
-    const next = results[to]!;
-    onSelect(next.i);
+    const next = tabs[to]!;
+    onSelect(next.anahtar);
     document.getElementById(tabId(next))?.focus();
   }
 
-  return (
-    <section aria-label="Sonuçlar" className={`sonuclar${shown ? '' : ' bos'}`}>
-      {shown ? (
+  function panel(t: SonucAlaniSekmesi) {
+    if (t.i !== undefined) {
+      const s = run!.ifadeler[t.i]!;
+      return (
         <>
-          <div role="tablist" aria-label="Sonuç sekmeleri" className="sekmeler sonuc-sekmeleri" onKeyDown={onTabKeyDown}>
-            {results.map((s) => (
-              <button
-                key={s.i}
-                id={tabId(s)}
-                type="button"
-                role="tab"
-                aria-selected={s === shown}
-                aria-controls={panelId(s)}
-                tabIndex={s === shown ? 0 : -1}
-                className={`sekme${s === shown ? ' secili' : ''}`}
-                onClick={() => onSelect(s.i)}
-              >
-                {resultLabel(s)}
-              </button>
-            ))}
-          </div>
-          {results.map((s) => (
-            <div key={`${runNo}:${s.i}`} id={panelId(s)} role="tabpanel" aria-labelledby={tabId(s)} className="sonuc-paneli" hidden={s !== shown}>
-              <p className="kucuk soluk sonuc-ozeti">
-                {resultSummary(s.onizleme!, s.rowCount)}
-                {s.yukleniyor && <span> · Satırlar yükleniyor…</span>}
-                {s.sinir && <span className="sonuc-notu"> · {ROW_LIMIT_MESSAGE}</span>}
-                {s.devamKapandi && <span className="sonuc-notu"> · {s.devamKapandi}</span>}
-              </p>
-              <SonucGovdesi
-                etiket={`${resultLabel(s)} sonucu`}
-                kolonlar={s.onizleme!.kolonlar}
-                tipler={s.onizleme!.tipler}
-                tipAdlari={tipAdlari}
-                satirlar={s.onizleme!.satirlar}
-                toplamSatir={resultTotal(s.onizleme!, s.rowCount)}
-                onSonaYaklasti={() => onMore(s.i)}
-              />
-            </div>
-          ))}
+          <p className="kucuk soluk sonuc-ozeti">
+            {resultSummary(s.onizleme!, s.rowCount)}
+            {s.yukleniyor && <span> · Satırlar yükleniyor…</span>}
+            {s.sinir && <span className="sonuc-notu"> · {ROW_LIMIT_MESSAGE}</span>}
+            {s.devamKapandi && <span className="sonuc-notu"> · {s.devamKapandi}</span>}
+          </p>
+          <SonucGovdesi
+            etiket={`${t.etiket} sonucu`}
+            kolonlar={s.onizleme!.kolonlar}
+            tipler={s.onizleme!.tipler}
+            tipAdlari={tipAdlari}
+            satirlar={s.onizleme!.satirlar}
+            toplamSatir={resultTotal(s.onizleme!, s.rowCount)}
+            onSonaYaklasti={() => onMore(s.i)}
+          />
         </>
-      ) : (
-        <p className="soluk kucuk">SELECT sonuçları burada açılır.</p>
-      )}
+      );
+    }
+    if (t.anahtar === 'degisiklikler') return run && <Degisiklikler run={run} />;
+    return log;
+  }
+
+  return (
+    <section aria-label="Sonuç alanı" className={`sonuc-alani${daraltilmis ? ' daraltilmis' : ''}`}>
+      <div className="sonuc-seridi">
+        <div role="tablist" aria-label="Sonuç alanı sekmeleri" className="sekmeler" onKeyDown={onTabKeyDown}>
+          {tabs.map((t) => (
+            <button
+              key={t.anahtar}
+              id={tabId(t)}
+              type="button"
+              role="tab"
+              aria-selected={t.anahtar === shown}
+              aria-controls={panelId(t)}
+              tabIndex={t.anahtar === shown ? 0 : -1}
+              className={`sekme${t.anahtar === shown ? ' secili' : ''}`}
+              onClick={() => onSelect(t.anahtar)}
+            >
+              {t.etiket}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="ikon-dugme sonuc-alani-dugmesi"
+          aria-expanded={!daraltilmis}
+          aria-label={daraltilmis ? 'Sonuç alanını aç' : 'Sonuç alanını daralt'}
+          title={daraltilmis ? 'Sonuç alanını aç' : 'Sonuç alanını daralt'}
+          onClick={onToggle}
+        >
+          <span aria-hidden="true">{daraltilmis ? '▴' : '▾'}</span>
+        </button>
+      </div>
+      {tabs.map((t) => (
+        <div
+          key={`${runNo}:${t.anahtar}`}
+          id={panelId(t)}
+          role="tabpanel"
+          aria-labelledby={tabId(t)}
+          className={t.i === undefined ? 'ifade-listesi' : 'sonuc-paneli'}
+          hidden={daraltilmis || t.anahtar !== shown}
+        >
+          {panel(t)}
+        </div>
+      ))}
     </section>
   );
-}
-
-function resultLabel(s: StatementView): string {
-  return `${s.komut} · satır ${s.satir}`;
 }

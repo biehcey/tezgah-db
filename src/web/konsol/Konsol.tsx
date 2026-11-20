@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ComponentProps } from 'react';
 import { Onay } from '../ortak/Onay';
 import type { Connection } from '../../core/baglanti';
 import { sessionTabs, type ConsoleState, type OpenTab, type SessionTab, type TabTarget } from '../../core/konsol-sekmeleri';
@@ -41,6 +41,10 @@ interface Props {
   onOpenConsole: (hedef: TabTarget | null, metin: string) => void;
   /** Bu oturumda listeden açılan Tablo sekmeleri: ilk sayfa hemen çekilir (geri gelenler "Yükle" bekler). */
   autoLoadTabs?: ReadonlySet<string>;
+  /** Arayüz tercihlerinden Sonuç alanının oranı ve daraltılmışlığı; konsol sekmeleri ortak kullanır. */
+  sonucOrani: number;
+  sonucDaraltilmis: boolean;
+  onSonucAlani: ComponentProps<typeof ScriptEkrani>['onSonucAlani'];
 }
 
 /** Sekmenin hedefi: bağlantısı hâlâ varsa bağlantı + veritabanı. */
@@ -85,6 +89,9 @@ export function Konsol({
   onOpenFromHistory,
   onOpenConsole,
   autoLoadTabs = new Set(),
+  sonucOrani,
+  sonucDaraltilmis,
+  onSonucAlani,
 }: Props) {
   const openSessions = new Set(Object.keys(targetLocks));
   const activeTarget = resolveTarget(state.tabs.find((t) => t.id === state.active)?.hedef ?? null, connections);
@@ -197,6 +204,9 @@ export function Konsol({
                 onToggleWriteMode={onToggleWriteMode}
                 onTargetLockChange={onTargetLockChange}
                 onChangeTarget={onChangeTarget}
+                sonucOrani={sonucOrani}
+                sonucDaraltilmis={sonucDaraltilmis}
+                onSonucAlani={onSonucAlani}
               />
             );
           })}
@@ -253,6 +263,9 @@ function KonsolSekmesi({
   onToggleWriteMode,
   onTargetLockChange,
   onChangeTarget,
+  sonucOrani,
+  sonucDaraltilmis,
+  onSonucAlani,
 }: {
   tab: OpenTab;
   target: ReturnType<typeof resolveTarget>;
@@ -260,7 +273,10 @@ function KonsolSekmesi({
   sessionTabs: SessionTab[];
   catalog: CatalogEntry | undefined;
   onCatalog: Props['onCatalog'];
-} & Pick<Props, 'onActivate' | 'onScriptChange' | 'onToggleWriteMode' | 'onTargetLockChange' | 'onChangeTarget'>) {
+} & Pick<
+  Props,
+  'onActivate' | 'onScriptChange' | 'onToggleWriteMode' | 'onTargetLockChange' | 'onChangeTarget' | 'sonucOrani' | 'sonucDaraltilmis' | 'onSonucAlani'
+>) {
   const { id } = tab;
   const lockChanged = useCallback((reason: string | null) => onTargetLockChange(id, reason), [id, onTargetLockChange]);
   const scriptChanged = useCallback((script: string) => onScriptChange(id, script), [id, onScriptChange]);
@@ -287,6 +303,9 @@ function KonsolSekmesi({
       onCatalog={catalogWanted}
       onGoToTab={onActivate}
       hidden={hidden}
+      sonucOrani={sonucOrani}
+      sonucDaraltilmis={sonucDaraltilmis}
+      onSonucAlani={onSonucAlani}
     />
   );
 }

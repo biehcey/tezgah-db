@@ -853,6 +853,9 @@ export function App() {
           onOpenFromHistory={openFromHistory}
           onOpenConsole={openConsoleWith}
           autoLoadTabs={autoLoadTabs}
+          sonucOrani={preferences.sonucOrani}
+          sonucDaraltilmis={preferences.sonucDaraltilmis}
+          onSonucAlani={updatePreferences}
         />
       </main>
       {paletteOpen && (
