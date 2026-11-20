@@ -5,6 +5,7 @@
  */
 import { ACTIVE_SQL_TRANSACTION, NON_TRANSACTIONAL_FALLBACK, READ_ONLY_SQL_TRANSACTION, type ScriptAnalysis } from './calistirma-modu';
 import type { BlockedSession } from './bekletme';
+import { editoreTasi, type AralikYeri } from './calisacak-aralik';
 import type { FallbackReason } from './deneme';
 import type { RowChanges, SchemaChange } from './deneme-farki';
 import { splitStatements, positionOf, type Statement } from './ifade-bolme';
@@ -238,7 +239,12 @@ export const ROW_LIMIT_MESSAGE = 'Sınıra ulaşıldı, filtrele';
 export type RunPhase = 'calisiyor' | 'karar' | 'okuma' | 'bitti';
 
 export interface RunView {
+  /** Sunucuya giden metin: Çalışacak aralık (tüm script de bir aralıktır). */
   script: string;
+  /** Aralığın editör metnindeki başlangıç ofseti; tüm script'te 0. */
+  bas: number;
+  /** Çalışma anındaki editör metni; editör bundan farklıysa işaretler gösterilmez. */
+  editorMetni: string;
   /** Deneme modu: karar beklenmez, sonuç her zaman geri alınır. */
   deneme: boolean;
   /** Sunucunun analizinden; `analiz` gelene kadar yok. */
@@ -269,19 +275,24 @@ export interface RunView {
   kayitUyarisi?: string;
 }
 
-export function startRunView(script: string, { deneme = false }: { deneme?: boolean } = {}): RunView {
+/** `aralik`: `script` editör metninin bir parçasıysa onun yeri; yoksa script editör metninin tamamıdır. */
+export function startRunView(
+  script: string,
+  { deneme = false, aralik = { bas: 0, editorMetni: script } }: { deneme?: boolean; aralik?: AralikYeri } = {},
+): RunView {
   return {
     script,
+    ...aralik,
     deneme,
-    ifadeler: splitStatements(script).map((s, i) => statementView(script, s, i)),
+    ifadeler: splitStatements(script).map((s, i) => statementView(aralik, s, i)),
     evre: 'calisiyor',
     commitEdilebilir: false,
     bekleyenIstek: null,
   };
 }
 
-function statementView(script: string, s: Statement, i: number): StatementView {
-  return { i, satir: positionOf(script, s.start).satir, komut: s.keywords[0] ?? s.text.slice(0, 12), durum: 'sirada' };
+function statementView({ bas, editorMetni }: AralikYeri, s: Statement, i: number): StatementView {
+  return { i, satir: positionOf(editorMetni, bas + s.start).satir, komut: s.keywords[0] ?? s.text.slice(0, 12), durum: 'sirada' };
 }
 
 /**
@@ -332,7 +343,9 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
         sema: event.sema,
       });
     case 'error': {
-      const { type: _t, i, ms, ...hata } = event;
+      const { type: _t, i, ms, ...sunucu } = event;
+      // Sunucunun konumu aralığa göredir; işaretler ve Log editör metnindeki yeri gösterir.
+      const hata = { ...sunucu, ...editoreTasi(sunucu, view) };
       const ipucu = hata.sqlstate === ACTIVE_SQL_TRANSACTION ? NON_TRANSACTIONAL_FALLBACK : undefined;
       // Transaction modunda 25006 Yazma kilidinindir (salt okunur prod); öneri yalnızca Okuma'da.
       const oneri = view.mod === 'okuma' && hata.sqlstate === READ_ONLY_SQL_TRANSACTION;

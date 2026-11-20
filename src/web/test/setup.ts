@@ -14,6 +14,15 @@ if (!HTMLDialogElement.prototype.showModal) {
   };
 }
 
+// jsdom Range'in yerleşim ölçülerini vermez; CodeMirror odaklı editörde kaydırırken bunları ister.
+if (typeof Range !== 'undefined' && !('getClientRects' in Range.prototype)) {
+  const empty = { length: 0, item: () => null, [Symbol.iterator]: [][Symbol.iterator] };
+  Object.assign(Range.prototype, {
+    getClientRects: () => empty,
+    getBoundingClientRect: () => new DOMRect(),
+  });
+}
+
 afterEach(() => {
   cleanup();
 });
