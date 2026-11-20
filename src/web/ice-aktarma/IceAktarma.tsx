@@ -26,6 +26,8 @@ import type {
   PreviewCandidate,
 } from '../../core/ice-aktarma/sozlesme';
 import { ApiError, useApi } from '../api/client';
+import { Diyalog } from '../ortak/Diyalog';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 
 interface Props {
   connections: Connection[];
@@ -99,11 +101,6 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
     // Mevcut bağlantılar diyalog açıkken değişmez; tarama yalnızca istek değişince yenilenir.
   }, [api, request]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
 
   const candidates = preview?.candidates ?? [];
   const sections = previewSections(connections, folders, candidates, choices);
@@ -213,222 +210,12 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
   };
 
   return (
-    <div className="perde">
-      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-baslik`} className="diyalog ice-aktarma">
-        <header className="ice-aktarma-baslik">
-          <h2 id={`${id}-baslik`}>İçe aktar</h2>
-          <div role="group" aria-label="Kaynaklar" className="kaynak-cipleri">
-            {preview?.sources.map((s) =>
-              s.status === 'error' ? (
-                <span key={s.id} className="cip hatali" title={`${s.path}: ${s.error}`}>
-                  ⚠ {s.label}
-                </span>
-              ) : (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="cip"
-                  aria-pressed={s.enabled}
-                  title={s.status === 'missing' ? `${s.path} (bulunamadı)` : s.path}
-                  onClick={() => toggleSource(s.id)}
-                >
-                  {s.label} <span className="sayi">{s.candidateCount}</span>
-                </button>
-              ),
-            )}
-            <button type="button" className="cip" aria-expanded={pathOpen === 'proje'} onClick={() => setPathOpen((o) => (o === 'proje' ? null : 'proje'))}>
-              ＋ Proje klasörü…
-            </button>
-            <button type="button" className="cip" aria-expanded={pathOpen === 'pgpass'} onClick={() => setPathOpen((o) => (o === 'pgpass' ? null : 'pgpass'))}>
-              .pgpass yolu…
-            </button>
-          </div>
-          {pathOpen === 'proje' && (
-            <form className="yol-satiri" onSubmit={scanProject}>
-              <input
-                aria-label="Proje klasörü"
-                placeholder="Proje kökü ya da .idea klasörü (ör. ~/projeler/billing)"
-                value={projectText}
-                autoFocus
-                onChange={(e) => setProjectText(e.target.value)}
-              />
-              <button type="submit">Tara</button>
-            </form>
-          )}
-          {pathOpen === 'pgpass' && (
-            <form className="yol-satiri" onSubmit={scanPath}>
-              <input
-                aria-label=".pgpass yolu"
-                placeholder="Boş bırakılırsa PGPASSFILE ya da varsayılan konum"
-                value={pathText}
-                onChange={(e) => setPathText(e.target.value)}
-              />
-              <button type="submit">Tara</button>
-            </form>
-          )}
-        </header>
-
-        <div className="ice-aktarma-govde">
-          <section aria-label="Önizleme" className="sonuc-agaci">
-            <p className="soluk">Bağlantı listesi içe aktarmadan sonra böyle görünecek</p>
-            {scanError && (
-              <p role="alert" className="uyari">
-                {scanError}
-              </p>
-            )}
-            {!preview && !scanError && <p className="soluk">Kaynaklar taranıyor…</p>}
-            {preview &&
-              sections.map((s) => (
-                <div key={s.key} role="group" aria-label={s.name} className="agac-bolumu">
-                  <div className="agac-basligi">
-                    <span>{s.name}</span>
-                    {s.isNew && <span className="rozet">yeni klasör</span>}
-                  </div>
-                  {s.rows.map(row)}
-                </div>
-              ))}
-            {preview && preview.skipped.length > 0 && (
-              <div role="group" aria-label="Atlandı (Postgres değil)" className="agac-bolumu atlandi">
-                <div className="agac-basligi">
-                  <span>Atlandı (Postgres değil)</span>
-                </div>
-                {preview.skipped.map((s, i) => (
-                  <div key={`${s.source.id}-${i}`} className="agac-satiri mevcut" title={s.source.label}>
-                    <span className="agac-adi">{s.name}</span>
-                    <span className="baglanti-adresi">{s.reason}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section aria-label="Ayrıntı" className="aday-ayrintisi">
-            {current && currentChoice && currentRow?.kind === 'aday' ? (
-              <dl className="ayrinti-listesi">
-                <dt>
-                  <label htmlFor={`${id}-ad`}>Ad</label>
-                </dt>
-                <dd>
-                  <input id={`${id}-ad`} value={currentChoice.name} onChange={(e) => change(current.id, { name: e.target.value })} />
-                  {currentRow.name !== currentChoice.name && <div className="soluk">“{currentRow.name}” olarak kaydedilecek</div>}
-                </dd>
-                <dt />
-                <dd>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={currentChoice.selected}
-                      onChange={(e) => change(current.id, { selected: e.target.checked })}
-                    />{' '}
-                    {current.existing ? 'Yinele' : 'İçe aktar'}
-                  </label>
-                </dd>
-                <dt>
-                  <label htmlFor={`${id}-klasor`}>Klasör</label>
-                </dt>
-                <dd>
-                  <select
-                    id={`${id}-klasor`}
-                    value={newFolderOpen ? NEW_FOLDER : (currentChoice.folder ?? '')}
-                    onChange={(e) => {
-                      if (e.target.value === NEW_FOLDER) {
-                        setNewFolderOpen(true);
-                        return;
-                      }
-                      setNewFolderOpen(false);
-                      change(current.id, { folder: e.target.value || null });
-                    }}
-                  >
-                    <option value="">(klasörsüz)</option>
-                    {folderNames.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                    <option value={NEW_FOLDER}>yeni klasör…</option>
-                  </select>
-                  {newFolderOpen && (
-                    <input
-                      aria-label="Yeni klasör adı"
-                      autoFocus
-                      onChange={(e) => change(current.id, { folder: e.target.value.trim() || null })}
-                    />
-                  )}
-                </dd>
-                <dt>
-                  <label htmlFor={`${id}-ortam`}>Ortam</label>
-                </dt>
-                <dd>
-                  <select
-                    id={`${id}-ortam`}
-                    value={currentChoice.envTag ?? ''}
-                    onChange={(e) => change(current.id, { envTag: (e.target.value || null) as EnvTag | null })}
-                  >
-                    <option value="">—</option>
-                    {ENV_TAGS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  {current.envReason && <div className="soluk">öneri: {current.envReason}</div>}
-                </dd>
-                <dt>Sunucu</dt>
-                <dd>{connectionAddress(current)}</dd>
-                <dt>Şifre</dt>
-                <dd>
-                  {current.password
-                    ? `🔑 ${current.password.label}${current.password.wildcard ? ' (joker)' : ''}`
-                    : 'yok, ilk bağlanmada sorulur'}
-                </dd>
-                <dt>SSL</dt>
-                <dd>{sslSummary(current)}</dd>
-                <dt>SSH</dt>
-                <dd>{tunnelSummary(current.ssh)}</dd>
-                <dt>Veritabanları</dt>
-                <dd>
-                  <ul className="duz-liste">
-                    {current.databases.map((d) => (
-                      <li key={d}>
-                        {d} {d === current.database && <span className="rozet">başlangıç</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </dd>
-                <dt>Kaynaklar</dt>
-                <dd>
-                  {current.sources.length > 1 && <div>{current.sources.length} kaynaktan birleştirildi</div>}
-                  <ul className="duz-liste">
-                    {current.sources.map((s) => (
-                      <li key={s.label}>{s.label}</li>
-                    ))}
-                  </ul>
-                </dd>
-                {warningsOf(current).length > 0 && (
-                  <>
-                    <dt>Uyarılar</dt>
-                    <dd>
-                      <ul className="duz-liste uyari-listesi">
-                        {warningsOf(current).map((w) => (
-                          <li key={w}>⚠ {w}</li>
-                        ))}
-                      </ul>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            ) : (
-              <p className="soluk">{preview && candidates.length === 0 ? 'Kaynaklarda içe aktarılacak bağlantı yok.' : 'Soldan bir aday seçin.'}</p>
-            )}
-          </section>
-        </div>
-
-        {applyError && (
-          <p role="alert" className="uyari">
-            {applyError}
-          </p>
-        )}
-        <footer className="form-alt">
+    <Diyalog
+      baslik="İçe aktar"
+      className="ice-aktarma"
+      onClose={onCancel}
+      dugmeler={
+        <>
           <label>
             <input type="checkbox" checked={testAfter} onChange={(e) => setTestAfter(e.target.checked)} /> İçe aktardıktan sonra test et
           </label>
@@ -440,8 +227,225 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
           <button type="button" className="birincil" disabled={busy || selections.length === 0} onClick={() => void submit()}>
             İçe aktar
           </button>
-        </footer>
+        </>
+      }
+    >
+      <div className="ice-aktarma-baslik">
+        <div role="group" aria-label="Kaynaklar" className="kaynak-cipleri">
+          {preview?.sources.map((s) =>
+            s.status === 'error' ? (
+              <span key={s.id} className="cip hatali" title={`${s.path}: ${s.error}`}>
+                ⚠ {s.label}
+              </span>
+            ) : (
+              <button
+                key={s.id}
+                type="button"
+                className="cip"
+                aria-pressed={s.enabled}
+                title={s.status === 'missing' ? `${s.path} (bulunamadı)` : s.path}
+                onClick={() => toggleSource(s.id)}
+              >
+                {s.label} <span className="sayi">{s.candidateCount}</span>
+              </button>
+            ),
+          )}
+          <button type="button" className="cip" aria-expanded={pathOpen === 'proje'} onClick={() => setPathOpen((o) => (o === 'proje' ? null : 'proje'))}>
+            ＋ Proje klasörü…
+          </button>
+          <button type="button" className="cip" aria-expanded={pathOpen === 'pgpass'} onClick={() => setPathOpen((o) => (o === 'pgpass' ? null : 'pgpass'))}>
+            .pgpass yolu…
+          </button>
+        </div>
+        {pathOpen === 'proje' && (
+          <form className="yol-satiri" onSubmit={scanProject}>
+            <input
+              aria-label="Proje klasörü"
+              placeholder="Proje kökü ya da .idea klasörü (ör. ~/projeler/billing)"
+              value={projectText}
+              autoFocus
+              onChange={(e) => setProjectText(e.target.value)}
+            />
+            <button type="submit">Tara</button>
+          </form>
+        )}
+        {pathOpen === 'pgpass' && (
+          <form className="yol-satiri" onSubmit={scanPath}>
+            <input
+              aria-label=".pgpass yolu"
+              placeholder="Boş bırakılırsa PGPASSFILE ya da varsayılan konum"
+              value={pathText}
+              onChange={(e) => setPathText(e.target.value)}
+            />
+            <button type="submit">Tara</button>
+          </form>
+        )}
       </div>
-    </div>
+
+      <div className="ice-aktarma-govde">
+        <section aria-label="Önizleme" className="sonuc-agaci">
+          <p className="soluk">Bağlantı listesi içe aktarmadan sonra böyle görünecek</p>
+          {scanError && (
+            <p role="alert" className="uyari">
+              {scanError}
+            </p>
+          )}
+          {!preview && !scanError && (
+            <p className="soluk">
+              <Yukleniyor>Kaynaklar taranıyor…</Yukleniyor>
+            </p>
+          )}
+          {preview &&
+            sections.map((s) => (
+              <div key={s.key} role="group" aria-label={s.name} className="agac-bolumu">
+                <div className="agac-basligi">
+                  <span>{s.name}</span>
+                  {s.isNew && <span className="rozet">yeni klasör</span>}
+                </div>
+                {s.rows.map(row)}
+              </div>
+            ))}
+          {preview && preview.skipped.length > 0 && (
+            <div role="group" aria-label="Atlandı (Postgres değil)" className="agac-bolumu atlandi">
+              <div className="agac-basligi">
+                <span>Atlandı (Postgres değil)</span>
+              </div>
+              {preview.skipped.map((s, i) => (
+                <div key={`${s.source.id}-${i}`} className="agac-satiri mevcut" title={s.source.label}>
+                  <span className="agac-adi">{s.name}</span>
+                  <span className="baglanti-adresi">{s.reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Ayrıntı" className="aday-ayrintisi">
+          {current && currentChoice && currentRow?.kind === 'aday' ? (
+            <dl className="ayrinti-listesi">
+              <dt>
+                <label htmlFor={`${id}-ad`}>Ad</label>
+              </dt>
+              <dd>
+                <input id={`${id}-ad`} value={currentChoice.name} onChange={(e) => change(current.id, { name: e.target.value })} />
+                {currentRow.name !== currentChoice.name && <div className="soluk">“{currentRow.name}” olarak kaydedilecek</div>}
+              </dd>
+              <dt />
+              <dd>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={currentChoice.selected}
+                    onChange={(e) => change(current.id, { selected: e.target.checked })}
+                  />{' '}
+                  {current.existing ? 'Yinele' : 'İçe aktar'}
+                </label>
+              </dd>
+              <dt>
+                <label htmlFor={`${id}-klasor`}>Klasör</label>
+              </dt>
+              <dd>
+                <select
+                  id={`${id}-klasor`}
+                  value={newFolderOpen ? NEW_FOLDER : (currentChoice.folder ?? '')}
+                  onChange={(e) => {
+                    if (e.target.value === NEW_FOLDER) {
+                      setNewFolderOpen(true);
+                      return;
+                    }
+                    setNewFolderOpen(false);
+                    change(current.id, { folder: e.target.value || null });
+                  }}
+                >
+                  <option value="">(klasörsüz)</option>
+                  {folderNames.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                  <option value={NEW_FOLDER}>yeni klasör…</option>
+                </select>
+                {newFolderOpen && (
+                  <input
+                    aria-label="Yeni klasör adı"
+                    autoFocus
+                    onChange={(e) => change(current.id, { folder: e.target.value.trim() || null })}
+                  />
+                )}
+              </dd>
+              <dt>
+                <label htmlFor={`${id}-ortam`}>Ortam</label>
+              </dt>
+              <dd>
+                <select
+                  id={`${id}-ortam`}
+                  value={currentChoice.envTag ?? ''}
+                  onChange={(e) => change(current.id, { envTag: (e.target.value || null) as EnvTag | null })}
+                >
+                  <option value="">—</option>
+                  {ENV_TAGS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                {current.envReason && <div className="soluk">öneri: {current.envReason}</div>}
+              </dd>
+              <dt>Sunucu</dt>
+              <dd>{connectionAddress(current)}</dd>
+              <dt>Şifre</dt>
+              <dd>
+                {current.password
+                  ? `🔑 ${current.password.label}${current.password.wildcard ? ' (joker)' : ''}`
+                  : 'yok, ilk bağlanmada sorulur'}
+              </dd>
+              <dt>SSL</dt>
+              <dd>{sslSummary(current)}</dd>
+              <dt>SSH</dt>
+              <dd>{tunnelSummary(current.ssh)}</dd>
+              <dt>Veritabanları</dt>
+              <dd>
+                <ul className="duz-liste">
+                  {current.databases.map((d) => (
+                    <li key={d}>
+                      {d} {d === current.database && <span className="rozet">başlangıç</span>}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+              <dt>Kaynaklar</dt>
+              <dd>
+                {current.sources.length > 1 && <div>{current.sources.length} kaynaktan birleştirildi</div>}
+                <ul className="duz-liste">
+                  {current.sources.map((s) => (
+                    <li key={s.label}>{s.label}</li>
+                  ))}
+                </ul>
+              </dd>
+              {warningsOf(current).length > 0 && (
+                <>
+                  <dt>Uyarılar</dt>
+                  <dd>
+                    <ul className="duz-liste uyari-listesi">
+                      {warningsOf(current).map((w) => (
+                        <li key={w}>⚠ {w}</li>
+                      ))}
+                    </ul>
+                  </dd>
+                </>
+              )}
+            </dl>
+          ) : (
+            <p className="soluk">{preview && candidates.length === 0 ? 'Kaynaklarda içe aktarılacak bağlantı yok.' : 'Soldan bir aday seçin.'}</p>
+          )}
+        </section>
+      </div>
+
+      {applyError && (
+        <p role="alert" className="uyari">
+          {applyError}
+        </p>
+      )}
+    </Diyalog>
   );
 }
