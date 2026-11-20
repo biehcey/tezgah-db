@@ -6,12 +6,16 @@ Spec: [Prod sinyali (hikâyeler)](../spec.md#prod-sinyali) (hikâye 92–95), [P
 
 **Blocked by:** 06, 09
 
-**Status:** ready-for-agent
+**Status:** done (f37df84)
 
-- [ ] Kilit kontrolü yalnızca hedef başlığında; alt araç çubuğu kontrolü ve ayrı rozet kaldırılır.
+- [x] Kilit kontrolü yalnızca hedef başlığında; alt araç çubuğu kontrolü ve ayrı rozet kaldırılır.
 - [ ] Salt okunur/yazma açık görünümleri token'larla (`--env-prod`); "YAZMA AÇIK" 900×700 pencerede kesilmez.
-- [ ] Kırmızı çerçeve koşulu: görünen ekran konsol ya da Tablo sekmesi ve hedef `prod`.
-- [ ] Onay penceresi eklenmez (değişmez kural).
-- [ ] Testler (arayüz): prod hedefte kilit kontrolü tek tanedir ve tek tıkla durum değiştirir; yazma açıkken "YAZMA AÇIK" görünür; prod konsolu açıkken yeni bağlantı formuna geçilince çerçeve kaybolur, konsola dönülünce geri gelir; mevcut yazma kilidi testleri geçer.
+- [x] Kırmızı çerçeve koşulu: görünen ekran konsol ya da Tablo sekmesi ve hedef `prod`.
+- [x] Onay penceresi eklenmez (değişmez kural).
+- [x] Testler (arayüz): prod hedefte kilit kontrolü tek tanedir ve tek tıkla durum değiştirir; yazma açıkken "YAZMA AÇIK" görünür; prod konsolu açıkken yeni bağlantı formuna geçilince çerçeve kaybolur, konsola dönülünce geri gelir; mevcut yazma kilidi testleri geçer.
 
 ## Comments
+
+- Görünümler `--env-prod` ve `--metin-zit` token'larıyla yazıldı; etiket `nowrap` ve başlık sarılıyor, ama 900×700 pencerede kesilmediği gözle doğrulanmadı (görsel kontrol), bu yüzden ikinci kutu açık.
+- Tablo sekmesinde de tek kontrol tablo başlığına taşındı (önceden bekleyenler ve kolon formu çubuklarındaydı). Başlık dolu kırmızı değil, kırmızımsı + kırmızı alt çizgi: WHERE/ORDER BY kutuları okunur kalsın. Spec güncellendi.
+- Çerçeve içe aktarma sonucu penceresi açıkken de çizilmez.

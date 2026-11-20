@@ -281,11 +281,13 @@ describe('Tablo sekmesi: Uygula', () => {
     expect(applyButton()).toBeEnabled();
   });
 
-  it('prod 🔒 iken Uygula devre dışı; yanındaki tek tık Yazma kilidi açar', async () => {
+  it('prod 🔒 iken Uygula devre dışı; başlıktaki tek kilit kontrolü tek tıkla açar', async () => {
     const { user, runs } = await setup({ conn: PROD });
     await editName(user, 0, 'Veli');
     expect(applyButton()).toBeDisabled();
+    expect(t().getAllByRole('button', { name: /Salt okunur|YAZMA AÇIK/ })).toHaveLength(1);
     await user.click(t().getByRole('button', { name: 'Salt okunur' }));
+    expect(t().getByRole('button', { name: 'YAZMA AÇIK' }).closest('header')).toHaveClass('tablo-basligi', 'yazma-acik');
     expect(applyButton()).toBeEnabled();
     await user.click(applyButton());
     expect(runs.last()).toMatchObject({ yazmaModu: true, beklenenSatir: 1 });

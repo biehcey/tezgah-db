@@ -26,8 +26,7 @@ import { ROW_LIMIT_MESSAGE, applyEvent, startRunView, targetLock, type RunView }
 import { writeLockState } from '../../core/yazma-kilidi';
 import { Degisiklikler, DenemeProdUyarisi } from '../script/Degisiklikler';
 import { KararKarti } from '../script/KararKarti';
-import { WRITE_LOCK_LABELS } from '../script/durum';
-import { KilitIkonu } from '../script/ikonlar';
+import { KilitDugmesi } from '../script/KilitDugmesi';
 import { ChevronDown, ChevronUp, FlaskConical, PanelRight, Plus, RefreshCw, Undo2 } from 'lucide-react';
 import { Dugme } from '../ortak/Dugme';
 import { Rozet } from '../ortak/Rozet';
@@ -51,7 +50,7 @@ import { SonucGridi, type GridHandle } from '../grid/SonucGridi';
 import { SatirGorunumu } from '../grid/SatirGorunumu';
 import { rowView } from '../../core/grid/satir-gorunumu';
 import { BekleyenListesi } from './BekleyenListesi';
-import { APPLE, modalOpen } from '../ortak/pencere';
+import { kisayol, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
 import type { TamamlamaGirdisi } from '../script/tamamlama';
@@ -162,12 +161,8 @@ const ACTION_TITLES: Record<RunKind, { aktar: string; dene: string; uygula: stri
   },
 };
 
-/** Platformdaki değiştirici tuş; düğmelerdeki kısayol ipuçları için. */
-const MOD = APPLE ? '⌘' : 'Ctrl+';
-const MOD_ADI = APPLE ? 'Cmd' : 'Ctrl';
-
 /** Bekleyen değişiklik yokken çekmece satırındaki kısayol ipucu. */
-const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd+Shift+N: NULL · sağ tık: satır sil · Ctrl/Cmd+V: TSV yapıştır · Shift+Enter: satır görünümü · ${MOD_ADI}+B: gezgin`;
+const HINT = `Yaz / ${kisayol('hucreDuzenle')} / çift tık: düzenle · Tab: sonraki hücre · ${kisayol('nullYap')}: NULL · sağ tık: satır sil · ${kisayol('yapistir')}: TSV yapıştır · ${kisayol('satirGorunumu')}: satır görünümü · ${kisayol('gezgin')}: gezgin`;
 
 /**
  * Tablo sekmesi: editörsüz, tek satırlık üst çubukta ad, `≈N · M yüklü`, tek çerçevede serbest
@@ -539,21 +534,6 @@ export function TabloSekmesi({
     const pending = tur === 'bekleyen';
     return (
       <div className="script-cubugu">
-        {lock && (
-          // Tek tık; onay yok. Açık transaction'ın kilidi değişmez.
-          <Dugme
-            tur={lock === 'yazma-acik' ? 'tehlikeli' : 'ikincil'}
-            boyut="kucuk"
-            className="kilit-dugmesi"
-            aria-pressed={lock === 'yazma-acik'}
-            title={WRITE_LOCK_LABELS[lock].eylem}
-            onClick={onToggleWriteMode}
-            disabled={busy}
-          >
-            <KilitIkonu durum={lock} />
-            {WRITE_LOCK_LABELS[lock].rozet}
-          </Dugme>
-        )}
         {pending && (
           <Dugme title="Bekleyen değişikliklerin hepsini at" onClick={() => setChanges(NO_CHANGES)} disabled={none}>
             <Undo2 aria-hidden="true" /> Geri al
@@ -563,7 +543,7 @@ export function TabloSekmesi({
           Konsola aktar
         </Dugme>
         <Dugme
-          title={pending ? `${titles.dene} (${MOD}Shift+Enter)` : titles.dene}
+          title={pending ? `${titles.dene} (${kisayol('tabloDene')})` : titles.dene}
           aria-keyshortcuts={pending ? 'Control+Shift+Enter Meta+Shift+Enter' : undefined}
           onClick={() => metin && runScript(metin, true, tur)}
           disabled={none}
@@ -571,13 +551,13 @@ export function TabloSekmesi({
           <FlaskConical aria-hidden="true" /> Dene
           {pending && (
             <kbd className="kisayol-ipucu" aria-hidden="true">
-              {MOD}⇧↵
+              {kisayol('tabloDene')}
             </kbd>
           )}
         </Dugme>
         <Dugme
           tur="birincil"
-          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${MOD}Enter)` : titles.uygula}
+          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${kisayol('uygula')})` : titles.uygula}
           aria-keyshortcuts={pending ? 'Control+Enter Meta+Enter' : undefined}
           onClick={() => metin && runScript(metin, false, tur)}
           disabled={none || lock === 'salt-okunur'}
@@ -585,7 +565,7 @@ export function TabloSekmesi({
           Uygula
           {pending && (
             <kbd className="kisayol-ipucu" aria-hidden="true">
-              {MOD}↵
+              {kisayol('uygula')}
             </kbd>
           )}
         </Dugme>
@@ -633,11 +613,12 @@ export function TabloSekmesi({
 
   return (
     <section aria-label={`${name} tablosu`} className="tablo-sekmesi" hidden={hidden}>
-      <header className="tablo-basligi">
+      <header className={`tablo-basligi${lock === 'yazma-acik' ? ' yazma-acik' : ''}`}>
         <h2 title={target ? `${target.connection.name} / ${target.database} · ${name}` : name}>
           <span className="soluk">{tab.sema}.</span>
           {tab.tablo}
         </h2>
+        <KilitDugmesi lock={lock} onToggle={onToggleWriteMode} disabled={busy} />
         <span className="soluk kucuk tablo-sayaci" title="pg_class.reltuples tahmini · yüklü satırlar">
           {rowCounts(estimate, sayfa ? sayfa.satirlar.length : null)}
         </span>
@@ -799,7 +780,7 @@ export function TabloSekmesi({
                   boyut="kucuk"
                   aria-expanded={sqlOpen}
                   aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
-                  title={`Bekleyen listesi ve üretilen SQL (${MOD}Alt+Enter)`}
+                  title={`Bekleyen listesi ve üretilen SQL (${kisayol('tabloSql')})`}
                   onClick={() => setSqlOpen(!sqlOpen)}
                 >
                   {sqlOpen ? 'SQL’i gizle' : 'SQL’i göster'}

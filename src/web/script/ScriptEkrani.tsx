@@ -19,7 +19,9 @@ import { calisacakAralik, editorSatiri, type AralikYeri } from '../../core/calis
 import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } from '../../core/calistirma-modu';
 import { positionOf, splitStatements, type Statement } from '../../core/ifade-bolme';
 import { formatRemaining, startDecision, type DecisionTimer } from '../../core/karar-suresi';
-import { scriptShortcut, shortcutKey } from '../../core/kisayollar';
+import { scriptShortcut, shortcutKey, type ScriptShortcut } from '../../core/kisayollar';
+import { kisayol } from '../ortak/pencere';
+import { useScriptCommand } from './komut';
 import { Degisiklikler, DenemeProdUyarisi } from './Degisiklikler';
 import { BekletmeGostergesi } from './BekletmeGostergesi';
 import { KararKarti, resultText, useCountdown } from './KararKarti';
@@ -40,8 +42,9 @@ import type { SessionTab } from '../../core/konsol-sekmeleri';
 import type { Target } from '../../core/veritabani-secimi';
 import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
 import { ChevronDown, ChevronUp, Ellipsis, FlaskConical, History, Play, RefreshCw, Square, TriangleAlert } from 'lucide-react';
-import { STATUS_LABELS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
-import { DurumIkonu, KilitIkonu } from './ikonlar';
+import { STATUS_LABELS, type AnalysisMark } from './durum';
+import { DurumIkonu } from './ikonlar';
+import { KilitDugmesi } from './KilitDugmesi';
 import { Dugme } from '../ortak/Dugme';
 import type { SekmeDurumu } from '../ortak/DurumCubugu';
 import { Menu, menuBelow, type MenuPosition } from '../ortak/Menu';
@@ -110,10 +113,9 @@ const NO_RANGE_MESSAGE = 'İmleçte çalışacak ifade yok';
 const ANALYSIS_DELAY_MS = 200;
 
 const MODE_LABELS: Record<RunMode, string> = { transaction: 'Transaction', autocommit: 'Autocommit', okuma: 'Okuma', karisik: 'Karışık' };
-/** Araç çubuğunun eylemleri sırasıyla; birincil olanlar (mod rozeti ve kilit dahil) hiç taşmaz. */
+/** Araç çubuğunun eylemleri sırasıyla; birincil olanlar (mod rozeti dahil) hiç taşmaz. */
 const TOOLBAR_IDLE = [
   { anahtar: 'mod', birincil: true },
-  { anahtar: 'kilit', birincil: true },
   { anahtar: 'tumunuDene', birincil: false },
   { anahtar: 'dene', birincil: true },
   { anahtar: 'tumunuCalistir', birincil: false },
@@ -121,7 +123,6 @@ const TOOLBAR_IDLE = [
 ] as const;
 const TOOLBAR_RUNNING = [
   { anahtar: 'mod', birincil: true },
-  { anahtar: 'kilit', birincil: true },
   { anahtar: 'iptal', birincil: true },
 ] as const;
 
@@ -153,7 +154,7 @@ function analysisMarks(script: string, statements: Statement[], analysis: Script
 
 /**
  * Script ekranı (ticket 23 varyant B): üstte büyük hedef başlığı, solda editör ve çalıştırma çubuğu,
- * sağda karar kartı ve ifade kartları. prod hedefte başlık kırmızımsıdır; uygulamanın kırmızı
+ * sağda karar kartı ve ifade kartları. prod hedefte başlık kırmızımsıdır, yazma açıkken dolu kırmızı; uygulamanın kırmızı
  * çerçevesi kökte verilir.
  */
 export function ScriptEkrani({
@@ -341,6 +342,11 @@ export function ScriptEkrani({
     if (!eylem) return;
     e.preventDefault();
     e.stopPropagation();
+    runShortcut(eylem);
+  }
+
+  /** Kısayolun ya da paletteki aynı adlı komutun işi; düğmesi kapalıysa hiçbir şey yapmaz. */
+  function runShortcut(eylem: ScriptShortcut) {
     if (!target || busy) return;
     switch (eylem) {
       case 'calistir':
@@ -358,6 +364,7 @@ export function ScriptEkrani({
       }
     }
   }
+  useScriptCommand(!hidden, runShortcut);
 
   /**
    * Grid sona yaklaştı: transaction açıksa ve sonucun devamı varsa bir sayfa daha istenir. Yanıt
@@ -414,9 +421,9 @@ export function ScriptEkrani({
   const [overflowMenu, setOverflowMenu] = useState<MenuPosition | null>(null);
   const closeOverflowMenu = useCallback(() => setOverflowMenu(null), []);
   const tumunuDeneKapali = !target || busy || !hasStatements || tryBlocked;
-  const tumunuDeneIpucu = tryBlocked ? tryReasons.map(formatReason).join('\n') : "Tüm script'i çalıştır ve her zaman geri al (Ctrl/Cmd+Alt+Shift+Enter)";
+  const tumunuDeneIpucu = tryBlocked ? tryReasons.map(formatReason).join('\n') : `Tüm script'i çalıştır ve her zaman geri al (${kisayol('tumunuDene')})`;
   const tumunuCalistirKapali = !target || busy || !hasStatements || blocked;
-  const tumunuCalistirIpucu = blocked ? reasons.map(formatReason).join('\n') : "Tüm script'i çalıştır (Ctrl/Cmd+Alt+Enter)";
+  const tumunuCalistirIpucu = blocked ? reasons.map(formatReason).join('\n') : `Tüm script'i çalıştır (${kisayol('tumunuCalistir')})`;
 
   /** Sonuç sekmesi başına grid seçiminin özeti; yeni çalıştırmada silinir. */
   const [secimler, setSecimler] = useState<Readonly<Record<number, SecimOzeti>>>({});
@@ -429,7 +436,7 @@ export function ScriptEkrani({
 
   return (
     <div className="script-ekrani" hidden={hidden}>
-      <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}`}>
+      <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}${lock === 'yazma-acik' ? ' yazma-acik' : ''}`}>
         {target ? (
           <>
             <span
@@ -442,12 +449,7 @@ export function ScriptEkrani({
               {target.connection.name} <span className="soluk">/</span> {target.database}
             </h2>
             {target.connection.envTag && <OrtamRozeti etiket={target.connection.envTag} renk={target.connection.color} />}
-            {lock && (
-              <Rozet tur={lock === 'yazma-acik' ? 'tehlike' : 'notr'} title="Yazma kilidi" className="kilit-rozeti">
-                <KilitIkonu durum={lock} />
-                {WRITE_LOCK_LABELS[lock].rozet}
-              </Rozet>
-            )}
+            <KilitDugmesi lock={lock} onToggle={onToggleWriteMode} disabled={busy} />
           </>
         ) : (
           <>
@@ -460,7 +462,7 @@ export function ScriptEkrani({
           hedefi değiştir <ChevronDown aria-hidden="true" />
         </Dugme>
         {onHistory && (
-          <Dugme tur="sade" ikon className="gecmis-dugmesi" aria-label="Sorgu geçmişi" title="Sorgu geçmişi (Ctrl/Cmd+Alt+E)" onClick={onHistory}>
+          <Dugme tur="sade" ikon className="gecmis-dugmesi" aria-label="Sorgu geçmişi" title={`Sorgu geçmişi (${kisayol('gecmis')})`} onClick={onHistory}>
             <History aria-hidden="true" />
           </Dugme>
         )}
@@ -483,22 +485,6 @@ export function ScriptEkrani({
             <Rozet data-eylem="mod" tur={MODE_ROZETLERI[analysis.mod]} title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
               {MODE_LABELS[analysis.mod]}
             </Rozet>
-            {lock && (
-              // Tek tık; onay, şerit ya da tema değişimi yok. Açık transaction'ın kilidi değişmez.
-              <Dugme
-                data-eylem="kilit"
-                tur={lock === 'yazma-acik' ? 'tehlikeli' : 'ikincil'}
-                boyut="kucuk"
-                className="kilit-dugmesi"
-                aria-pressed={lock === 'yazma-acik'}
-                title={WRITE_LOCK_LABELS[lock].eylem}
-                onClick={onToggleWriteMode}
-                disabled={busy}
-              >
-                <KilitIkonu durum={lock} />
-                {WRITE_LOCK_LABELS[lock].rozet}
-              </Dugme>
-            )}
             {running ? (
               <Dugme data-eylem="iptal" tur="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
                 <Square aria-hidden="true" /> İptal
@@ -536,7 +522,7 @@ export function ScriptEkrani({
                       ? NO_RANGE_MESSAGE
                       : rangeTryReasons.length > 0
                         ? rangeTryReasons.map(formatReason).join('\n')
-                        : 'Seçimi ya da imleçteki ifadeyi çalıştır ve her zaman geri al (Ctrl/Cmd+Shift+Enter)'
+                        : `Seçimi ya da imleçteki ifadeyi çalıştır ve her zaman geri al (${kisayol('dene')})`
                   }
                   aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
                   onClick={() => runRange(true)}
@@ -563,7 +549,7 @@ export function ScriptEkrani({
                       ? NO_RANGE_MESSAGE
                       : rangeRunReasons.length > 0
                         ? rangeRunReasons.map(formatReason).join('\n')
-                        : 'Seçimi ya da imleçteki ifadeyi çalıştır (Ctrl/Cmd+Enter)'
+                        : `Seçimi ya da imleçteki ifadeyi çalıştır (${kisayol('calistir')})`
                   }
                   aria-keyshortcuts="Control+Enter Meta+Enter"
                   onClick={() => runRange(false)}

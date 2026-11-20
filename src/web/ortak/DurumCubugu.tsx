@@ -6,6 +6,7 @@ import type { DecisionTimer } from '../../core/karar-suresi';
 import type { RunView } from '../../core/script-calistirma';
 import { useCountdown } from '../script/KararKarti';
 import { Dugme } from './Dugme';
+import { kisayol } from './pencere';
 import { OrtamRozeti } from './Rozet';
 
 /** Bir sekmenin Durum çubuğuna bildirdiği durum; konsol ve Tablo sekmesi kendi alanlarını doldurur. */
@@ -25,8 +26,8 @@ interface Props {
   hedef: { connection: Connection; database: string } | null;
   durum: SekmeDurumu | null;
   surum: string | null;
-  /** `?`: kısayol sayfası; verilmezse düğme pasif. */
-  onKisayollar?: () => void;
+  /** `?`: kısayol sayfasını açar. */
+  onKisayollar: () => void;
 }
 
 /**
@@ -67,8 +68,7 @@ export function DurumCubugu({ hedef, durum, surum, onKisayollar }: Props) {
         boyut="kucuk"
         ikon
         aria-label="Kısayollar"
-        title={onKisayollar ? 'Kısayollar' : 'Kısayol sayfası henüz yok'}
-        disabled={!onKisayollar}
+        title={`Kısayollar (${kisayol('kisayollar')})`}
         onClick={onKisayollar}
       >
         <CircleQuestionMark aria-hidden="true" />

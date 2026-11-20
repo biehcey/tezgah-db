@@ -943,12 +943,67 @@ dialog.diyalog::backdrop {
 
 .menu [role='menuitem'] {
   display: flex;
+  gap: var(--bosluk-8);
   align-items: center;
   padding: var(--bosluk-4) var(--bosluk-12);
   border: 0;
   border-radius: 0;
   background: none;
   text-align: left;
+}
+
+.menu-ikonu {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+}
+
+.menu-etiketi {
+  flex: 1;
+}
+
+/* Kısayol ipucu öğenin sağında, soluk. */
+.menu .kisayol-ipucu,
+.palet-secenegi .kisayol-ipucu {
+  margin-left: auto;
+  color: var(--soluk);
+  opacity: 1;
+}
+
+.kisayol-sayfasi {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.kisayol-gruplari {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--bosluk-16);
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.kisayol-grubu h3 {
+  margin: 0 0 var(--bosluk-6);
+  font-size: var(--yazi-12);
+  color: var(--soluk);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kisayol-tablosu {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kisayol-tablosu td {
+  padding: var(--bosluk-2) 0;
+  vertical-align: top;
+}
+
+.kisayol-tablosu td:last-child {
+  padding-left: var(--bosluk-12);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .menu-alt-oku {
@@ -1441,6 +1496,29 @@ dialog.diyalog::backdrop {
   background: color-mix(in srgb, var(--prod) 14%, var(--zemin));
 }
 
+/*
+ * Yazma açık: başlık dolu kırmızı. Metin token'ları başlık içinde zıt renge döner (sade düğmeler,
+ * soluk metin); kilit düğmesi ters çevrilir, prod rozeti zeminden ayrılsın diye halka alır.
+ */
+.hedef-basligi.yazma-acik {
+  --metin: var(--metin-zit);
+  --soluk: color-mix(in srgb, var(--metin-zit) 80%, var(--env-prod));
+  --secili: color-mix(in srgb, var(--metin-zit) 18%, var(--env-prod));
+  border-bottom-color: var(--env-prod);
+  background: var(--env-prod);
+  color: var(--metin);
+}
+
+.hedef-basligi.yazma-acik .kilit-dugmesi.acik {
+  border-color: var(--metin-zit);
+  background: var(--metin-zit);
+  color: var(--env-prod);
+}
+
+.hedef-basligi.yazma-acik .rozet-ortam {
+  box-shadow: 0 0 0 1px var(--metin-zit);
+}
+
 .hedef-noktasi {
   width: 12px;
   height: 12px;
@@ -1651,15 +1729,25 @@ dialog.diyalog::backdrop {
   margin-right: auto;
 }
 
-/* prod yazma kilidi: rozet gibi yuvarlak tek tık düğmesi. */
+/*
+ * prod yazma kilidinin tek kontrolü (başlıkta): salt okunurken sakin, yazma açıkken dolu kırmızı.
+ * Etiket kesilmez (`.dugme` nowrap; başlık sarılır).
+ */
 .kilit-dugmesi {
+  flex: none;
   align-self: center;
   border-radius: var(--yaricap-tam);
 }
 
-/* Başlıkta ortam etiketinin yanındaki durum rozeti; değiştirmek araç çubuğundaki düğmeyle. */
-.kilit-rozeti {
-  align-self: center;
+.kilit-dugmesi.acik {
+  border-color: var(--env-prod);
+  background: var(--env-prod);
+  color: var(--metin-zit);
+  font-weight: 600;
+}
+
+.kilit-dugmesi.acik:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--env-prod) 85%, var(--gri-12));
 }
 
 .uyari-seridi {
@@ -2770,6 +2858,12 @@ button.grid-kose:hover,
 
 .tablo-basligi > * {
   flex: none;
+}
+
+/* Yazma açık: WHERE/ORDER BY kutuları okunur kalsın diye zemin dolu değil, kırmızımsı; düğme dolu. */
+.tablo-basligi.yazma-acik {
+  border-bottom: 2px solid var(--env-prod);
+  background: color-mix(in srgb, var(--env-prod) 14%, var(--zemin));
 }
 
 .tablo-basligi h2,

@@ -100,12 +100,12 @@ describe('App: prod yazma kilidi', () => {
     await screen.findByText('Canlı', { selector: '.baglanti-adi' });
     await user.keyboard('{Control>}k{/Control}');
     await user.keyboard('{Enter}');
-    const lockButton = () => screen.getByRole('button', { name: /Salt okunur|Yazma açık/ });
+    const lockButton = () => screen.getByRole('button', { name: /Salt okunur|YAZMA AÇIK/ });
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
 
     await user.click(screen.getByRole('button', { name: 'Yeni bağlantı' }));
     await user.click(screen.getByRole('button', { name: 'İptal' }));
-    expect(lockButton()).toHaveTextContent('Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
   });
 });

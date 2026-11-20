@@ -661,7 +661,7 @@ describe('Script ekranı: prod yazma kilidi', () => {
     return { user, fake, showTarget };
   }
 
-  const lockButton = () => screen.getByRole('button', { name: /Salt okunur|Yazma açık/ });
+  const lockButton = () => screen.getByRole('button', { name: /Salt okunur|YAZMA AÇIK/ });
 
   it('prod hedef 🔒 Salt okunur açılır ve çalıştırma salt okunur gider', async () => {
     const { user, fake } = setupProd();
@@ -685,18 +685,22 @@ describe('Script ekranı: prod yazma kilidi', () => {
     expect(rangeButton).toHaveAccessibleDescription(expect.stringContaining("Salt okunur prod'da Autocommit"));
   });
 
-  it('hedef başlığında ortam etiketinin yanında kilit rozeti durumu gösterir', async () => {
+  it('kilit kontrolü tek tanedir ve hedef başlığındadır; yazma açıkken başlık dolu kırmızı ve "YAZMA AÇIK"', async () => {
     const { user } = setupProd();
     const header = screen.getByRole('region', { name: 'Hedef' });
-    expect(within(header).getByTitle('Yazma kilidi')).toHaveTextContent('Salt okunur');
+    expect(screen.getAllByText(/Salt okunur|YAZMA AÇIK/)).toHaveLength(1);
+    expect(within(header).getByRole('button', { name: 'Salt okunur' })).toBe(lockButton());
+    expect(header).not.toHaveClass('yazma-acik');
     await user.click(lockButton());
-    expect(within(header).getByTitle('Yazma kilidi')).toHaveTextContent('Yazma açık');
+    expect(screen.getAllByText(/Salt okunur|YAZMA AÇIK/)).toHaveLength(1);
+    expect(within(header).getByRole('button', { name: 'YAZMA AÇIK' })).toHaveAttribute('aria-pressed', 'true');
+    expect(header).toHaveClass('yazma-acik');
   });
 
   it('düğme yazma modunu tek tıkla açar ve kapatır; çalıştırma onaysız yazma moduyla gider', async () => {
     const { user, fake } = setupProd();
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
     expect(lockButton()).toHaveAttribute('aria-pressed', 'true');
     setEditorScript('INSERT INTO t VALUES (1)');
     await user.click(runButton());
@@ -714,7 +718,7 @@ describe('Script ekranı: prod yazma kilidi', () => {
 
   it('prod olmayan hedefte kilit düğmesi yok ve yazma modu gönderilmez', async () => {
     const { user, fake } = setup();
-    expect(screen.queryByRole('button', { name: /Salt okunur|Yazma açık/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Salt okunur|YAZMA AÇIK/ })).not.toBeInTheDocument();
     setEditorScript('SELECT 1');
     await user.click(runButton());
     expect(fake.last().yazmaModu).toBe(false);

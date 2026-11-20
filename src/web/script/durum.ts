@@ -31,8 +31,8 @@ export const STATUS_LABELS: Record<StatementStatus, string> = {
   calistirilmadi: 'çalıştırılmadı',
 };
 
-/** prod yazma kilidinin rozeti ve düğmenin açıklaması; ikonu `KilitIkonu`. */
-export const WRITE_LOCK_LABELS: Record<'salt-okunur' | 'yazma-acik', { rozet: string; eylem: string }> = {
-  'salt-okunur': { rozet: 'Salt okunur', eylem: 'Yazma modunu aç' },
-  'yazma-acik': { rozet: 'Yazma açık', eylem: 'Salt okunura dön' },
+/** prod yazma kilidi düğmesinin etiketi ve açıklaması; ikonu `KilitIkonu`. */
+export const WRITE_LOCK_LABELS: Record<'salt-okunur' | 'yazma-acik', { etiket: string; eylem: string }> = {
+  'salt-okunur': { etiket: 'Salt okunur', eylem: 'Yazma modunu aç' },
+  'yazma-acik': { etiket: 'YAZMA AÇIK', eylem: 'Salt okunura dön' },
 };

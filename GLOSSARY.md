@@ -113,7 +113,7 @@ Bir script çalıştırmasının sonradan değiştirilmeyen kaydı: ne çalışt
 _Avoid_: Geçmiş, log, audit log, denetim kaydı
 
 **Sorgu geçmişi**:
-Konsolda Ctrl/Cmd+Alt+E ile açılıp kapanan, Çalıştırma kayıtlarını yeniden eskiye listeleyen yan panel. Bir kayda çift tıklamak metnini yeni bir Sekmede, kaydın hedefiyle açar. Panelin adıdır; içindeki her öğe bir Çalıştırma kaydıdır.
+Konsolda Ctrl/Cmd+Alt+E ya da hedef başlığındaki düğmeyle açılıp kapanan, Çalıştırma kayıtlarını yeniden eskiye listeleyen çekmece; editörü daraltmadan sağdan üste biner, Esc ve dışına tıklama kapatır. Bir kayda çift tıklamak metnini yeni bir Sekmede, kaydın hedefiyle açar. Panelin adıdır; içindeki her öğe bir Çalıştırma kaydıdır.
 _Avoid_: Geçmiş kaydı, log
 
 ## Arayüz
@@ -121,3 +121,7 @@ _Avoid_: Geçmiş kaydı, log
 **Arayüz tercihleri**:
 Gezgin görünürlüğü ve genişliği, editör/sonuç oranı, Sonuç alanının daraltılmışlığı ve temanın bağlantı ayarlarından ayrı dosyada (`arayuz.json`) saklanan değerleri. Bozuk ya da eksikse varsayılanlarla açılır; okunup yazılması hiçbir veritabanına bağlanmaz.
 _Avoid_: Ayarlar (tek başına), config
+
+**Durum çubuğu**:
+Uygulamanın en altındaki, etkin sekmenin hedefini ve ortam rozetini, transaction durumunu (Hazır, Çalışıyor, Karar bekleniyor, Okuma açık, Bağlı değil), son çalıştırmanın süresi ile satır sayısını, grid seçiminin özetini (hücre sayısı; sayısal hücrelerde kesin toplam ve ortalama), Tablo sekmesinde tahmini satır ile bekleyen değişiklik sayısını, kısa geri bildirimleri, kısayol sayfası düğmesini ve sürümü gösteren tek satır. Salt görüntüdür; Yazma kilidi burada değildir.
+_Avoid_: Footer, alt bilgi, status bar

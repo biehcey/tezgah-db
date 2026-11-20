@@ -17,6 +17,27 @@ export function writeLockState(envTag: EnvTag | null | undefined, yazmaModu: boo
   return yazmaModu ? 'yazma-acik' : 'salt-okunur';
 }
 
+/** Uygulamada o an görünen ekranı belirleyen durum (prod çerçevesinin girdisi). */
+export interface VisibleScreen {
+  /** Bağlantı formu açık: konsol arkada gizlidir. */
+  baglantiFormu: boolean;
+  /** İçe aktarma (ya da sonucu) açık. */
+  iceAktarma: boolean;
+  /** Aktif sekmenin türü; sekme yoksa `null`. */
+  sekme: 'konsol' | 'tablo' | null;
+  /** Aktif sekmenin hedef bağlantısının ortam etiketi. */
+  envTag: EnvTag | null | undefined;
+}
+
+/**
+ * Kırmızı uygulama çerçevesi yalnızca prod hedefli bir konsol ya da Tablo sekmesi görünürken
+ * çizilir; bağlantı formu ya da içe aktarma açıkken (sekme arkada kalsa da) çizilmez.
+ */
+export function showsProdFrame({ baglantiFormu, iceAktarma, sekme, envTag }: VisibleScreen): boolean {
+  if (baglantiFormu || iceAktarma || sekme === null) return false;
+  return isProd(envTag);
+}
+
 /**
  * Transaction modunun açılış ifadesi. Deneme (wayfinder 20) kilitten bağımsız `BEGIN READ WRITE`
  * ile açılır: sonu her zaman rollback'tir, kalıcı yazamaz. Pool'un salt okunur varsayılanına

@@ -226,7 +226,9 @@ describe('+ Kolon: Uygula, Dene, Konsola aktar', () => {
     await fillColumn(user, 'son', 'timestamptz');
     expect(button('Uygula')).toBeDisabled();
     expect(button('Dene')).toBeEnabled();
-    await user.click(form().getByRole('button', { name: 'Salt okunur' }));
+    // Kilidin tek kontrolü Tablo sekmesinin başlığındadır; formda ikincisi yok.
+    expect(form().queryByRole('button', { name: 'Salt okunur' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Salt okunur' }));
     expect(button('Uygula')).toBeEnabled();
   });
 

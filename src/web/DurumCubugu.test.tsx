@@ -78,9 +78,11 @@ describe('Durum çubuğu', () => {
     expect(within(bar()).getByRole('status', { name: 'Çalıştırma bildirimi' })).toHaveTextContent('İmleçte çalışacak ifade yok');
   });
 
-  it('sürümü gösterir', async () => {
-    await setup();
+  it('sürümü gösterir; ? düğmesi kısayol sayfasını açar', async () => {
+    const { user } = await setup();
     expect(await within(bar()).findByText(/^v\d/)).toBeInTheDocument();
+    await user.click(within(bar()).getByRole('button', { name: 'Kısayollar' }));
+    expect(screen.getByRole('dialog', { name: 'Kısayollar' })).toBeInTheDocument();
   });
 });
 
