@@ -6,7 +6,7 @@ Spec: [Çalışacak aralık (hikâyeler)](../spec.md#çalışacak-aralık), [Ça
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** done (423f6f4)
 
 - [x] core `calisacakAralik(metin, secim, imlec)`: seçim kırpma, ifade içi, `;` sonrası, satır sonunda biten ifade, ifadeler arası boşluk (önceki ifade), yorum, boş script → `null`; dolar tırnaklı gövde ve çok ifadeli seçim doğru.
 - [x] core ofset/satır eşlemesi: sunucu olaylarındaki `bas`/`bit`/`satir`/`sutun` aralık başlangıcına göre editör metnine taşınır; tüm script ofset 0'lı özel durumdur (ayrı kod yolu yok).
