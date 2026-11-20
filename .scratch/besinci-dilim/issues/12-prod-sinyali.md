@@ -6,7 +6,7 @@ Spec: [Prod sinyali (hikâyeler)](../spec.md#prod-sinyali) (hikâye 92–95), [P
 
 **Blocked by:** 06, 09
 
-**Status:** ready-for-agent
+**Status:** done (f37df84)
 
 - [x] Kilit kontrolü yalnızca hedef başlığında; alt araç çubuğu kontrolü ve ayrı rozet kaldırılır.
 - [ ] Salt okunur/yazma açık görünümleri token'larla (`--env-prod`); "YAZMA AÇIK" 900×700 pencerede kesilmez.
