@@ -1,8 +1,14 @@
 import { ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import type { ShortcutId } from '../../core/kisayollar';
+import { ariaKisayol, kisayol } from './pencere';
 
 export interface MenuItem {
   label: string;
+  /** Etiketin solundaki ikon (dekoratif). */
+  icon?: ReactNode;
+  /** Katalogdaki kısayolu: metni öğenin sağında yazar. */
+  shortcut?: ShortcutId;
   onSelect?: () => void;
   /** Seçilince menü bu öğelerle yer değiştirir (ör. "Klasöre taşı"; yanında ok ikonu). */
   submenu?: MenuEntry[];
@@ -95,9 +101,20 @@ export function Menu({ x, y, items: initial, label, onClose }: Props) {
             tabIndex={-1}
             className={item.danger ? 'tehlikeli' : undefined}
             disabled={item.disabled}
+            aria-keyshortcuts={item.shortcut && ariaKisayol(item.shortcut)}
             onClick={() => choose(item)}
           >
-            {item.label}
+            {item.icon && (
+              <span className="menu-ikonu" aria-hidden="true">
+                {item.icon}
+              </span>
+            )}
+            <span className="menu-etiketi">{item.label}</span>
+            {item.shortcut && (
+              <kbd className="kisayol-ipucu" aria-hidden="true">
+                {kisayol(item.shortcut)}
+              </kbd>
+            )}
             {item.submenu && <ChevronRight aria-hidden="true" className="menu-alt-oku" />}
           </button>
         ),

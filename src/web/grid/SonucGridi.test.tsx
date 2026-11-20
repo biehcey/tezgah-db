@@ -209,12 +209,20 @@ describe('Sonuç grid’i: Kopyala alt menüsü', () => {
     return navigator.clipboard.readText();
   }
 
-  it('alt menü biçimleri sunar; INSERT ayırıcıyla ayrılır', async () => {
+  it('alt menü biçimleri sunar, kısayolu olanın sağında kısayolu yazar; INSERT ayırıcıyla ayrılır', async () => {
     const { user } = setup();
     fireEvent.contextMenu(cell(0, 0));
     await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
     const menu = screen.getByRole('menu');
-    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['TSV', 'Başlıklı TSV', 'CSV', 'Markdown', 'JSON', 'INSERT']);
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual([
+      'TSVCtrl+C',
+      'Başlıklı TSVCtrl+Shift+C',
+      'CSV',
+      'Markdown',
+      'JSON',
+      'INSERT',
+    ]);
+    expect(within(menu).getByRole('menuitem', { name: 'TSV' })).toHaveAttribute('aria-keyshortcuts', 'Control+C');
     expect(within(menu).getByRole('separator')).toBeInTheDocument();
   });
 

@@ -901,12 +901,67 @@ dialog.diyalog::backdrop {
 
 .menu [role='menuitem'] {
   display: flex;
+  gap: var(--bosluk-8);
   align-items: center;
   padding: var(--bosluk-4) var(--bosluk-12);
   border: 0;
   border-radius: 0;
   background: none;
   text-align: left;
+}
+
+.menu-ikonu {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+}
+
+.menu-etiketi {
+  flex: 1;
+}
+
+/* Kısayol ipucu öğenin sağında, soluk. */
+.menu .kisayol-ipucu,
+.palet-secenegi .kisayol-ipucu {
+  margin-left: auto;
+  color: var(--soluk);
+  opacity: 1;
+}
+
+.kisayol-sayfasi {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.kisayol-gruplari {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--bosluk-16);
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.kisayol-grubu h3 {
+  margin: 0 0 var(--bosluk-6);
+  font-size: var(--yazi-12);
+  color: var(--soluk);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kisayol-tablosu {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kisayol-tablosu td {
+  padding: var(--bosluk-2) 0;
+  vertical-align: top;
+}
+
+.kisayol-tablosu td:last-child {
+  padding-left: var(--bosluk-12);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .menu-alt-oku {
