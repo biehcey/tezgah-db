@@ -229,10 +229,10 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 
 ### Arayüz tercihleri
 
-- Arayüz tercihleri, `tezgah.json`'dan ayrı bir dosyada (aynı uygulama veri dizininde) saklanır; şema: `{ surum: 1, gezgin: { acik: boolean, genislik: number }, sonucOrani: number, sonucDaraltilmis: boolean, tema: 'sistem' | 'acik' | 'koyu' }`. Bağlantı ayarlarının sürüm/göç mekanizmasına dokunulmaz.
-- Saf bir `normalizeArayuzTercihleri(ham, pencere)` bilinmeyen alanları atar, eksikleri varsayılanla doldurur, sayıları sınırlar (genişlik 200..pencere/2, oran 0.15..0.85). Bozuk JSON varsayılanlara düşer ve dosya ilk yazmada düzelir.
-- Sunucu iki uç nokta açar: oku ve yaz (erişim anahtarıyla doğrulanır, yalnızca `127.0.0.1`). Yazma, sürükleme bitince ve tema değişince yapılır; sürükleme sırasında değil (en fazla saniyede bir).
-- Tema `<html data-theme>` ile uygulanır; `sistem` iken `prefers-color-scheme` izlenir. Açılışta tercih gelene kadar sistem teması kullanılır (yanıp sönmeyi azaltmak için tercih, sayfa HTML'ine sunucu tarafından gömülebilir; uygulayıcının kararı).
+- Arayüz tercihleri, `tezgah.json`'dan ayrı bir dosyada (aynı uygulama veri dizininde, `arayuz.json`) saklanır; şema: `{ surum: 1, gezgin: { acik: boolean, genislik: number }, sonucOrani: number, sonucDaraltilmis: boolean, tema: 'sistem' | 'acik' | 'koyu' }`. Varsayılanlar: gezgin açık ve 280 px, `sonucOrani` 0.4 (Sonuç alanının yüksekliğe oranı), daraltılmamış, `sistem`. Bağlantı ayarlarının sürüm/göç mekanizmasına dokunulmaz.
+- Saf bir `normalizeArayuzTercihleri(ham, pencere: { genislik })` (`src/core/arayuz-tercihleri.ts`) bilinmeyen alanları atar, eksik ya da yanlış tipteki alanları varsayılanla doldurur, sayıları sınırlar (genişlik 200..pencere/2 ve tam sayıya yuvarlanır; pencerenin yarısı 200'den darsa pencere/2 kazanır; oran 0.15..0.85). Bozuk JSON varsayılanlara düşer ve dosya ilk yazmada düzelir. Sunucu pencereyi bilmediği için `genislik: Infinity` ile normalleştirir (yalnızca alt sınır); üst sınırı arayüz okurken ve yazarken kendi penceresiyle uygular.
+- Sunucu `GET`/`PUT /api/arayuz-tercihleri` açar (erişim anahtarıyla doğrulanır, yalnızca `127.0.0.1`); `PUT` gövdeyi normalleştirip yazar ve yazılanı döndürür. Yazma, sürükleme bitince ve tema değişince yapılır; sürükleme sırasında değil (en fazla saniyede bir). Arayüzde `usePreferences()` (`src/web/ortak/tercihler.ts`) tercihi açılışta bir kez okur ve `update(değişiklik)` ile hem durumu hem dosyayı günceller.
+- Tema `<html data-theme>` ile uygulanır: `acik`/`koyu` özniteliği yazar, `sistem` özniteliği kaldırır ve CSS `prefers-color-scheme` ile işletim sistemini canlı izler (JS dinleyicisi yok). Açılışta tercih gelene kadar sistem teması kullanılır; tercih HTML'e gömülmez (yerel sunucudan gelen tek istekte kısa bir geçiş kabul edildi).
 
 ### Grid
 
