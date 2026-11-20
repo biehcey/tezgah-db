@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { ARAYUZ_TERCIHLERI_VARSAYILAN, type ArayuzTercihleri } from '../../core/arayuz-tercihleri';
 import {
   baslangicSecimi,
+  bildirimSayilari,
   calismaIlerledi,
   editorBoyu,
   gosterilenSekme,
@@ -390,6 +391,12 @@ export function ScriptEkrani({
   /** Sürüklenirken oran; bırakınca tercihe yazılır. */
   const [surukleme, setSurukleme] = useState<number | null>(null);
   const oran = surukleme ?? sonucOrani;
+  /** Kullanıcı şeritte (ya da Log'daki bildirim sayacıyla) sekme seçti; daraltılmış alan açılır. */
+  const selectTab = (anahtar: SonucSekmesiAnahtari) => {
+    setSekmeSecimi((s) => kullaniciSecti(s ?? { secili: 'log', elle: false }, anahtar));
+    if (sonucDaraltilmis) onSonucAlani({ sonucDaraltilmis: false });
+  };
+  const bildirimSayaclari = bildirimSayilari(run);
 
   return (
     <div className="script-ekrani" hidden={hidden}>
@@ -538,10 +545,7 @@ export function ScriptEkrani({
             run={run}
             runNo={runNo}
             shown={gosterilenSekme(sekmeSecimi, run)}
-            onSelect={(anahtar) => {
-              setSekmeSecimi((s) => kullaniciSecti(s ?? { secili: 'log', elle: false }, anahtar));
-              if (sonucDaraltilmis) onSonucAlani({ sonucDaraltilmis: false });
-            }}
+            onSelect={selectTab}
             daraltilmis={sonucDaraltilmis}
             onToggle={() => onSonucAlani({ sonucDaraltilmis: !sonucDaraltilmis })}
             onMore={fetchMore}
@@ -554,6 +558,8 @@ export function ScriptEkrani({
                       key={s.i}
                       statement={s}
                       onGoTo={goToLine}
+                      bildirimSayisi={bildirimSayaclari.get(s.i)}
+                      onBildirimler={() => selectTab('bildirimler')}
                       onForceTransaction={
                         busy ? undefined : () => start(false, { zorlaTransaction: true, metin: run.script, yer: { bas: run.bas, editorMetni: run.editorMetni } })
                       }
@@ -651,24 +657,61 @@ function IfadeKarti({
   statement: s,
   onGoTo,
   onForceTransaction,
+  bildirimSayisi = 0,
+  onBildirimler,
 }: {
   statement: StatementView;
   onGoTo: (line: number) => void;
   /** 25006 sonrası "Transaction modunda çalıştır"; çalıştırma sürerken yok. */
   onForceTransaction?: () => void;
+  /** Bu ifade çalışırken gelen Sunucu bildirimi sayısı; sayaç Bildirimler sekmesine götürür. */
+  bildirimSayisi?: number;
+  onBildirimler: () => void;
 }) {
   return (
     <li className={`ifade-karti ${s.durum}`}>
-      <button type="button" className="ifade-karti-basligi" onClick={() => onGoTo(s.satir)}>
-        <span className={`ifade-isareti ${s.durum}`} aria-hidden="true">
-          <DurumIkonu durum={s.durum} />
-        </span>
-        <span className="komut-etiketi">{s.komut}</span>
-        <span className="soluk">satır {s.satir}</span>
-        {s.ms !== undefined && <span className="soluk sure">{s.ms} ms</span>}
-      </button>
+      <div className="ifade-karti-satiri">
+        <button type="button" className="ifade-karti-basligi" onClick={() => onGoTo(s.satir)}>
+          <span className={`ifade-isareti ${s.durum}`} aria-hidden="true">
+            <DurumIkonu durum={s.durum} />
+          </span>
+          <span className="komut-etiketi">{s.komut}</span>
+          <span className="soluk">satır {s.satir}</span>
+          {s.ms !== undefined && <span className="soluk sure">{s.ms} ms</span>}
+        </button>
+        {bildirimSayisi > 0 && (
+          <Dugme tur="sade" boyut="kucuk" className="bildirim-sayaci" onClick={onBildirimler}>
+            {bildirimSayisi} bildirim
+          </Dugme>
+        )}
+      </div>
       <StatementDetail statement={s} onForceTransaction={onForceTransaction} />
     </li>
+  );
+}
+
+/**
+ * Bildirimler sekmesi: Sunucu bildirimleri geldikleri sırayla; satır, seviye, mesaj ve varsa
+ * DETAIL/HINT. Düz metindir, seçilip kopyalanabilir.
+ */
+function Bildirimler({ run }: { run: RunView }) {
+  return (
+    <>
+      <ol aria-label="Sunucu bildirimleri" className="bildirim-listesi kucuk">
+        {run.bildirimler.map((b, n) => (
+          <li key={n} className={`bildirim ${b.seviye.toLowerCase()}`}>
+            <Rozet tur={b.seviye === 'WARNING' ? 'dikkat' : 'notr'}>{b.seviye}</Rozet>
+            {b.satir !== null && <span className="soluk">satır {b.satir}</span>}
+            <span className="bildirim-mesaji">{b.mesaj}</span>
+            {b.detay && <p className="bildirim-eki">DETAIL: {b.detay}</p>}
+            {b.ipucu && <p className="bildirim-eki">HINT: {b.ipucu}</p>}
+          </li>
+        ))}
+      </ol>
+      {run.bildirimFazlasi !== undefined && run.bildirimFazlasi > 0 && (
+        <p className="soluk kucuk">+{run.bildirimFazlasi} bildirim daha gösterilmedi</p>
+      )}
+    </>
   );
 }
 
@@ -778,6 +821,7 @@ function SonucAlani({
       );
     }
     if (t.anahtar === 'degisiklikler') return run && <Degisiklikler run={run} />;
+    if (t.anahtar === 'bildirimler') return run && <Bildirimler run={run} />;
     return log;
   }
 

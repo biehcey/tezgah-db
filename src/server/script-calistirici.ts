@@ -37,11 +37,13 @@ import { PAGE_ROWS, ROW_LIMIT } from '../core/grid/sabitler';
 import { splitStatements, type Statement } from '../core/ifade-bolme';
 import { TUNNEL_CLOSED } from '../core/ssh-tuneli';
 import {
+  BILDIRIM_SINIRI,
   MORE_CLOSED_FAILED,
   MORE_CLOSED_FINISHED,
   PREVIEW_ROWS,
   ROW_COUNT_ERROR,
   autocommitSummary,
+  noticeEvent,
   parseClientMessage,
   rowCountMessage,
   type ClientMessage,
@@ -144,6 +146,8 @@ interface Run {
   imlecler: Map<number, Cursor>;
   /** `i`. sonucun sıradaki sayfasını çeker; transaction açıldıktan sonra kurulur. */
   fetchMore?: (i: number) => Promise<void>;
+  /** Çalışan ifadenin indeksi; Sunucu bildirimleri buna bağlanır. İfade dışında yok. */
+  calisan?: number;
 }
 
 /** Açık bir sonuç imleci. */
@@ -321,11 +325,21 @@ export function createScriptRunner({ store, pools, catalogs, clock, history, log
       };
       void recorder.started.then((ok) => ok || recordFailed());
       let finished = false;
+      // Sunucu bildirimleri: ilk `BILDIRIM_SINIRI` tanesi geldikçe gider, gerisi sayılır.
+      let notices = 0;
+      let overflow = 0;
+      const onNotice = (notice: Parameters<typeof noticeEvent>[0]) => {
+        if (finished) return;
+        if (notices >= BILDIRIM_SINIRI) return void overflow++;
+        notices++;
+        send(noticeEvent(notice, current.calisan ?? null));
+      };
       const ddl = changesCatalog(splitStatements(script));
       /** Katalogu tazelenecek çalıştırmanın `bitti`'si: oturum client'ı bırakıldıktan sonra gider. */
       let afterRefresh: Omit<Finished, 'type'> | null = null;
-      const finish: Finish = async (event, sonuc) => {
+      const finish: Finish = async (sonucOlayi, sonuc) => {
         finished = true;
+        const event = overflow > 0 ? { ...sonucOlayi, bildirimFazlasi: overflow } : sonucOlayi;
         if (!(await recorder.finish({ sonuc, mesaj: event.mesaj, ifadeler: current.ifadeler }))) recordFailed();
         // Kalıcı olan DDL: commit edildi ya da autocommit'te en az bir ifade uygulandı. Yalnızca
         // kullanıcının istediği (önbellekte ya da okunmakta olan) katalog tazelenir.
@@ -334,9 +348,15 @@ export function createScriptRunner({ store, pools, catalogs, clock, history, log
         else send({ type: 'bitti', ...event });
       };
       try {
-        await pools.withClient(connection, database, (client, discard) => {
+        await pools.withClient(connection, database, async (client, discard) => {
           const session = { client, discard, connection, database, lock, deneme, okuma: mode === 'okuma' };
-          return mode === 'autocommit' ? inAutocommit(current, session, script, finish) : inTransaction(current, session, script, finish);
+          // Yalnızca çalıştırma süresince: havuza dönen client'ta dinleyici kalmaz.
+          client.on('notice', onNotice);
+          try {
+            return await (mode === 'autocommit' ? inAutocommit(current, session, script, finish) : inTransaction(current, session, script, finish));
+          } finally {
+            client.off('notice', onNotice);
+          }
         }, { session: true });
       } catch (err) {
         // `bitti` gitti; ikinci bir sonuç gönderilmez.
@@ -658,7 +678,9 @@ export function createScriptRunner({ store, pools, catalogs, clock, history, log
         if (current.stopping) return { outcome: 'tamam', applied };
         send({ type: 'started', i });
         const started = performance.now();
+        current.calisan = i;
         const result = await runStatement(client, statement, deneme, i, current.imlecler);
+        current.calisan = undefined;
         const ms = Math.round(performance.now() - started);
         if (result.ok && current.beklenenSatir !== undefined && result.rowCount !== current.beklenenSatir) {
           // Postgres'te hata yok ama değişiklik amaçlanan satıra uygulanmadı: transaction hatalı sayılır.

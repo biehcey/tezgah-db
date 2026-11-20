@@ -292,6 +292,51 @@ describe('Script ekranı: canlı olaylar', () => {
   });
 });
 
+describe('Script ekranı: Sunucu bildirimleri', () => {
+  const notice = (i: number | null, mesaj: string, ek: Partial<Extract<ServerEvent, { type: 'bildirim' }>> = {}): ServerEvent => ({
+    type: 'bildirim',
+    i,
+    seviye: 'NOTICE',
+    mesaj,
+    ...ek,
+  });
+  const noticesTab = () => within(column()).queryByRole('tab', { name: /^Bildirimler/ });
+
+  it('bildirim gelmeden sekme yok; gelince "Bildirimler (N)" sekmesinde satır, seviye, DETAIL ve HINT görünür', async () => {
+    const { user, run } = await startRun();
+    run.emit({ type: 'started', i: 1 });
+    expect(noticesTab()).not.toBeInTheDocument();
+    run.emit(notice(1, 'merhaba'), notice(1, 'dikkat', { seviye: 'WARNING', detay: 'ayrıntı', ipucu: 'öneri' }));
+    expect(noticesTab()).toHaveTextContent('Bildirimler (2)');
+    await user.click(noticesTab()!);
+    const list = within(column()).getByRole('list', { name: 'Sunucu bildirimleri' });
+    const items = within(list).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('NOTICE');
+    expect(items[0]).toHaveTextContent('satır 2');
+    expect(items[0]).toHaveTextContent('merhaba');
+    expect(items[1]).toHaveTextContent('WARNING');
+    expect(items[1]).toHaveTextContent('ayrıntı');
+    expect(items[1]).toHaveTextContent('öneri');
+  });
+
+  it('Log’da ifadenin yanında bildirim sayısı; tıklayınca Bildirimler sekmesine gider', async () => {
+    const { user, run } = await startRun();
+    run.emit({ type: 'started', i: 0 }, notice(0, 'a'), notice(0, 'b'), notice(0, 'c'), { type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'INSERT' });
+    expect(selectedTab()).toBe('Log');
+    expect(within(cards()[1]!).queryByRole('button', { name: /bildirim/ })).not.toBeInTheDocument();
+    await user.click(within(cards()[0]!).getByRole('button', { name: '3 bildirim' }));
+    expect(selectedTab()).toBe('Bildirimler (3)');
+  });
+
+  it('gösterilmeyen bildirimler sayılır', async () => {
+    const { user, run } = await startRun();
+    run.emit(notice(0, 'a'), { type: 'bitti', sonuc: 'rollback', bildirimFazlasi: 4 });
+    await user.click(noticesTab()!);
+    expect(column()).toHaveTextContent('+4 bildirim daha gösterilmedi');
+  });
+});
+
 describe('Script ekranı: karar kartı', () => {
   it('script bitince Commit ve Rollback sunulur; commit sonucu gösterilir', async () => {
     const { user, run } = await startRun('SELECT 1');

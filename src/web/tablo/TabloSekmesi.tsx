@@ -410,6 +410,8 @@ export function TabloSekmesi({
       ...(tur === 'bekleyen' && { beklenenSatir: 1 as const }),
     };
     handle.current = api.runScript(request, (event) => {
+      // Bekleyen değişiklik ve kolon ekleme script'lerinde Sunucu bildirimleri gösterilmez.
+      if (event.type === 'bildirim') return;
       setRun((current) => (current ? applyEvent(current, event) : current));
       if (event.type === 'kararBekleniyor' || event.type === 'uzatildi') setDeadline(startDecision(event.kalanMs, Date.now()));
       if (event.type === 'bitti' && event.sonuc === 'commit') {

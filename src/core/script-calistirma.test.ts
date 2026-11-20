@@ -8,6 +8,7 @@ import {
   canFetchMore,
   requestMore,
   formatSummary,
+  noticeEvent,
   parseClientMessage,
   startRunView,
   targetLock,
@@ -305,5 +306,67 @@ describe('çalıştırma görünümü: daha fazla satır', () => {
     expect(result(view).yukleniyor).toBeUndefined();
     expect(view.bekleyenIstek).toBe('uzat');
     expect(canFetchMore(view, 1)).toBe(false);
+  });
+});
+
+describe('çalıştırma görünümü: Sunucu bildirimleri', () => {
+  const notice = (i: number | null, mesaj: string, ek: Partial<Extract<ServerEvent, { type: 'bildirim' }>> = {}): ServerEvent => ({
+    type: 'bildirim',
+    i,
+    seviye: 'NOTICE',
+    mesaj,
+    ...ek,
+  });
+
+  it('başta bildirim yok', () => {
+    expect(play().bildirimler).toEqual([]);
+    expect(play().bildirimFazlasi).toBeUndefined();
+  });
+
+  it('bildirimler geldikleri sırayla, geldikleri ifadenin editördeki satırıyla tutulur', () => {
+    const view = play(
+      { type: 'started', i: 2 },
+      notice(2, 'bir'),
+      notice(2, 'iki', { seviye: 'WARNING', detay: 'ayrıntı', ipucu: 'öneri' }),
+      notice(null, 'ifadesiz'),
+    );
+    expect(view.bildirimler).toEqual([
+      { i: 2, satir: 3, seviye: 'NOTICE', mesaj: 'bir' },
+      { i: 2, satir: 3, seviye: 'WARNING', mesaj: 'iki', detay: 'ayrıntı', ipucu: 'öneri' },
+      { i: null, satir: null, seviye: 'NOTICE', mesaj: 'ifadesiz' },
+    ]);
+  });
+
+  it('satır Çalışacak aralıktan editöre taşınır', () => {
+    const EDITOR = 'SELECT 0;\n\nDO $$ BEGIN RAISE NOTICE $q$x$q$; END $$;';
+    const bas = EDITOR.indexOf('DO');
+    const view = applyEvent(startRunView(EDITOR.slice(bas), { aralik: { bas, editorMetni: EDITOR } }), notice(0, 'x'));
+    expect(view.bildirimler[0]).toMatchObject({ i: 0, satir: 3 });
+  });
+
+  it('1000’den sonrası gösterilmez, sayılır; bitti sunucunun saydığı fazlalığı taşır', () => {
+    let view = play();
+    for (let n = 0; n < 1002; n++) view = applyEvent(view, notice(0, `n${n}`));
+    expect(view.bildirimler).toHaveLength(1000);
+    expect(view.bildirimler.at(-1)!.mesaj).toBe('n999');
+    expect(view.bildirimFazlasi).toBe(2);
+    expect(applyEvent(play(), { type: 'bitti', sonuc: 'commit', bildirimFazlasi: 7 }).bildirimFazlasi).toBe(7);
+    // Fazlalık bildirmeyen bitti görünümdeki sayıyı silmez.
+    expect(applyEvent(view, { type: 'bitti', sonuc: 'commit' }).bildirimFazlasi).toBe(2);
+  });
+});
+
+describe('noticeEvent', () => {
+  it.each([
+    ['NOTICE', { severity: 'NOTICE', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: 'm' }],
+    ['WARNING, DETAIL ve HINT', { severity: 'WARNING', message: 'm', detail: 'd', hint: 'h' }, { type: 'bildirim', i: 1, seviye: 'WARNING', mesaj: 'm', detay: 'd', ipucu: 'h' }],
+    ['INFO', { severity: 'INFO', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'INFO', mesaj: 'm' }],
+    ['LOG', { severity: 'LOG', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'LOG', mesaj: 'm' }],
+    ['DEBUG', { severity: 'DEBUG', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'DEBUG', mesaj: 'm' }],
+    // Yerelleştirilmiş ya da tanınmayan seviye NOTICE sayılır.
+    ['tanınmayan seviye', { severity: 'UYARI', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: 'm' }],
+    ['seviyesiz, mesajsız', {}, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: '' }],
+  ])('%s', (_, raw, expected) => {
+    expect(noticeEvent(raw, 1)).toEqual(expected);
   });
 });
