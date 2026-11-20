@@ -20,6 +20,7 @@ import type { Catalog } from '../../core/katalog';
 import type { Volatility } from '../../core/kolon-ekle';
 import type { TablePageRequest, TablePageResponse } from '../../core/tablo-sayfasi';
 import { GridOlcumu } from '../grid/olcum';
+import { BildirimSaglayici } from '../ortak/Bildirimler';
 import { JSDOM_OLCUMU } from './grid';
 import { ApiError, ApiProvider, type ApiClient, type ConnectionRequest } from '../api/client';
 
@@ -110,7 +111,9 @@ export function createFakeScriptRuns() {
 export function renderWithApi(ui: ReactElement, api: ApiClient = createFakeApi()) {
   return render(
     <ApiProvider client={api}>
-      <GridOlcumu.Provider value={JSDOM_OLCUMU}>{ui}</GridOlcumu.Provider>
+      <BildirimSaglayici>
+        <GridOlcumu.Provider value={JSDOM_OLCUMU}>{ui}</GridOlcumu.Provider>
+      </BildirimSaglayici>
     </ApiProvider>,
   );
 }
