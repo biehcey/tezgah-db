@@ -6,7 +6,7 @@ Spec: [Testing Decisions](../spec.md#testing-decisions), [Further Notes](../spec
 
 **Blocked by:** 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13
 
-**Status:** ready-for-agent
+**Status:** done (9d05df5)
 
 - [ ] Gerçek yerel veritabanıyla (ör. embedded-postgres ya da yerel bir sunucu) yukarıdaki ekranların açık/koyu ve dar/geniş ekran görüntüleri alınır; dosyalar repoya konmaz, gözlemler bu dosyanın `## Comments` bölümüne yazılır.
 - [ ] 1–13'ün kabul kriterleriyle çelişen bir görünüm varsa düzeltilir ya da `.scratch/besinci-dilim/issues/` altında yeni ticket açılır.
