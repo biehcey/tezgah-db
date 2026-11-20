@@ -6,7 +6,7 @@ Spec: [Yerleşim (hikâyeler)](../spec.md#yerleşim) (hikâye 47–49), [Yerleş
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done (8992c19)
 
 - [x] Ortak, yeniden kullanılabilir bir bölücü bileşeni (`role="separator"`, `aria-orientation`, `aria-valuenow/min/max`, klavye, çift tık sıfırlama); ticket 09 da kullanır.
 - [x] Gezgin genişliği bölücüyle değişir; sınırlar uygulanır; pencere yeniden boyutlanınca sınır yeniden uygulanır.
