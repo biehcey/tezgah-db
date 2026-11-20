@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { isSelected, navigate, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget } from './secim';
+import { isSelected, navigate, rowActions, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget } from './secim';
+
+describe('rowActions: sağ tık menüsünün satır eylemleri', () => {
+  const sel = (ust: number, alt: number) => ({ capa: { satir: ust, kolon: 0 }, aktif: { satir: alt, kolon: 1 } });
+  it.each<[string, ReturnType<typeof sel>, number, number[], { sil: number[]; geriAl: number[] }]>([
+    ['hiçbiri silinecek değil: hepsi silinir', sel(1, 3), 10, [], { sil: [1, 2, 3], geriAl: [] }],
+    ['karışık: silinmeyenler silinir, silinecekler geri alınır', sel(1, 3), 10, [2], { sil: [1, 3], geriAl: [2] }],
+    ['hepsi silinecek: yalnızca geri al', sel(1, 2), 10, [1, 2], { sil: [], geriAl: [1, 2] }],
+    ['seçim satır sayısını aşarsa var olan satırlar', sel(8, 12), 10, [], { sil: [8, 9], geriAl: [] }],
+    ['ters seçim', sel(3, 1), 10, [], { sil: [1, 2, 3], geriAl: [] }],
+  ])('%s', (_, s, satirSayisi, silinecek, expected) => {
+    expect(rowActions(s, satirSayisi, (r) => silinecek.includes(r))).toEqual(expected);
+  });
+});
 
 const SIZE = { satirlar: 10, kolonlar: 4, sayfa: 3 };
 const key = (tus: string, mods: { shift?: boolean; ctrl?: boolean } = {}) => ({ tus, shift: false, ctrl: false, ...mods });

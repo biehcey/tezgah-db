@@ -22,7 +22,7 @@ import { gridCopyShortcut, rowViewShortcut, shortcutKey, type ShortcutId } from 
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
-import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
+import { extendTo, isSelected, navigate, rowActions, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
 import { columnAlignment, typeName } from '../../core/grid/tipler';
 import { secimOzeti, type SecimOzeti } from '../../core/grid/secim-ozeti';
 import { COPY_FORMATS, copyAs, copyFeedback, type CopyFormat } from '../../core/grid/kopyalama';
@@ -333,12 +333,6 @@ export function SonucGridi({
       for (let kolon = r.sol; kolon <= r.sag; kolon++) if (cellReadOnlyReason({ satir, kolon }) === null) onDuzenle?.(satir, kolon, null);
   }
 
-  /** Aralığın satırları. */
-  const selectedRows = (s: Selection) => {
-    const r = selectionRange(s);
-    return Array.from({ length: r.alt - r.ust + 1 }, (_, i) => r.ust + i).filter((i) => i < satirlar.length);
-  };
-
   const isNullKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n';
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -531,14 +525,11 @@ export function SonucGridi({
   function menuItems(s: Selection): MenuEntry[] {
     const items: MenuEntry[] = [];
     if (onDuzenle) {
-      const rows = selectedRows(s);
-      const deleted = rows.filter((r) => satirIsareti?.(r)?.durum === 'silinecek');
+      const { sil, geriAl } = rowActions(s, satirlar.length, (r) => satirIsareti?.(r)?.durum === 'silinecek');
       items.push({ label: 'NULL yap', icon: <CircleSlash />, shortcut: 'nullYap', onSelect: () => setNull(s) });
       if (onSatirEkle) items.push({ label: 'Satır ekle', icon: <Plus />, onSelect: onSatirEkle });
-      if (onSatirSil && deleted.length < rows.length) {
-        items.push({ label: 'Satırları sil', icon: <Trash2 />, danger: true, onSelect: () => onSatirSil(rows.filter((r) => !deleted.includes(r))) });
-      }
-      if (onSilmeyiGeriAl && deleted.length > 0) items.push({ label: 'Silmeyi geri al', icon: <Undo2 />, onSelect: () => onSilmeyiGeriAl(deleted) });
+      if (onSatirSil && sil.length > 0) items.push({ label: 'Satırları sil', icon: <Trash2 />, danger: true, onSelect: () => onSatirSil(sil) });
+      if (onSilmeyiGeriAl && geriAl.length > 0) items.push({ label: 'Silmeyi geri al', icon: <Undo2 />, onSelect: () => onSilmeyiGeriAl(geriAl) });
     }
     if (items.length > 0) items.push(MENU_SEPARATOR);
     const formats: MenuEntry[] = COPY_FORMATS.map(({ bicim, etiket }) => ({
