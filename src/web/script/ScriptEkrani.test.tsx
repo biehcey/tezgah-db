@@ -7,11 +7,19 @@ import type { ServerEvent } from '../../core/script-calistirma';
 import { editorCursorLine, editorScript, gutterMarks, setEditorCursor, setEditorScript } from '../test/eylemler';
 import { connection, createFakeApi, createFakeScriptRuns, renderWithApi } from '../test/sahte-api';
 import { ScriptEkrani } from './ScriptEkrani';
+import { usePreferences } from '../ortak/tercihler';
+import type { ArayuzTercihleri } from '../../core/arayuz-tercihleri';
 
-/** Metni ve Yazma kilidini konsolun (sekmenin) yerine tutan sarmalayıcı. */
-function Ekran(props: Omit<ComponentProps<typeof ScriptEkrani>, 'script' | 'onScriptChange' | 'writeMode' | 'onToggleWriteMode'>) {
+/** Metni, Yazma kilidini ve Sonuç alanı tercihlerini konsolun (sekmenin, uygulamanın) yerine tutan sarmalayıcı. */
+function Ekran(
+  props: Omit<
+    ComponentProps<typeof ScriptEkrani>,
+    'script' | 'onScriptChange' | 'writeMode' | 'onToggleWriteMode' | 'sonucOrani' | 'sonucDaraltilmis' | 'onSonucAlani'
+  >,
+) {
   const [script, setScript] = useState('');
   const [writeMode, setWriteMode] = useState(false);
+  const { preferences, update } = usePreferences();
   return (
     <ScriptEkrani
       {...props}
@@ -19,6 +27,9 @@ function Ekran(props: Omit<ComponentProps<typeof ScriptEkrani>, 'script' | 'onSc
       onScriptChange={setScript}
       writeMode={writeMode}
       onToggleWriteMode={() => setWriteMode((w) => !w)}
+      sonucOrani={preferences.sonucOrani}
+      sonucDaraltilmis={preferences.sonucDaraltilmis}
+      onSonucAlani={update}
     />
   );
 }
@@ -30,20 +41,25 @@ function setup({ withTarget = true, openRunHistoryFolder = vi.fn(() => Promise.r
   const user = userEvent.setup();
   const fake = createFakeScriptRuns();
   const target = withTarget ? { connection: connection({ id: 'b1', name: 'Yerel' }), database: 'app' } : null;
+  const writePreferences = vi.fn(async (p: ArayuzTercihleri) => p);
   const view = renderWithApi(
     <Ekran target={target} onChangeTarget={() => {}} />,
-    createFakeApi({ runScript: fake.runScript, openRunHistoryFolder }),
+    createFakeApi({ runScript: fake.runScript, openRunHistoryFolder, writePreferences }),
   );
-  return { user, fake, view, openRunHistoryFolder };
+  return { user, fake, view, openRunHistoryFolder, writePreferences };
 }
 
 /** Tüm script'i çalıştıran düğme; "Çalıştır" Çalışacak aralığı çalıştırır. */
 const runButton = () => screen.getByRole('button', { name: 'Tümünü çalıştır' });
-const column = () => screen.getByRole('complementary', { name: 'Çalıştırma' });
+/** Sonuç alanı: Sonuç sekmeleri, Log ve Değişiklikler tek şeritte. */
+const column = () => screen.getByRole('region', { name: 'Sonuç alanı' });
 const decision = () => screen.getByRole('region', { name: 'Karar' });
 const cards = () => within(column()).queryAllByRole('listitem');
-const results = () => screen.getByRole('region', { name: 'Sonuçlar' });
-const resultTabs = () => within(results()).queryAllByRole('tab');
+const results = column;
+const stripTabs = () => within(column()).queryAllByRole('tab');
+/** Yalnızca Sonuç sekmeleri (Log ve Değişiklikler hariç). */
+const resultTabs = () => stripTabs().filter((t) => t.textContent !== 'Log' && t.textContent !== 'Değişiklikler');
+const selectedTab = () => stripTabs().find((t) => t.getAttribute('aria-selected') === 'true')?.textContent;
 
 async function startRun(script = SCRIPT) {
   const ctx = setup();
@@ -234,7 +250,7 @@ describe('Script ekranı: canlı olaylar', () => {
   });
 
   it('SELECT kartı satır sayısını gösterir; satırlar kartta değil sonuç grid’inde', async () => {
-    const { run } = await startRun('SELECT g FROM generate_series(1, 750) g');
+    const { user, run } = await startRun('SELECT g FROM generate_series(1, 750) g');
     run.emit({
       type: 'done',
       i: 0,
@@ -246,6 +262,8 @@ describe('Script ekranı: canlı olaylar', () => {
     const card = cards()[0]!;
     expect(card).toHaveTextContent('750 satır');
     expect(within(card).queryByRole('grid')).not.toBeInTheDocument();
+    // Çalışırken Log açık; sonuç kendi sekmesinde.
+    await user.click(resultTabs()[0]!);
     const grid = within(results()).getByRole('grid');
     // Başlıkta kolon adı ve tipi (konsol sonuçlarında da).
     expect(within(grid).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['ginteger', 'bostext']);
@@ -819,13 +837,13 @@ describe('Script ekranı: Deneme modu', () => {
     const { user, run } = await startTry();
     expect(run).toMatchObject({ deneme: true, script: DML });
     expect(tabs()).toEqual([
-      ['Değişiklikler', 'true'],
       ['Log', 'false'],
+      ['Değişiklikler', 'true'],
     ]);
     await user.click(within(column()).getByRole('tab', { name: 'Log' }));
     expect(tabs()).toEqual([
-      ['Değişiklikler', 'false'],
       ['Log', 'true'],
+      ['Değişiklikler', 'false'],
     ]);
     expect(cards()).toHaveLength(4);
   });
@@ -850,6 +868,7 @@ describe('Script ekranı: Deneme modu', () => {
     expect(within(sections[2]!).queryByRole('table')).not.toBeInTheDocument();
     expect(changes()).not.toHaveTextContent('secilen');
 
+    await user.click(within(column()).getByRole('tab', { name: 'SELECT · satır 2' }));
     expect(within(results()).getByRole('grid')).toHaveTextContent('secilen');
     await user.click(within(column()).getByRole('tab', { name: 'Log' }));
     expect(cards()[1]).toHaveTextContent('1 satır');
@@ -959,13 +978,16 @@ describe('Script ekranı: Deneme modu', () => {
   });
 
   it('hata: banner’da hatalı satır ve SQLSTATE, altında hataya kadar olan önizlemeler; sonuç yine geri alındı', async () => {
-    const { run } = await startTry();
+    const { user, run } = await startTry();
     run.emit(
       { type: 'done', i: 0, rowCount: 1, ms: 3, komut: 'UPDATE', degisiklik: { kolonlar: ['id'], satirlar: [['1']] } },
       { type: 'done', i: 1, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: { kolonlar: ['a'], satirlar: [['1']] } },
       { type: 'error', i: 2, ms: 1, sqlstate: '23505', mesaj: 'duplicate key', satir: 3, sutun: 1, bas: 37, bit: 61 },
       { type: 'bitti', sonuc: 'deneme' },
     );
+    // Hatada Log açılır; Değişiklikler hataya kadar olanları gösterir.
+    expect(within(column()).getByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(within(column()).getByRole('tab', { name: 'Değişiklikler' }));
     expect(within(changes()).getByRole('alert')).toHaveTextContent('Satır 3 · 23505 · duplicate key');
     expect(within(changes()).getAllByRole('article').map((s) => within(s).getByRole('heading').textContent)).toEqual([
       'UPDATE · satır 1 · 1 satır güncellendi',
@@ -1011,43 +1033,49 @@ describe('Script ekranı: sonuç sekmeleri', () => {
       { type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('bir') },
       { type: 'done', i: 1, rowCount: 1, ms: 1, komut: 'INSERT' },
       { type: 'done', i: 2, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('iki') },
+      { type: 'okumaAcik', kalanMs: DK },
     );
     expect(resultTabs().map((t) => t.textContent)).toEqual(['SELECT · satır 1', 'SELECT · satır 3']);
-    expect(resultTabs()[0]).toHaveAttribute('aria-selected', 'true');
-    expect(within(results()).getByRole('grid')).toHaveTextContent('bir');
-    await user.click(resultTabs()[1]!);
-    expect(within(results()).getByRole('grid')).toHaveTextContent('iki');
     expect(resultTabs()[1]).toHaveAttribute('aria-selected', 'true');
+    expect(within(results()).getByRole('grid')).toHaveTextContent('iki');
+    await user.click(resultTabs()[0]!);
+    expect(within(results()).getByRole('grid')).toHaveTextContent('bir');
+    expect(resultTabs()[0]).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('sonuç sekmeleri oklarla ve Home/End ile gezilir; her sekme kendi panelini denetler', async () => {
+  it('şerit (Sonuç sekmeleri ve Log) oklarla ve Home/End ile gezilir; her sekme kendi panelini denetler', async () => {
     const { user, run } = await startRun('SELECT 1;\nSELECT 2;\nSELECT 3');
     run.emit(
       { type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('bir') },
       { type: 'done', i: 1, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('iki') },
       { type: 'done', i: 2, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('üç') },
+      { type: 'okumaAcik', kalanMs: DK },
     );
-    const [first, second, third] = resultTabs() as [HTMLElement, HTMLElement, HTMLElement];
-    expect(first).toHaveAttribute('tabindex', '0');
-    expect(second).toHaveAttribute('tabindex', '-1');
-    const panel = document.getElementById(first.getAttribute('aria-controls')!);
+    const [first, second, third, log] = stripTabs() as [HTMLElement, HTMLElement, HTMLElement, HTMLElement];
+    expect(log).toHaveTextContent('Log');
+    expect(third).toHaveAttribute('tabindex', '0');
+    expect(first).toHaveAttribute('tabindex', '-1');
+    const panel = document.getElementById(third.getAttribute('aria-controls')!);
     expect(panel).toHaveAttribute('role', 'tabpanel');
-    expect(panel).toHaveAccessibleName('SELECT · satır 1');
+    expect(panel).toHaveAccessibleName('SELECT · satır 3');
 
-    first.focus();
+    third.focus();
     await user.keyboard('{ArrowRight}');
-    expect(second).toHaveFocus();
-    expect(second).toHaveAttribute('aria-selected', 'true');
-    expect(within(results()).getByRole('grid')).toHaveTextContent('iki');
-    await user.keyboard('{End}');
-    expect(third).toHaveFocus();
+    expect(log).toHaveFocus();
+    expect(cards()).toHaveLength(3);
     await user.keyboard('{ArrowRight}');
     expect(first).toHaveFocus();
+    expect(first).toHaveAttribute('aria-selected', 'true');
+    expect(within(results()).getByRole('grid')).toHaveTextContent('bir');
+    await user.keyboard('{End}');
+    expect(log).toHaveFocus();
     await user.keyboard('{ArrowLeft}');
     expect(third).toHaveFocus();
     await user.keyboard('{Home}');
     expect(first).toHaveFocus();
-    expect(within(results()).getByRole('grid')).toHaveTextContent('bir');
+    await user.keyboard('{ArrowRight}');
+    expect(second).toHaveFocus();
+    expect(within(results()).getByRole('grid')).toHaveTextContent('iki');
   });
 
   it('yeniden çalıştırınca eski sonuç sekmeleri silinir', async () => {
@@ -1061,14 +1089,14 @@ describe('Script ekranı: sonuç sekmeleri', () => {
     await user.click(runButton());
     expect(resultTabs()).toEqual([]);
     expect(screen.queryByText('eski 1')).not.toBeInTheDocument();
-    fake.last().emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('yeni') });
+    fake.last().emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('yeni') }, { type: 'okumaAcik', kalanMs: DK });
     expect(resultTabs()).toHaveLength(1);
     expect(within(results()).getByRole('grid')).toHaveTextContent('yeni');
   });
 
   it('sonuç grid’inde Ctrl+C seçili hücreyi panoya kopyalar', async () => {
     const { user, run } = await startRun('SELECT 1');
-    run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('panoya') });
+    run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page('panoya') }, { type: 'okumaAcik', kalanMs: DK });
     await user.click(within(results()).getByRole('gridcell'));
     await user.keyboard('{Control>}c{/Control}');
     expect(await navigator.clipboard.readText()).toBe('panoya');
@@ -1076,7 +1104,7 @@ describe('Script ekranı: sonuç sekmeleri', () => {
 
   it('sonuç grid’inde "INSERT olarak kopyala" sonucun kolon tipleriyle yer tutucu tabloya yazar', async () => {
     const { user, run } = await startRun('SELECT 1');
-    run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: { kolonlar: ['a'], tipler: [25], satirlar: [["it's"]], dahaVar: false } });
+    run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: { kolonlar: ['a'], tipler: [25], satirlar: [["it's"]], dahaVar: false } }, { type: 'okumaAcik', kalanMs: DK });
     fireEvent.contextMenu(within(results()).getByRole('gridcell'));
     await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
     await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
@@ -1123,8 +1151,9 @@ describe('Script ekranı: daha fazla satır', () => {
   });
 
   it('script çalışırken istenmez', async () => {
-    const { run } = await startRun('SELECT g FROM t;\nSELECT 2');
+    const { user, run } = await startRun('SELECT g FROM t;\nSELECT 2');
     run.emit(first);
+    await user.click(resultTabs()[0]!);
     scrollToEnd();
     expect(moreRequests(run)).toEqual([]);
   });
@@ -1157,5 +1186,88 @@ describe('Script ekranı: daha fazla satır', () => {
     expect(results()).toHaveTextContent('Sınıra ulaşıldı, filtrele');
     scrollToEnd(1000);
     expect(moreRequests(run)).toHaveLength(1);
+  });
+});
+
+describe('Script ekranı: Sonuç alanı', () => {
+  const page = (deger: string) => ({ kolonlar: ['a'], tipler: [25], satirlar: [[deger]], dahaVar: false });
+  const selectDone = (i: number, deger: string): ServerEvent => ({ type: 'done', i, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: page(deger) });
+  const toggle = () => within(column()).getByRole('button', { name: /Sonuç alanını (daralt|aç)/ });
+
+  it('sağ çalıştırma kolonu yok; Sonuç alanı editörün altında tek şerit', () => {
+    setup();
+    expect(screen.queryByRole('complementary', { name: 'Çalıştırma' })).not.toBeInTheDocument();
+    expect(within(column()).getByRole('tablist')).toBeInTheDocument();
+    expect(stripTabs().map((t) => t.textContent)).toEqual(['Log']);
+  });
+
+  it('çalışma bitince satır döndüren son ifadenin Sonuç sekmesi açılır; o zamana kadar Log', async () => {
+    const { run } = await startRun('SELECT 1;\nINSERT INTO t VALUES (1);\nSELECT 2;\nUPDATE t SET a = 1');
+    run.emit(selectDone(0, 'bir'), { type: 'done', i: 1, rowCount: 1, ms: 1, komut: 'INSERT' }, selectDone(2, 'iki'));
+    expect(selectedTab()).toBe('Log');
+    run.emit({ type: 'done', i: 3, rowCount: 1, ms: 1, komut: 'UPDATE' }, { type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: DK });
+    expect(selectedTab()).toBe('SELECT · satır 3');
+    expect(within(results()).getByRole('grid')).toHaveTextContent('iki');
+  });
+
+  it('hatada Log açılır', async () => {
+    const { run } = await startRun('SELECT 1;\nSELECT nope');
+    run.emit(selectDone(0, 'bir'), { type: 'error', i: 1, ms: 1, sqlstate: '42703', mesaj: 'yok', satir: 1, sutun: 8, bas: 7, bit: 11 }, { type: 'kararBekleniyor', commitEdilebilir: false, kalanMs: DK });
+    expect(selectedTab()).toBe('Log');
+  });
+
+  it('kullanıcı çalışma sürerken sekme seçtiyse bitişte zorla değiştirilmez', async () => {
+    const { user, run } = await startRun('SELECT 1;\nSELECT 2');
+    run.emit(selectDone(0, 'bir'));
+    await user.click(within(column()).getByRole('tab', { name: 'Log' }));
+    run.emit(selectDone(1, 'iki'), { type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: DK });
+    expect(selectedTab()).toBe('Log');
+  });
+
+  it('karar beklenirken Log’dan Sonuç sekmesine geçince karar kartı görünür kalır', async () => {
+    const { user, run } = await startRun('INSERT INTO t VALUES (1);\nSELECT 1');
+    run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'INSERT' }, selectDone(1, 'bir'), { type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: DK });
+    await user.click(within(column()).getByRole('tab', { name: 'Log' }));
+    expect(within(decision()).getByRole('button', { name: 'Commit' })).toBeVisible();
+    await user.click(within(column()).getByRole('tab', { name: 'SELECT · satır 2' }));
+    expect(within(decision()).getByRole('button', { name: 'Commit' })).toBeVisible();
+  });
+
+  it('daraltınca yalnızca şerit kalır, tek tıkla açılır; ikisi de tercihe yazılır', async () => {
+    const { user, run, writePreferences } = await startRun('INSERT INTO t VALUES (1)');
+    expect(cards()).toHaveLength(1);
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+    await user.click(toggle());
+    expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(cards()).toHaveLength(0);
+    expect(stripTabs().map((t) => t.textContent)).toEqual(['Log']);
+    expect(writePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ sonucDaraltilmis: true }));
+    await user.click(toggle());
+    expect(cards()).toHaveLength(1);
+    expect(writePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ sonucDaraltilmis: false }));
+    void run;
+  });
+
+  it('daraltılmışken sonuç gelince ya da karar beklenince kendiliğinden açılır', async () => {
+    const { user, run } = await startRun('SELECT 1;\nINSERT INTO t VALUES (1)');
+    await user.click(toggle());
+    run.emit(selectDone(0, 'bir'));
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+    await user.click(toggle());
+    run.emit({ type: 'done', i: 1, rowCount: 1, ms: 1, komut: 'INSERT' });
+    expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+    run.emit({ type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: DK });
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('bölücü klavyeyle oynatılınca editör/sonuç oranı tercihe yazılır', async () => {
+    const { user, writePreferences } = setup();
+    const divider = screen.getByRole('separator', { name: 'Editör ile Sonuç alanı arası' });
+    expect(divider).toHaveAttribute('aria-orientation', 'horizontal');
+    divider.focus();
+    await user.keyboard('{ArrowUp}');
+    // Sonuç alanı büyür: oran 0.4'ten artar.
+    expect(writePreferences).toHaveBeenCalledTimes(1);
+    expect(writePreferences.mock.calls[0]![0].sonucOrani).toBeGreaterThan(0.4);
   });
 });

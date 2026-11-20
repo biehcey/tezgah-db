@@ -6,14 +6,17 @@ Spec: [Yerleşim (hikâyeler)](../spec.md#yerleşim) (hikâye 50–56, 60), [Yer
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done (0f35e38)
 
-- [ ] Sağ çalıştırma kolonu kaldırılır; editör ve sonuçlar ana alanın tüm genişliğini kullanır.
-- [ ] Ticket 08'deki bölücü bileşeni yatay olarak editör/Sonuç alanı arasında; oran tercihe yazılır.
-- [ ] Sonuç alanı sekme şeridi: `Sonuç 1…N`, `Log`, `Değişiklikler` (yalnızca Deneme); daraltılınca yalnızca şerit kalır; sonuç geldiğinde ya da karar beklendiğinde kendiliğinden açılır.
-- [ ] core açılış sekmesi kuralı (saf, `RunView` → sekme anahtarı) ve "kullanıcı değiştirdiyse dokunma" kuralı.
-- [ ] Karar şeridi: karar kartı + bekletme göstergesi Sonuç alanının üstünde, sekmeden bağımsız.
-- [ ] GLOSSARY'ye **Sonuç alanı** eklenir; **Sonuç sekmesi** tanımındaki "editörün altında" ifadesi Sonuç alanına göre güncellenir.
-- [ ] Testler: core açılış sekmesi kuralı (hata, Deneme, satır döndüren son ifade, hiçbiri); arayüz (çalışma sonrası doğru sekme açılır; karar beklenirken Log'dan Sonuç sekmesine geçilince karar kartı görünür kalır; daralt/aç; oran sahte API'ye yazılır; mevcut ScriptEkrani testleri yeni yerleşimle geçer).
+- [x] Sağ çalıştırma kolonu kaldırılır; editör ve sonuçlar ana alanın tüm genişliğini kullanır.
+- [x] Ticket 08'deki bölücü bileşeni yatay olarak editör/Sonuç alanı arasında; oran tercihe yazılır.
+- [x] Sonuç alanı sekme şeridi: `Sonuç 1…N`, `Log`, `Değişiklikler` (yalnızca Deneme); daraltılınca yalnızca şerit kalır; sonuç geldiğinde ya da karar beklendiğinde kendiliğinden açılır.
+- [x] core açılış sekmesi kuralı (saf, `RunView` → sekme anahtarı) ve "kullanıcı değiştirdiyse dokunma" kuralı.
+- [x] Karar şeridi: karar kartı + bekletme göstergesi Sonuç alanının üstünde, sekmeden bağımsız.
+- [x] GLOSSARY'ye **Sonuç alanı** eklenir; **Sonuç sekmesi** tanımındaki "editörün altında" ifadesi Sonuç alanına göre güncellenir.
+- [x] Testler: core açılış sekmesi kuralı (hata, Deneme, satır döndüren son ifade, hiçbiri); arayüz (çalışma sonrası doğru sekme açılır; karar beklenirken Log'dan Sonuç sekmesine geçilince karar kartı görünür kalır; daralt/aç; oran sahte API'ye yazılır; mevcut ScriptEkrani testleri yeni yerleşimle geçer).
 
 ## Comments
+
+- Görsel doğrulama (gerçek tarayıcıda sürükleme hissi, 900×700'de yerleşim, Tablo sekmesinin alanı doldurması) yapılmadı; yerleşim yalnızca jsdom testleriyle doğrulandı.
+- Spec'ten sapmalar spec.md'nin Yerleşim (web) bölümünde yazıldı: Karar şeridi çalıştırma varken hep görünür (bitince sonuç satırı); sekme seçmek daraltılmış alanı da açar.

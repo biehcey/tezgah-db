@@ -96,8 +96,12 @@ _Avoid_: Zaman aşımı, timeout
 Bir sekmenin hedefte client tutan çalıştırması: script çalışıyor, karar bekliyor ya da Okuma transaction'ı açık. Hedef başına en fazla 5 açık oturum olabilir; sınırı aşan çalıştırma beklemeden reddedilir. Katalog okuma, iptal gibi kısa süreli sorgular açık oturum sayılmaz. Hedefin eş anlamlısı değildir.
 _Avoid_: Bağlantı, client, session
 
+**Sonuç alanı**:
+Konsol sekmesinde editörün altındaki, Sonuç sekmelerini, Log'u, Değişiklikler'i ve Bildirimler'i aynı şeritte taşıyan, boyutlandırılabilir ve daraltılabilir panel. Çalıştırma bitince en anlamlı sekmeyi açar (hata → Log, Deneme → Değişiklikler, satır döndüren son ifade → onun Sonuç sekmesi, yoksa Log); kullanıcı çalışma sürerken sekme seçtiyse dokunmaz. Karar kartı ve bekletme göstergesi üstündeki Karar şeridinde, sekmeden bağımsız durur.
+_Avoid_: Alt panel, output
+
 **Sonuç sekmesi**:
-Bir çalıştırmada satır döndüren her ifade için editörün altında açılan, o ifadenin Sonuç grid'ini gösteren alt sekme. Bir Sekme değildir: diske yazılmaz, kapatılmaz; script yeniden çalıştırılınca hepsi silinir.
+Bir çalıştırmada satır döndüren her ifade için Sonuç alanında açılan, o ifadenin Sonuç grid'ini gösteren alt sekme. Bir Sekme değildir: diske yazılmaz, kapatılmaz; script yeniden çalıştırılınca hepsi silinir.
 _Avoid_: Sonuç penceresi, sekme (tek başına)
 
 **Sonuç grid'i**:
