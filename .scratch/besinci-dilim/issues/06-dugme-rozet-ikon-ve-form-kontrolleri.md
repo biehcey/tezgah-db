@@ -6,7 +6,7 @@ Spec: [Tasarım token'ları ve bileşenler](../spec.md#tasarım-tokenları-ve-bi
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (30e08a6)
 
 - [x] core `rozetYaziRengi('#rrggbb')` → `'#000000' | '#ffffff'` (WCAG göreli parlaklık, daha yüksek kontrastlı olan).
 - [x] `Dugme` (birincil/ikincil/tehlikeli/sade; normal/küçük) ve `Rozet` bileşenleri; mevcut düğme ve en az altı farklı çip/rozet stili bunlara taşınır.
