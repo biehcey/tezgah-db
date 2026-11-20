@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Diyalog } from '../ortak/Diyalog';
+import { Dugme } from '../ortak/Dugme';
 
 interface Props {
   title: string;
@@ -34,12 +35,10 @@ export function KlasorAdi({ title, initial, submitLabel, onSubmit, onCancel }: P
       dugmeler={
         <>
           <span className="bosluk" />
-          <button type="button" onClick={onCancel}>
-            Vazgeç
-          </button>
-          <button type="submit" className="birincil" disabled={busy}>
+          <Dugme onClick={onCancel}>Vazgeç</Dugme>
+          <Dugme type="submit" tur="birincil" disabled={busy}>
             {submitLabel}
-          </button>
+          </Dugme>
         </>
       }
     >

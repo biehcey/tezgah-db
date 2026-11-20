@@ -11,6 +11,7 @@ import {
   type TargetItem,
 } from '../../core/hizli-gecis';
 import type { Target } from '../../core/veritabani-secimi';
+import { OrtamRozeti, Rozet } from '../ortak/Rozet';
 
 /** Paletten çalıştırılan komut; henüz olmayanlar `disabled` ile pasif görünür. */
 export interface PaletteCommand {
@@ -234,9 +235,17 @@ export function HizliGecis({
                   onClick={(e) => choose(entry, e.altKey)}
                 >
                   <span className="palet-etiketi">{entry.label}</span>
-                  {entry.prod && <span className="ortam-rozeti palet-rozeti">prod</span>}
-                  {entry.item?.current && <span className="hedef-isareti">● hedef</span>}
-                  {entry.checked && <span className="hedef-isareti">● etkin</span>}
+                  {entry.prod && <OrtamRozeti etiket="prod" />}
+                  {entry.item?.current && (
+                    <Rozet tur="vurgu" className="hedef-isareti">
+                      hedef
+                    </Rozet>
+                  )}
+                  {entry.checked && (
+                    <Rozet tur="vurgu" className="hedef-isareti">
+                      etkin
+                    </Rozet>
+                  )}
                   {entry.hint && <span className="soluk kucuk">{entry.hint}</span>}
                 </div>
               ))}

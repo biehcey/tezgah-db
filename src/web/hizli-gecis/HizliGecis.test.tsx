@@ -79,7 +79,7 @@ describe('Cmd/Ctrl+K paleti: hedefler', () => {
 
     await user.keyboard('{Control>}k{/Control}');
     const current = within(group('Hedefler')).getByRole('option', { name: /Yerel \/ app/ });
-    expect(current).toHaveTextContent('● hedef');
+    expect(current).toHaveTextContent('hedef');
     await user.keyboard('{ArrowDown}{ArrowDown}{ArrowUp}');
     expect(within(group('Hedefler')).getByRole('option', { name: /Yerel \/ app/ })).toHaveAttribute('aria-selected', 'true');
   });
@@ -173,7 +173,7 @@ describe('Cmd/Ctrl+K paleti: komutlar', () => {
       'Yeni klasör',
       'İçe aktar',
       'Çalıştırma kayıtları klasörünü aç',
-      'Tema: Sistem● etkin',
+      'Tema: Sistemetkin',
       'Tema: Açık',
       'Tema: Koyu',
     ]);
@@ -284,12 +284,12 @@ describe('Cmd/Ctrl+K paleti: URL yapıştırma', () => {
 });
 
 describe('paleti açan düğmeler', () => {
-  it('kenar çubuğundaki kısayol düğmesi ve hedef başlığındaki "hedefi değiştir ▾"', async () => {
+  it('kenar çubuğundaki kısayol düğmesi ve hedef başlığındaki "hedefi değiştir"', async () => {
     const { user } = await setup();
     await user.click(screen.getByRole('button', { name: 'Hızlı geçiş' }));
     expect(search()).toHaveFocus();
     await user.keyboard('{Escape}');
-    await user.click(within(header()).getByRole('button', { name: 'hedefi değiştir ▾' }));
+    await user.click(within(header()).getByRole('button', { name: 'hedefi değiştir' }));
     expect(search()).toHaveFocus();
   });
 });
@@ -328,7 +328,7 @@ describe('hedef kilidi: karar beklenirken', () => {
     await ctx.user.keyboard('{Enter}');
     expect(within(header()).getByRole('heading')).toHaveTextContent('Yerel / postgres');
     setEditorScript('INSERT INTO t VALUES (1)');
-    await ctx.user.click(screen.getByRole('button', { name: '▶ Çalıştır' }));
+    await ctx.user.click(screen.getByRole('button', { name: 'Çalıştır' }));
     runs.last().emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'INSERT' }, { type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: 1_800_000 });
     return { ...ctx, run: runs.last() };
   }

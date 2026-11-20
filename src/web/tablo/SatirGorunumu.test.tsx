@@ -162,7 +162,7 @@ describe('Satır görünümü: Satır sekmesi', () => {
     expect(field('id')).toHaveAccessibleDescription('Birincil anahtar (PK) yüklü satırda düzenlenmez');
     expect(p().queryByRole('button', { name: 'id: NULL yap' })).not.toBeInTheDocument();
 
-    await user.click(t().getByRole('button', { name: '+ Satır' }));
+    await user.click(t().getByRole('button', { name: 'Satır' }));
     expect(panel()).toHaveTextContent('Yeni satır');
     expect(field('id')).not.toHaveAttribute('readonly');
     expect(field('ad')).toHaveAttribute('placeholder', 'DEFAULT');
@@ -176,7 +176,7 @@ describe('Satır görünümü: Satır sekmesi', () => {
     expect(panel()).toHaveTextContent('Silinecek satır düzenlenemez; önce silmeyi geri alın.');
     expect(field('ad')).toHaveAttribute('readonly');
 
-    await user.click(p().getByRole('button', { name: '↶ Geri al' }));
+    await user.click(p().getByRole('button', { name: 'Geri al' }));
     expect(t().queryByRole('region', { name: 'SQL önizlemesi' })).not.toBeInTheDocument();
     expect(field('ad')).not.toHaveAttribute('readonly');
   });

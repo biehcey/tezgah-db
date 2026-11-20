@@ -203,7 +203,7 @@ describe('bağlantı menüsü', () => {
       'Bağlan',
       'Düzenle',
       'Kopyala',
-      'Klasöre taşı ▸',
+      'Klasöre taşı',
       'URL’yi kopyala (şifresiz)',
       'Bağlantıyı kes',
       'Sil',

@@ -1,4 +1,6 @@
+import { X } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { Dugme } from './Dugme';
 
 interface Props {
   /** Başlık (`h2`); `etiket` verilmezse pencerenin erişilebilir adı da budur. */
@@ -71,9 +73,9 @@ export function Diyalog({ baslik, etiket, rol = 'dialog', aciklamaId, className,
     <>
       <header className="diyalog-basligi">
         <h2 id={`${id}-baslik`}>{baslik}</h2>
-        <button type="button" className="ikon-dugme diyalog-kapat" aria-label="Pencereyi kapat" title="Kapat (Esc)" data-kapat="1" onClick={onClose}>
-          ×
-        </button>
+        <Dugme tur="sade" ikon className="diyalog-kapat" aria-label="Pencereyi kapat" title="Kapat (Esc)" data-kapat="1" onClick={onClose}>
+          <X aria-hidden="true" />
+        </Dugme>
       </header>
       {children}
       {dugmeler && <footer className="form-alt">{dugmeler}</footer>}

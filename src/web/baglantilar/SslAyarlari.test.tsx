@@ -84,14 +84,14 @@ describe('SSL/TLS bölümü', () => {
   it('prod’da verify-full değilse öneri gösterir, kapalı özette ⚠; "Uygula" verify-full yapar', async () => {
     const { user, f } = await setup();
     await user.click(f.getByRole('radio', { name: 'prod' }));
-    expect(sslToggle()).toHaveTextContent('⚠');
+    expect(sslToggle()).toHaveTextContent('verify-full önerilir');
 
     await user.click(sslToggle());
     expect(sslSection().getByText(/prod için verify-full önerilir/)).toBeInTheDocument();
     await user.click(sslSection().getByRole('button', { name: 'Uygula' }));
     expect(sslSection().getByLabelText('sslmode')).toHaveValue('verify-full');
     expect(sslSection().queryByText(/verify-full önerilir/)).not.toBeInTheDocument();
-    expect(sslToggle()).not.toHaveTextContent('⚠');
+    expect(sslToggle()).not.toHaveTextContent('verify-full önerilir');
   });
 
   it('prod olmayan bağlantıda öneri yok', async () => {

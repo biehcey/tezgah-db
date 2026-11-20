@@ -1,4 +1,6 @@
+import { X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Dugme } from './Dugme';
 
 /** Kısa geri bildirim: hata kullanıcı kapatana kadar kalır, başarı birkaç saniyede kaybolur. */
 export interface BildirimApi {
@@ -65,9 +67,9 @@ function Toast({ bildirim, onClose }: { bildirim: Bildirim; onClose: () => void 
     <div role={bildirim.tur === 'hata' ? 'alert' : 'status'} className={`toast toast-${bildirim.tur}`}>
       <span className="toast-metni">{bildirim.mesaj}</span>
       {bildirim.tur === 'hata' && (
-        <button type="button" className="ikon-dugme" aria-label="Bildirimi kapat" title="Kapat" onClick={onClose}>
-          ×
-        </button>
+        <Dugme tur="sade" ikon boyut="kucuk" aria-label="Bildirimi kapat" title="Kapat" onClick={onClose}>
+          <X aria-hidden="true" />
+        </Dugme>
       )}
     </div>
   );

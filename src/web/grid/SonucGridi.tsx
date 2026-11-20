@@ -26,6 +26,7 @@ import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, sele
 import { columnAlignment, typeName } from '../../core/grid/tipler';
 import { COPY_FORMATS, copyAs, copyFeedback, type CopyFormat } from '../../core/grid/kopyalama';
 import { MENU_SEPARATOR, Menu, menuBelow, type MenuEntry, type MenuPosition } from '../ortak/Menu';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { GridOlcumu, canvasTextWidth } from './olcum';
 
 /** Sabit satır ve başlık yüksekliği (px); satırlar ölçülmez. CSS bunları `--grid-*` olarak alır. */
@@ -123,7 +124,7 @@ interface ValueBox {
 const EDITOR_MAX_LINES = 10;
 
 const SORT_ARIA = { artan: 'ascending', azalan: 'descending' } as const;
-const SORT_ARROW = { artan: ' ▲', azalan: ' ▼' } as const;
+const SORT_ARROW = { artan: <ArrowUp />, azalan: <ArrowDown /> } as const;
 
 /** Sona bu kadar satır kala "daha fazla" bildirilir: sayfa, kaydırma bitmeden gelsin. */
 const NEAR_END_ROWS = 100;
@@ -514,7 +515,7 @@ export function SonucGridi({
     void copyText(metin).then((ok) => setFeedback((f) => ({ metin: ok ? copyFeedback(rows.length, bicim) : 'Panoya kopyalanamadı', key: (f?.key ?? 0) + 1 })));
   }
 
-  /** Sağ tık menüsü: düzenlenebilir grid'de NULL ve satır eylemleri, her zaman "Kopyala ▸" biçimleri. */
+  /** Sağ tık menüsü: düzenlenebilir grid'de NULL ve satır eylemleri, her zaman "Kopyala" alt menüsünde biçimler. */
   function menuItems(s: Selection): MenuEntry[] {
     const items: MenuEntry[] = [];
     if (onDuzenle) {
@@ -529,7 +530,7 @@ export function SonucGridi({
     const formats: MenuEntry[] = COPY_FORMATS.map(({ bicim, etiket }) => ({ label: etiket, onSelect: () => copy(bicim, s) }));
     // INSERT, metin biçimlerinden ayrı bir grup.
     formats.splice(-1, 0, MENU_SEPARATOR);
-    items.push({ label: 'Kopyala ▸', submenu: formats });
+    items.push({ label: 'Kopyala', submenu: formats });
     return items;
   }
 

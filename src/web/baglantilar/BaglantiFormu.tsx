@@ -22,6 +22,13 @@ import { WINDOWS_AGENT_PIPE, type HostKeyProblem } from '../../core/ssh-tuneli';
 import { SSH_ERROR_FIELDS, SshBolumu, sshForm, sshSettings, usesSshSecret, type SshForm, type StoredSecret } from './SshBolumu';
 import { SslBolumu, sslForm, sslSettings, type SslForm } from './SslBolumu';
 import { TestAdimlari, TestOzeti, type TestState } from './TestSonucu';
+import { KeyRound, TriangleAlert } from 'lucide-react';
+import { rozetYaziRengi } from '../../core/rozet-rengi';
+import { Dugme } from '../ortak/Dugme';
+import { OrtamRozeti } from '../ortak/Rozet';
+
+/** Seçili ortam çipi, ortam rozeti gibi bağlantının renginde ve kontrastlı yazıyla. */
+const ortamCipi = (zemin: string) => ({ backgroundColor: zemin, borderColor: zemin, color: rozetYaziRengi(zemin) });
 
 interface Props {
   /** Düzenlenen bağlantı; `null` ise yeni bağlantı. */
@@ -376,7 +383,7 @@ export function BaglantiFormu({ connection, folders, onSaved, onCancel, onDelete
       <header className="form-baslik">
         <span className="ortam-noktasi" style={{ backgroundColor: color ?? 'transparent' }} aria-hidden="true" />
         <h2>{connection ? connection.name : 'Yeni bağlantı'}</h2>
-        {envTag && <span className={`ortam-rozeti${isProd(envTag) ? ' prod' : ''}`}>{envTag}</span>}
+        {envTag && <OrtamRozeti etiket={envTag} renk={color} />}
       </header>
 
       {testState && <TestOzeti state={testState} />}
@@ -438,7 +445,7 @@ export function BaglantiFormu({ connection, folders, onSaved, onCancel, onDelete
             <>
               <span className="etiket">Şifre</span>
               <p className="keychain-kayitli">
-                🔑 keychain'de kayıtlı ·{' '}
+                <KeyRound aria-hidden="true" /> keychain'de kayıtlı ·{' '}
                 <button type="button" className="baglanti-dugme" onClick={() => setChanging(true)}>
                   değiştir
                 </button>
@@ -479,7 +486,8 @@ export function BaglantiFormu({ connection, folders, onSaved, onCancel, onDelete
             Keychain'e kaydet
           </label>
           {!savePassword && (
-            <p className="uyari-satiri">Şifre her açılışta ilk bağlanmada sorulur, yalnızca bellekte tutulur.</p>
+            <p className="uyari-satiri">
+              <TriangleAlert aria-hidden="true" /> Şifre her açılışta ilk bağlanmada sorulur, yalnızca bellekte tutulur.</p>
           )}
         </div>
 
@@ -491,7 +499,7 @@ export function BaglantiFormu({ connection, folders, onSaved, onCancel, onDelete
           </span>
           <div role="radiogroup" aria-labelledby={`${id}-ortam`} className="cipler">
             {[null, ...ENV_TAGS].map((tag) => (
-              <label key={tag ?? 'yok'} className={`cip${envTag === tag ? ' secili' : ''}${isProd(tag) ? ' prod' : ''}`}>
+              <label key={tag ?? 'yok'} className={`cip${envTag === tag ? ' secili' : ''}`} style={tag && envTag === tag ? ortamCipi(color ?? DEFAULT_ENV_COLORS[tag]) : undefined}>
                 <input
                   type="radio"
                   name={`${id}-ortam`}
@@ -567,21 +575,19 @@ export function BaglantiFormu({ connection, folders, onSaved, onCancel, onDelete
       )}
 
       <footer className="form-alt">
-        <button type="button" onClick={() => void runTest()} disabled={testState?.durum === 'calisiyor'}>
+        <Dugme onClick={() => void runTest()} disabled={testState?.durum === 'calisiyor'}>
           Bağlantıyı test et
-        </button>
+        </Dugme>
         {connection && (
-          <button type="button" className="tehlikeli" onClick={() => onDelete(connection)}>
+          <Dugme tur="tehlikeli" onClick={() => onDelete(connection)}>
             Sil
-          </button>
+          </Dugme>
         )}
         <span className="bosluk" />
-        <button type="button" onClick={onCancel}>
-          İptal
-        </button>
-        <button type="submit" className="birincil" disabled={saving}>
+        <Dugme onClick={onCancel}>İptal</Dugme>
+        <Dugme type="submit" tur="birincil" disabled={saving}>
           Kaydet
-        </button>
+        </Dugme>
       </footer>
     </form>
   );

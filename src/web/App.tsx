@@ -42,6 +42,8 @@ import { SifrePenceresi } from './baglantilar/SifrePenceresi';
 import { SilmeOnayi } from './baglantilar/SilmeOnayi';
 import { Menu, type MenuItem, type MenuPosition } from './ortak/Menu';
 import { Onay } from './ortak/Onay';
+import { Dugme } from './ortak/Dugme';
+import { FolderPlus, Import, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
 import { Diyalog } from './ortak/Diyalog';
 import { useBildirimler } from './ortak/Bildirimler';
 import { Konsol } from './konsol/Konsol';
@@ -652,7 +654,7 @@ export function App() {
       },
       { label: 'Düzenle', onSelect: () => edit(connection.id) },
       { label: 'Kopyala', onSelect: () => void copy(connection) },
-      { label: 'Klasöre taşı ▸', submenu: targets, disabled: folders.length === 0 },
+      { label: 'Klasöre taşı', submenu: targets, disabled: folders.length === 0 },
       { label: 'URL’yi kopyala (şifresiz)', onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
       { label: 'Bağlantıyı kes', disabled: session === undefined, onSelect: () => void disconnect(connection) },
       { label: 'Sil', danger: true, onSelect: () => setDeleting(connection) },
@@ -729,7 +731,7 @@ export function App() {
           title={`Gezgini aç (${NAVIGATOR_SHORTCUT})`}
           onClick={() => setNavigatorOpen(true)}
         >
-          » Gezgin
+          <PanelLeftOpen aria-hidden="true" /> Gezgin
         </button>
       )}
       {/* Gizlenince kapanmaz: açık düğümler, yüklü şemalar ve arama korunur. */}
@@ -750,51 +752,34 @@ export function App() {
         />
         <header className="kenar-baslik">
           <h1>Tezgah</h1>
-          <button
-            type="button"
-            className="ikon-dugme kisayol-dugmesi"
+          <Dugme
+            tur="sade"
+            boyut="kucuk"
+            className="kisayol-dugmesi"
             aria-label="Hızlı geçiş"
             title={`Hızlı geçiş (${PALETTE_SHORTCUT})`}
             onClick={() => setPaletteOpen(true)}
           >
             {PALETTE_SHORTCUT}
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="İçe aktar"
-            title="İçe aktar (.pgpass)"
-            onClick={() => setImportOpen(true)}
-          >
-            <span aria-hidden="true">⇩</span>
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="Yeni klasör"
-            title="Yeni klasör"
-            onClick={() => setFolderDialog({ kind: 'yeni' })}
-          >
-            <span aria-hidden="true">⊞</span>
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="Yeni bağlantı"
-            title="Yeni bağlantı"
-            onClick={() => open({ kind: 'yeni' })}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="İçe aktar" title="İçe aktar (.pgpass)" onClick={() => setImportOpen(true)}>
+            <Import aria-hidden="true" />
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="Yeni klasör" title="Yeni klasör" onClick={() => setFolderDialog({ kind: 'yeni' })}>
+            <FolderPlus aria-hidden="true" />
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="Yeni bağlantı" title="Yeni bağlantı" onClick={() => open({ kind: 'yeni' })}>
+            <Plus aria-hidden="true" />
+          </Dugme>
+          <Dugme
+            tur="sade"
+            ikon
             aria-label="Gezgini gizle"
             title={`Gezgini gizle (${NAVIGATOR_SHORTCUT})`}
             onClick={() => setNavigatorOpen(false)}
           >
-            «
-          </button>
+            <PanelLeftClose aria-hidden="true" />
+          </Dugme>
         </header>
         <nav aria-label="Bağlantılar" className="baglantilar">
           {connections && (

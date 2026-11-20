@@ -1,7 +1,9 @@
 import { Diyalog } from '../ortak/Diyalog';
 import type { Folder } from '../../core/ayarlar';
 import type { ImportApplyResponse } from '../../core/ice-aktarma/sozlesme';
-import { TEST_ICONS, type ImportTestState } from '../../core/ice-aktarma/toplu-baglanti-testi';
+import type { ImportTestState } from '../../core/ice-aktarma/toplu-baglanti-testi';
+import { Dugme } from '../ortak/Dugme';
+import { DonenIkon, TestIkonu } from '../ortak/ikonlar';
 
 interface Props {
   result: ImportApplyResponse;
@@ -24,9 +26,9 @@ export function IceAktarmaSonucu({ result, folders, tests, onOpenForm, onClose }
       dugmeler={
         <>
           <span className="bosluk" />
-          <button type="button" className="birincil" data-autofocus onClick={onClose}>
+          <Dugme tur="birincil" data-autofocus onClick={onClose}>
             Kapat
-          </button>
+          </Dugme>
         </>
       }
     >
@@ -48,19 +50,23 @@ export function IceAktarmaSonucu({ result, folders, tests, onOpenForm, onClose }
               <span className="soluk">{folder}</span>
               <span className="test-sonucu">
                 {test === 'bekliyor' && <span className="soluk">sırada</span>}
-                {test === 'calisiyor' && <span className="soluk">◌ test ediliyor</span>}
+                {test === 'calisiyor' && (
+                  <span className="soluk">
+                    <DonenIkon /> test ediliyor
+                  </span>
+                )}
                 {typeof test === 'object' && (
                   <>
                     <span className={`durum test-${test.sonuc}`} aria-hidden="true">
-                      {TEST_ICONS[test.sonuc]}
+                      <TestIkonu sonuc={test.sonuc} />
                     </span>{' '}
                     <span>{test.mesaj}</span>
                   </>
                 )}
               </span>
-              <button type="button" onClick={() => onOpenForm(connection.id)}>
+              <Dugme boyut="kucuk" onClick={() => onOpenForm(connection.id)}>
                 Formda aç
-              </button>
+              </Dugme>
             </li>
           );
         })}

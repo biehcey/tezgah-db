@@ -1,5 +1,8 @@
 import { useCallback, useRef, useState, type ComponentProps } from 'react';
+import { Plus, SquareTerminal, Table2, X } from 'lucide-react';
 import { Onay } from '../ortak/Onay';
+import { Dugme } from '../ortak/Dugme';
+import { Rozet } from '../ortak/Rozet';
 import type { Connection } from '../../core/baglanti';
 import { sessionTabs, type ConsoleState, type OpenTab, type SessionTab, type TabTarget } from '../../core/konsol-sekmeleri';
 import type { HistoryEntry } from '../../core/gecmis-filtresi';
@@ -28,7 +31,7 @@ interface Props {
   catalogs: Readonly<Record<string, CatalogEntry>>;
   /** Sekme katalog istedi (ilk çalıştırma, ↻, DDL sonrası tazelendi). */
   onCatalog: (target: Target, reason: CatalogReason) => Promise<unknown>;
-  /** "hedefi değiştir ▾": hızlı geçiş paletini açar. */
+  /** "hedefi değiştir": hızlı geçiş paletini açar. */
   onChangeTarget: () => void;
   /** Konsol gizli (ör. bağlantı formu açık); sekmeler ve açık transaction'ları korunur. */
   hidden?: boolean;
@@ -136,31 +139,33 @@ export function Konsol({
                     aria-hidden="true"
                   />
                   <span className="sekme-turu" title={tab.tur === 'tablo' ? 'Tablo' : 'Konsol'} aria-hidden="true">
-                    {tab.tur === 'tablo' ? '▦' : '›_'}
+                    {tab.tur === 'tablo' ? <Table2 /> : <SquareTerminal />}
                   </span>
                   {title}
                   {count > 0 && (
-                    <span className="rozet sayi-rozeti" aria-label={`${count} bekleyen değişiklik`}>
+                    <Rozet tur="sayi" aria-label={`${count} bekleyen değişiklik`}>
                       {count}
-                    </span>
+                    </Rozet>
                   )}
                 </button>
-                <button
-                  type="button"
-                  className="ikon-dugme sekme-kapat"
+                <Dugme
+                  tur="sade"
+                  boyut="kucuk"
+                  ikon
+                  className="sekme-kapat"
                   aria-label={`${title} sekmesini kapat`}
                   title="Sekmeyi kapat"
                   onClick={() => requestClose(tab.id)}
                 >
-                  ×
-                </button>
+                  <X aria-hidden="true" />
+                </Dugme>
               </div>
             );
           })}
         </div>
-        <button type="button" className="ikon-dugme yeni-sekme" aria-label="Yeni sekme" title="Yeni sekme" onClick={onNew}>
-          +
-        </button>
+        <Dugme tur="sade" ikon className="yeni-sekme" aria-label="Yeni sekme" title="Yeni sekme" onClick={onNew}>
+          <Plus aria-hidden="true" />
+        </Dugme>
       </div>
       <div className="konsol-govde">
         <div className="konsol-ekrani">
