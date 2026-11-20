@@ -4,7 +4,7 @@ import { useState, type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiProvider, CONNECTION_LOST } from '../api/client';
 import type { ServerEvent } from '../../core/script-calistirma';
-import { editorCursorLine, editorScript, gutterMarks, setEditorScript } from '../test/eylemler';
+import { editorCursorLine, editorScript, gutterMarks, setEditorCursor, setEditorScript } from '../test/eylemler';
 import { connection, createFakeApi, createFakeScriptRuns, renderWithApi } from '../test/sahte-api';
 import { ScriptEkrani } from './ScriptEkrani';
 
@@ -37,7 +37,8 @@ function setup({ withTarget = true, openRunHistoryFolder = vi.fn(() => Promise.r
   return { user, fake, view, openRunHistoryFolder };
 }
 
-const runButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+/** Tüm script'i çalıştıran düğme; "▶ Çalıştır" Çalışacak aralığı çalıştırır. */
+const runButton = () => screen.getByRole('button', { name: 'Tümünü çalıştır' });
 const column = () => screen.getByRole('complementary', { name: 'Çalıştırma' });
 const decision = () => screen.getByRole('region', { name: 'Karar' });
 const cards = () => within(column()).queryAllByRole('listitem');
@@ -107,6 +108,98 @@ describe('Script ekranı: çalıştırma başlatma', () => {
     await user.click(screen.getByRole('textbox'));
     await user.keyboard('{Control>}{Enter}{/Control}');
     expect(fake.runs).toHaveLength(0);
+  });
+});
+
+describe('Script ekranı: Çalışacak aralık', () => {
+  const KARISIK = 'INSERT INTO t VALUES (1);\nVACUUM t;\nSELECT nope\n  FROM t;';
+  const rangeButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+
+  it('Ctrl/Cmd+Enter yalnızca imlecin ifadesini gönderir; Ctrl/Cmd+Alt+Enter tüm script’i', async () => {
+    const { user, fake } = setup();
+    const script = 'DELETE FROM a;\nDELETE FROM b;\nDELETE FROM c;';
+    setEditorScript(script);
+    setEditorCursor('DELETE FROM b');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(fake.last()).toMatchObject({ script: 'DELETE FROM b;', deneme: false });
+    expect(gutterMarks()).toEqual({ 2: '○' });
+    fake.last().emit({ type: 'bitti', sonuc: 'rollback' });
+
+    setEditorCursor('DELETE FROM b');
+    await user.keyboard('{Control>}{Alt>}{Enter}{/Alt}{/Control}');
+    expect(fake.last()).toMatchObject({ script, deneme: false });
+    fake.last().emit({ type: 'bitti', sonuc: 'rollback' });
+
+    setEditorCursor('DELETE FROM c');
+    await user.keyboard('{Meta>}{Shift>}{Enter}{/Shift}{/Meta}');
+    expect(fake.last()).toMatchObject({ script: 'DELETE FROM c;', deneme: true });
+    fake.last().emit({ type: 'bitti', sonuc: 'deneme' });
+
+    setEditorCursor('DELETE FROM c');
+    await user.keyboard('{Meta>}{Alt>}{Shift>}{Enter}{/Shift}{/Alt}{/Meta}');
+    expect(fake.last()).toMatchObject({ script, deneme: true });
+  });
+
+  it('seçim varken Çalıştır seçimi gönderir; Tümünü çalıştır tüm script’i', async () => {
+    const { user, fake } = setup();
+    setEditorScript('SELECT 1;\nSELECT 2;\nSELECT 3;');
+    setEditorCursor('SELECT 2;\nSELECT 3;', { secim: true });
+    await user.click(rangeButton());
+    expect(fake.last().script).toBe('SELECT 2;\nSELECT 3;');
+    fake.last().emit({ type: 'bitti', sonuc: 'rollback' });
+    await user.click(runButton());
+    expect(fake.last().script).toBe('SELECT 1;\nSELECT 2;\nSELECT 3;');
+  });
+
+  it('aralıktaki hata editördeki gerçek satırda işaretlenir; Log satırı da editörün', async () => {
+    const { user, fake } = setup();
+    setEditorScript('SELECT 1;\n\nSELECT nope\n  FROM t;');
+    setEditorCursor('FROM t');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    const run = fake.last();
+    expect(run.script).toBe('SELECT nope\n  FROM t;');
+    // Sunucunun konumu aralığa göredir: `nope` aralığın 1. satırının 8. sütunu.
+    run.emit({ type: 'error', i: 0, ms: 1, sqlstate: '42703', mesaj: 'column "nope" does not exist', satir: 1, sutun: 8, bas: 7, bit: 11 });
+    expect(gutterMarks()).toEqual({ 3: '✗' });
+    expect(document.querySelector('.cm-hata-alti')).toHaveTextContent(/^nope$/);
+    expect(cards()[0]).toHaveTextContent('satır 3');
+  });
+
+  it('karışık script’te Tümünü çalıştır kapalı; tek ifade imleçle çalıştırılabilir', async () => {
+    const { user, fake } = setup();
+    setEditorScript(KARISIK);
+    setEditorCursor('VACUUM');
+    await waitFor(() => expect(runButton()).toBeDisabled());
+    expect(rangeButton()).toBeEnabled();
+    await user.click(rangeButton());
+    expect(fake.last().script).toBe('VACUUM t;');
+  });
+
+  it('imleçte ifade yoksa hiçbir şey çalışmaz ve geri bildirim görünür', async () => {
+    const { user, fake } = setup();
+    setEditorScript('-- not\nSELECT 1;');
+    setEditorCursor('-- not');
+    expect(rangeButton()).toBeDisabled();
+    expect(runButton()).toBeEnabled();
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(fake.runs).toHaveLength(0);
+    expect(screen.getByRole('status', { name: 'Çalıştırma bildirimi' })).toHaveTextContent('İmleçte çalışacak ifade yok');
+  });
+
+  it('25006 sonrası Transaction teklifi hata alan aralığı yeniden çalıştırır', async () => {
+    const { user, fake } = setup();
+    setEditorScript('SELECT 1;\nSELECT f();');
+    setEditorCursor('SELECT f');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    fake.last().emit(
+      { type: 'analiz', mod: 'okuma', transactionDisi: [], reddedilenler: [] },
+      { type: 'error', i: 0, ms: 1, sqlstate: '25006', mesaj: 'read-only', satir: 1, sutun: 1, bas: 0, bit: 10 },
+      { type: 'bitti', sonuc: 'hata' },
+    );
+    await user.click(screen.getByRole('button', { name: 'Transaction modunda çalıştır' }));
+    expect(fake.last()).toMatchObject({ script: 'SELECT f();', zorlaTransaction: true });
+    fake.last().emit({ type: 'error', i: 0, ms: 1, sqlstate: '42883', mesaj: 'yok', satir: 1, sutun: 1, bas: 0, bit: 10 });
+    expect(gutterMarks()).toEqual({ 2: '✗' });
   });
 });
 
@@ -430,7 +523,7 @@ describe('Script ekranı: Çalıştırma modu', () => {
 
 describe('Script ekranı: Okuma modu', () => {
   const badge = () => screen.getByTitle('Çalıştırma modu');
-  const tryButton = () => screen.getByRole('button', { name: '⟲ Dene' });
+  const tryButton = () => screen.getByRole('button', { name: 'Tümünü dene' });
   const readStatus = () => screen.queryByRole('status', { name: 'Okuma durumu' });
   const okuma: ServerEvent = { type: 'analiz', mod: 'okuma', transactionDisi: [], reddedilenler: [] };
 
@@ -561,6 +654,19 @@ describe('Script ekranı: prod yazma kilidi', () => {
     expect(fake.last().yazmaModu).toBe(false);
   });
 
+  it('kilit altında Çalışacak aralık da salt okunur gider; Autocommit aralığı çalıştırılamaz', async () => {
+    const { user, fake } = setupProd();
+    setEditorScript('SELECT 1;\nINSERT INTO t VALUES (1);\nVACUUM t;');
+    setEditorCursor('INSERT');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(fake.last()).toMatchObject({ script: 'INSERT INTO t VALUES (1);', yazmaModu: false });
+    fake.last().emit({ type: 'bitti', sonuc: 'rollback' });
+    setEditorCursor('VACUUM');
+    const rangeButton = screen.getByRole('button', { name: '▶ Çalıştır' });
+    expect(rangeButton).toBeDisabled();
+    expect(rangeButton).toHaveAccessibleDescription(expect.stringContaining("Salt okunur prod'da Autocommit"));
+  });
+
   it('hedef başlığında ortam etiketinin yanında kilit rozeti durumu gösterir', async () => {
     const { user } = setupProd();
     const header = screen.getByRole('region', { name: 'Hedef' });
@@ -667,7 +773,7 @@ describe('Script ekranı: prod’da deneme', () => {
 });
 
 describe('Script ekranı: Deneme modu', () => {
-  const tryButton = () => screen.getByRole('button', { name: '⟲ Dene' });
+  const tryButton = () => screen.getByRole('button', { name: 'Tümünü dene' });
   const tabs = () => within(column()).getAllByRole('tab').map((t) => [t.textContent, t.getAttribute('aria-selected')]);
   const changes = () => within(column()).getByRole('tabpanel', { name: 'Değişiklikler' });
   const DML = 'UPDATE t SET a = 1;\nSELECT a FROM t;\nINSERT INTO t VALUES (9);\nDELETE FROM t WHERE id = 2';
