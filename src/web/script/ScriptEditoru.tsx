@@ -1,9 +1,9 @@
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { Compartment, EditorState, RangeSet, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
 import { Decoration, EditorView, GutterMarker, gutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { StatementStatus } from '../../core/script-calistirma';
+import { sqlRenklendirme } from '../ortak/sozdizimi';
 import { ANALYSIS_MARKS, STATUS_LABELS, STATUS_SYMBOLS, isAnalysisMark, type AnalysisMark } from './durum';
 import { sqlDili, tamamlamaTemeli, type TamamlamaGirdisi } from './tamamlama';
 
@@ -116,7 +116,7 @@ const baseExtensions: Extension[] = [
   history(),
   tamamlamaTemeli,
   keymap.of([...defaultKeymap, ...historyKeymap]),
-  syntaxHighlighting(defaultHighlightStyle),
+  sqlRenklendirme,
   marksField,
   errorDecorations,
   analysisDecorations,
