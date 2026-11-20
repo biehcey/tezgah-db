@@ -948,7 +948,8 @@ describe('Script ekranı: sonuç sekmeleri', () => {
     const { user, run } = await startRun('SELECT 1');
     run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: { kolonlar: ['a'], tipler: [25], satirlar: [["it's"]], dahaVar: false } });
     fireEvent.contextMenu(within(results()).getByRole('gridcell'));
-    await user.click(screen.getByRole('menuitem', { name: 'INSERT olarak kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala ▸' }));
+    await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
     expect(await navigator.clipboard.readText()).toBe(`INSERT INTO "tablo" ("a") VALUES ('it''s'::text);`);
   });
 });

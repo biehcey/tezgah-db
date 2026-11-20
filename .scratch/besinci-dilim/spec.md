@@ -238,7 +238,7 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 
 - Saf fonksiyon: tip OID'inden kolon hizası (`'sag' | 'sol'`): `int2`, `int4`, `int8`, `numeric`, `float4`, `float8`, `money`, `oid` sağ; diğerleri sol. Sağ kolonlarda `font-variant-numeric: tabular-nums`. Başlık da aynı hizayı izler.
 - Satır hover vurgusu; seçim ve düzenlenmiş hücre renkleri token'lara bağlanır.
-- Kopyalama biçimleri için yeni saf modül: `toCsv`, `toMarkdown`, `toJson`, başlıklı `toTsv`; girdi: kolon adları, tip OID'leri, seçili satırlar (tam değerler). Kurallar User Stories 78–82'deki gibidir. Mevcut başlıksız TSV ve INSERT değişmez.
+- Kopyalama biçimleri için yeni saf modül (`core/grid/kopyalama.ts`): `toCsv`, `toMarkdown`, `toJson`, başlıklı TSV (`toTsvWithHeader`, `tsv.ts`'de); girdi: seçili aralığın kolon adları, tip OID'leri ve satırları (tam değerler). INSERT bugünkü gibi seçili satırların tüm kolonlarını yazar. Kurallar User Stories 78–82'deki gibidir; ayrıca Markdown'da NULL `NULL` yazılır ve satır sonları `<br>` olur, JSON'da sayı olamayan float (`NaN`, `Infinity`) metin kalır, JSON anahtarları kolon sırasını korur. Mevcut başlıksız TSV ve INSERT değişmez.
 - Seçim özeti için saf fonksiyon: `seçimÖzeti(degerler, tipler)` → `{ hucre: number; sayisal?: { adet, toplam: string, ortalama: string } }`. Tam sayı ve `numeric` toplamı ondalık metin aritmetiğiyle kesin hesaplanır (BigInt üzerinden ölçekli); `float4/8` ve `money` için Number kullanılır. Ortalama en fazla 6 kesir basamağıyla yuvarlanır.
 - Grid sağ tık menüsünde "Kopyala" alt grubu; Ctrl/Cmd+Shift+C başlıklı TSV.
 

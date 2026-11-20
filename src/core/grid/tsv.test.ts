@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTsv, toTsv } from './tsv';
+import { parseTsv, toTsv, toTsvWithHeader } from './tsv';
 
 describe('TSV kopyalama', () => {
   it('başlıksız; hücreler sekmeyle, satırlar satır sonuyla ayrılır', () => {
@@ -21,6 +21,16 @@ describe('TSV kopyalama', () => {
 
   it('boş aralık boş metin verir', () => {
     expect(toTsv([])).toBe('');
+  });
+});
+
+describe('başlıklı TSV kopyalama', () => {
+  it('ilk satır kolon adları; başlık da hücre gibi tırnaklanır', () => {
+    expect(toTsvWithHeader(['id', 'a\tb'], [['1', null], ['2', '']])).toBe('id\t"a\tb"\n1\t\n2\t');
+  });
+
+  it('satır yoksa yalnızca başlık', () => {
+    expect(toTsvWithHeader(['id'], [])).toBe('id');
   });
 });
 
