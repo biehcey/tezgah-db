@@ -12,6 +12,7 @@ import {
 import type { Target } from '../../core/veritabani-secimi';
 import { useApi } from '../api/client';
 import { Yukleniyor } from '../ortak/Yukleniyor';
+import { kisayol } from '../ortak/pencere';
 
 interface Props {
   connections: readonly Connection[];
@@ -108,7 +109,7 @@ export function GecmisPaneli({ connections, activeTarget, onOpen, onClose }: Pro
     <aside className="gecmis-paneli" aria-label="Sorgu geçmişi">
       <header className="gecmis-basligi">
         <h2>Sorgu geçmişi</h2>
-        <button type="button" className="ikon-dugme" aria-label="Geçmişi kapat" title="Kapat (Ctrl/Cmd+Alt+E)" onClick={onClose}>
+        <button type="button" className="ikon-dugme" aria-label="Geçmişi kapat" title={`Kapat (${kisayol('gecmis')})`} onClick={onClose}>
           ×
         </button>
       </header>

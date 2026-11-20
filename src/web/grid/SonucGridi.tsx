@@ -18,7 +18,7 @@ import {
 } from 'react';
 import { DEFAULT_LABEL, NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
 import { CONSOLE_READ_ONLY_REASON, DELETED_REASON, isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
-import { rowViewShortcut, shortcutKey } from '../../core/kisayollar';
+import { rowViewShortcut, shortcutKey, type ShortcutId } from '../../core/kisayollar';
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
@@ -27,6 +27,9 @@ import { columnAlignment, typeName } from '../../core/grid/tipler';
 import { COPY_FORMATS, copyAs, copyFeedback, type CopyFormat } from '../../core/grid/kopyalama';
 import { MENU_SEPARATOR, Menu, menuBelow, type MenuEntry, type MenuPosition } from '../ortak/Menu';
 import { GridOlcumu, canvasTextWidth } from './olcum';
+
+/** "Kopyala ▸" biçimlerinden kısayolu olanlar (katalogdaki). */
+const COPY_SHORTCUTS: Partial<Record<CopyFormat, ShortcutId>> = { tsv: 'kopyala', baslikliTsv: 'baslikliKopyala' };
 
 /** Sabit satır ve başlık yüksekliği (px); satırlar ölçülmez. CSS bunları `--grid-*` olarak alır. */
 const ROW_HEIGHT = 24;
@@ -520,13 +523,17 @@ export function SonucGridi({
     if (onDuzenle) {
       const rows = selectedRows(s);
       const deleted = rows.filter((r) => satirIsareti?.(r)?.durum === 'silinecek');
-      items.push({ label: 'NULL yap', onSelect: () => setNull(s) });
+      items.push({ label: 'NULL yap', shortcut: 'nullYap', onSelect: () => setNull(s) });
       if (onSatirEkle) items.push({ label: 'Satır ekle', onSelect: onSatirEkle });
       if (onSatirSil && deleted.length < rows.length) items.push({ label: 'Satırları sil', danger: true, onSelect: () => onSatirSil(rows.filter((r) => !deleted.includes(r))) });
       if (onSilmeyiGeriAl && deleted.length > 0) items.push({ label: 'Silmeyi geri al', onSelect: () => onSilmeyiGeriAl(deleted) });
     }
     if (items.length > 0) items.push(MENU_SEPARATOR);
-    const formats: MenuEntry[] = COPY_FORMATS.map(({ bicim, etiket }) => ({ label: etiket, onSelect: () => copy(bicim, s) }));
+    const formats: MenuEntry[] = COPY_FORMATS.map(({ bicim, etiket }) => ({
+      label: etiket,
+      shortcut: COPY_SHORTCUTS[bicim],
+      onSelect: () => copy(bicim, s),
+    }));
     // INSERT, metin biçimlerinden ayrı bir grup.
     formats.splice(-1, 0, MENU_SEPARATOR);
     items.push({ label: 'Kopyala ▸', submenu: formats });

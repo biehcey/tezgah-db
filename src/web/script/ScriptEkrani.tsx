@@ -4,7 +4,9 @@ import { calisacakAralik, editorSatiri, type AralikYeri } from '../../core/calis
 import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } from '../../core/calistirma-modu';
 import { positionOf, splitStatements, type Statement } from '../../core/ifade-bolme';
 import { formatRemaining, startDecision, type DecisionTimer } from '../../core/karar-suresi';
-import { scriptShortcut, shortcutKey } from '../../core/kisayollar';
+import { scriptShortcut, shortcutKey, type ScriptShortcut } from '../../core/kisayollar';
+import { kisayol } from '../ortak/pencere';
+import { useScriptCommand } from './komut';
 import { Degisiklikler, DenemeProdUyarisi } from './Degisiklikler';
 import { BekletmeGostergesi } from './BekletmeGostergesi';
 import { KararKarti, resultText, useCountdown } from './KararKarti';
@@ -282,6 +284,11 @@ export function ScriptEkrani({
     if (!eylem) return;
     e.preventDefault();
     e.stopPropagation();
+    runShortcut(eylem);
+  }
+
+  /** Kısayolun ya da paletteki aynı adlı komutun işi; düğmesi kapalıysa hiçbir şey yapmaz. */
+  function runShortcut(eylem: ScriptShortcut) {
     if (!target || busy) return;
     switch (eylem) {
       case 'calistir':
@@ -299,6 +306,7 @@ export function ScriptEkrani({
       }
     }
   }
+  useScriptCommand(!hidden, runShortcut);
 
   /**
    * Grid sona yaklaştı: transaction açıksa ve sonucun devamı varsa bir sayfa daha istenir. Yanıt
@@ -419,7 +427,7 @@ export function ScriptEkrani({
                 <button
                   type="button"
                   title={
-                    tryBlocked ? tryReasons.map(formatReason).join('\n') : "Tüm script'i çalıştır ve her zaman geri al (Ctrl/Cmd+Alt+Shift+Enter)"
+                    tryBlocked ? tryReasons.map(formatReason).join('\n') : `Tüm script'i çalıştır ve her zaman geri al (${kisayol('tumunuDene')})`
                   }
                   aria-keyshortcuts="Control+Alt+Shift+Enter Meta+Alt+Shift+Enter"
                   onClick={() => runAll(true)}
@@ -434,7 +442,7 @@ export function ScriptEkrani({
                       ? NO_RANGE_MESSAGE
                       : rangeTryReasons.length > 0
                         ? rangeTryReasons.map(formatReason).join('\n')
-                        : 'Seçimi ya da imleçteki ifadeyi çalıştır ve her zaman geri al (Ctrl/Cmd+Shift+Enter)'
+                        : `Seçimi ya da imleçteki ifadeyi çalıştır ve her zaman geri al (${kisayol('dene')})`
                   }
                   aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
                   onClick={() => runRange(true)}
@@ -444,7 +452,7 @@ export function ScriptEkrani({
                 </button>
                 <button
                   type="button"
-                  title={blocked ? reasons.map(formatReason).join('\n') : "Tüm script'i çalıştır (Ctrl/Cmd+Alt+Enter)"}
+                  title={blocked ? reasons.map(formatReason).join('\n') : `Tüm script'i çalıştır (${kisayol('tumunuCalistir')})`}
                   aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
                   onClick={() => runAll(false)}
                   disabled={!target || busy || !hasStatements || blocked}
@@ -459,7 +467,7 @@ export function ScriptEkrani({
                       ? NO_RANGE_MESSAGE
                       : rangeRunReasons.length > 0
                         ? rangeRunReasons.map(formatReason).join('\n')
-                        : 'Seçimi ya da imleçteki ifadeyi çalıştır (Ctrl/Cmd+Enter)'
+                        : `Seçimi ya da imleçteki ifadeyi çalıştır (${kisayol('calistir')})`
                   }
                   aria-keyshortcuts="Control+Enter Meta+Enter"
                   onClick={() => runRange(false)}

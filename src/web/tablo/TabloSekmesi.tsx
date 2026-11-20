@@ -47,7 +47,7 @@ import { SonucGridi, type GridHandle } from '../grid/SonucGridi';
 import { SatirGorunumu } from '../grid/SatirGorunumu';
 import { rowView } from '../../core/grid/satir-gorunumu';
 import { BekleyenListesi } from './BekleyenListesi';
-import { APPLE, modalOpen } from '../ortak/pencere';
+import { kisayol, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
 import type { TamamlamaGirdisi } from '../script/tamamlama';
@@ -154,12 +154,8 @@ const ACTION_TITLES: Record<RunKind, { aktar: string; dene: string; uygula: stri
   },
 };
 
-/** Platformdaki değiştirici tuş; düğmelerdeki kısayol ipuçları için. */
-const MOD = APPLE ? '⌘' : 'Ctrl+';
-const MOD_ADI = APPLE ? 'Cmd' : 'Ctrl';
-
 /** Bekleyen değişiklik yokken çekmece satırındaki kısayol ipucu. */
-const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd+Shift+N: NULL · sağ tık: satır sil · Ctrl/Cmd+V: TSV yapıştır · Shift+Enter: satır görünümü · ${MOD_ADI}+B: gezgin`;
+const HINT = `Yaz / ${kisayol('hucreDuzenle')} / çift tık: düzenle · Tab: sonraki hücre · ${kisayol('nullYap')}: NULL · sağ tık: satır sil · ${kisayol('yapistir')}: TSV yapıştır · ${kisayol('satirGorunumu')}: satır görünümü · ${kisayol('gezgin')}: gezgin`;
 
 /**
  * Tablo sekmesi: editörsüz, tek satırlık üst çubukta ad, `≈N · M yüklü`, tek çerçevede serbest
@@ -545,7 +541,7 @@ export function TabloSekmesi({
         </button>
         <button
           type="button"
-          title={pending ? `${titles.dene} (${MOD}Shift+Enter)` : titles.dene}
+          title={pending ? `${titles.dene} (${kisayol('tabloDene')})` : titles.dene}
           aria-keyshortcuts={pending ? 'Control+Shift+Enter Meta+Shift+Enter' : undefined}
           onClick={() => metin && runScript(metin, true, tur)}
           disabled={none}
@@ -553,14 +549,14 @@ export function TabloSekmesi({
           ⟲ Dene
           {pending && (
             <kbd className="kisayol-ipucu" aria-hidden="true">
-              {MOD}⇧↵
+              {kisayol('tabloDene')}
             </kbd>
           )}
         </button>
         <button
           type="button"
           className="birincil"
-          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${MOD}Enter)` : titles.uygula}
+          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${kisayol('uygula')})` : titles.uygula}
           aria-keyshortcuts={pending ? 'Control+Enter Meta+Enter' : undefined}
           onClick={() => metin && runScript(metin, false, tur)}
           disabled={none || lock === 'salt-okunur'}
@@ -568,7 +564,7 @@ export function TabloSekmesi({
           Uygula
           {pending && (
             <kbd className="kisayol-ipucu" aria-hidden="true">
-              {MOD}↵
+              {kisayol('uygula')}
             </kbd>
           )}
         </button>
@@ -788,7 +784,7 @@ export function TabloSekmesi({
                   className="ikon-dugme"
                   aria-expanded={sqlOpen}
                   aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
-                  title={`Bekleyen listesi ve üretilen SQL (${MOD}Alt+Enter)`}
+                  title={`Bekleyen listesi ve üretilen SQL (${kisayol('tabloSql')})`}
                   onClick={() => setSqlOpen(!sqlOpen)}
                 >
                   {sqlOpen ? 'SQL’i gizle ▾' : 'SQL’i göster ▴'}

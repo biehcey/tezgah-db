@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ARAYUZ_TERCIHLERI_VARSAYILAN,
-  TEMALAR,
-  normalizeArayuzTercihleri,
-  type ArayuzTercihleri,
-  type Tema,
-} from '../../core/arayuz-tercihleri';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, normalizeArayuzTercihleri, type ArayuzTercihleri, type Tema } from '../../core/arayuz-tercihleri';
 import { useApi } from '../api/client';
-import type { PaletteCommand } from '../hizli-gecis/HizliGecis';
 
 const currentWindow = () => ({ genislik: window.innerWidth });
 
@@ -58,15 +51,4 @@ export function useTheme(tema: Tema) {
     if (tema === 'sistem') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', tema);
   }, [tema]);
-}
-
-const THEME_LABELS: Record<Tema, string> = { sistem: 'Sistem', acik: 'Açık', koyu: 'Koyu' };
-
-/** Paletin "Tema: …" komutları; etkin tema işaretli. */
-export function themeCommands(current: Tema, select: (tema: Tema) => void): PaletteCommand[] {
-  return TEMALAR.map((tema) => ({
-    label: `Tema: ${THEME_LABELS[tema]}`,
-    checked: tema === current,
-    run: () => select(tema),
-  }));
 }
