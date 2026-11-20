@@ -177,7 +177,7 @@ describe('bağlantı düzenleme ve keychain', () => {
 
   it('kayıtlı şifre varsa alan yerine "keychain\'de kayıtlı · değiştir" görünür ve şifre gönderilmez', async () => {
     const { user, fake, f } = await openEdit((fake) => fake.passwords.set('b1', 'eski'));
-    expect(await f.findByText(/keychain'de kayıtlı/)).toHaveTextContent("🔑 keychain'de kayıtlı · değiştir");
+    expect(await f.findByText(/keychain'de kayıtlı/)).toHaveTextContent("keychain'de kayıtlı · değiştir");
     expect(f.queryByLabelText('Şifre')).not.toBeInTheDocument();
     expect(f.getByLabelText('Ad')).toHaveValue('Dev DB');
 

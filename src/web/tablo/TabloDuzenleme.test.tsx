@@ -105,7 +105,7 @@ const menuItem = (name: string) => within(screen.getByRole('menu')).getByRole('m
 describe('Tablo sekmesi: satır ekleme ve silme', () => {
   it('“Satır ekle” grid’in sonuna DEFAULT’lu satır ekler ve ona gider; dokunulan kolonlar INSERT’e girer', async () => {
     const { user } = await setup();
-    await user.click(t().getByRole('button', { name: '+ Satır' }));
+    await user.click(t().getByRole('button', { name: 'Satır' }));
 
     expect(rowOf(2)).toHaveClass('eklendi');
     expect(cell(2, 0)).toHaveTextContent('DEFAULT');
@@ -120,7 +120,7 @@ describe('Tablo sekmesi: satır ekleme ve silme', () => {
 
   it('sağ tıkla satır silinir ve işaretlenir; silmeyi geri almak bekleyeni kaldırır; sıra DELETE → UPDATE → INSERT', async () => {
     const { user } = await setup();
-    await user.click(t().getByRole('button', { name: '+ Satır' }));
+    await user.click(t().getByRole('button', { name: 'Satır' }));
     await editName(user, 0, 'Veli');
     await user.pointer({ keys: '[MouseRight]', target: cell(1, 0) });
     await user.click(menuItem('Satırları sil'));
@@ -137,7 +137,7 @@ describe('Tablo sekmesi: satır ekleme ve silme', () => {
 
   it('eklenip silinen satır SQL üretmez', async () => {
     const { user } = await setup();
-    await user.click(t().getByRole('button', { name: '+ Satır' }));
+    await user.click(t().getByRole('button', { name: 'Satır' }));
     await user.pointer({ keys: '[MouseRight]', target: cell(2, 1) });
     await user.click(menuItem('Satırları sil'));
     expect(t().getAllByRole('row')).toHaveLength(3);
@@ -285,19 +285,19 @@ describe('Tablo sekmesi: Uygula', () => {
     const { user, runs } = await setup({ conn: PROD });
     await editName(user, 0, 'Veli');
     expect(applyButton()).toBeDisabled();
-    await user.click(t().getByRole('button', { name: '🔒 Salt okunur' }));
+    await user.click(t().getByRole('button', { name: 'Salt okunur' }));
     expect(applyButton()).toBeEnabled();
     await user.click(applyButton());
     expect(runs.last()).toMatchObject({ yazmaModu: true, beklenenSatir: 1 });
   });
 });
 
-const tryButton = () => t().getByRole('button', { name: '⟲ Dene' });
+const tryButton = () => t().getByRole('button', { name: 'Dene' });
 
 describe('Tablo sekmesi: Dene', () => {
   it('önizlemedeki SQL Deneme modunda, her ifade 1 satır beklenerek çalışır; sonuç Değişiklikler’de, bekleyenler kalır', async () => {
     const { user, fake, runs } = await setup();
-    expect(t().queryByRole('button', { name: '⟲ Dene' })).not.toBeInTheDocument();
+    expect(t().queryByRole('button', { name: 'Dene' })).not.toBeInTheDocument();
     await editName(user, 0, 'Veli');
     await user.click(tryButton());
 
@@ -383,9 +383,9 @@ describe('Tablo sekmesi: Konsola aktar', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Konsol sekmeleri' })).getAllByRole('tab');
     // Sekme şeridinde tür ikonu ve Tablo sekmesinin bekleyen sayısı.
     expect(tabs.map((tab) => [tab.textContent, tab.getAttribute('aria-selected')])).toEqual([
-      ['›_Yerel / postgres', 'false'],
-      ['▦users2', 'false'],
-      ['›_Yerel / postgres', 'true'],
+      ['Yerel / postgres', 'false'],
+      ['users2', 'false'],
+      ['Yerel / postgres', 'true'],
     ]);
     expect(within(tabs[1]!).getByLabelText('2 bekleyen değişiklik')).toBeInTheDocument();
     expect(editorScript()).toBe(sql);
@@ -426,16 +426,16 @@ describe('Tablo sekmesi: çekmece', () => {
     await editName(user, 0, 'Veli');
     await editName(user, 1, 'Zeynep');
     expect(drawer()).toHaveTextContent('2bekleyen değişiklik');
-    for (const name of ['Konsola aktar', '⟲ Dene', 'Uygula']) expect(t().getByRole('button', { name })).toBeEnabled();
+    for (const name of ['Konsola aktar', 'Dene', 'Uygula']) expect(t().getByRole('button', { name })).toBeEnabled();
 
-    const toggle = t().getByRole('button', { name: 'SQL’i gizle ▾' });
+    const toggle = t().getByRole('button', { name: 'SQL’i gizle' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await user.click(toggle);
     expect(t().queryByRole('region', { name: 'SQL önizlemesi' })).not.toBeInTheDocument();
-    await user.click(t().getByRole('button', { name: 'SQL’i göster ▴' }));
+    await user.click(t().getByRole('button', { name: 'SQL’i göster' }));
     expect(preview()).toHaveTextContent(`SET "ad" = 'Zeynep'::text`);
 
-    await user.click(t().getByRole('button', { name: '↶ Geri al' }));
+    await user.click(t().getByRole('button', { name: 'Geri al' }));
     expectNoPending();
     expect(cell(0, 1)).toHaveTextContent('Ali');
     expect(cell(0, 1)).not.toHaveClass('degisti');
@@ -497,7 +497,7 @@ describe('Tablo sekmesi: kısayollar', () => {
   it('“+ Kolon” formu açıkken kısayollar bekleyen değişiklikleri çalıştırmaz', async () => {
     const { user, runs } = await setup();
     await editName(user, 0, 'Veli');
-    await user.click(t().getByRole('button', { name: '+ Kolon' }));
+    await user.click(t().getByRole('button', { name: 'Kolon' }));
     await user.keyboard('{Control>}{Enter}{/Control}');
     expect(runs.runs).toHaveLength(0);
   });

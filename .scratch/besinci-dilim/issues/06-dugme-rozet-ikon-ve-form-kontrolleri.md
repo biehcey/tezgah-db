@@ -8,11 +8,14 @@ Spec: [Tasarım token'ları ve bileşenler](../spec.md#tasarım-tokenları-ve-bi
 
 **Status:** ready-for-agent
 
-- [ ] core `rozetYaziRengi('#rrggbb')` → `'#000000' | '#ffffff'` (WCAG göreli parlaklık, daha yüksek kontrastlı olan).
-- [ ] `Dugme` (birincil/ikincil/tehlikeli/sade; normal/küçük) ve `Rozet` bileşenleri; mevcut düğme ve en az altı farklı çip/rozet stili bunlara taşınır.
-- [ ] Ortam rozetlerinin tamamı `rozetYaziRengi` ile renklenir.
-- [ ] Lucide React paketi eklenir; Unicode ikon glifleri ve kilit emojisi kaldırılır; tek başına anlam taşıyan ikonlarda `aria-label`/`title`.
-- [ ] Stillenmiş radyo, onay kutusu ve tarih alanı; geçmiş panelinde kullanılır.
-- [ ] Testler: core `rozetYaziRengi` (beş varsayılan ortam rengi, `#ffffff`, `#000000`, orta griler); arayüz (dev ve staging rozetinde yazı rengi beklenen değer; ikon düğmeleri erişilebilir adla bulunur, mevcut testler rol/etiketle geçmeye devam eder).
+- [x] core `rozetYaziRengi('#rrggbb')` → `'#000000' | '#ffffff'` (WCAG göreli parlaklık, daha yüksek kontrastlı olan).
+- [x] `Dugme` (birincil/ikincil/tehlikeli/sade; normal/küçük) ve `Rozet` bileşenleri; mevcut düğme ve en az altı farklı çip/rozet stili bunlara taşınır.
+- [x] Ortam rozetlerinin tamamı `rozetYaziRengi` ile renklenir.
+- [x] Lucide React paketi eklenir; Unicode ikon glifleri ve kilit emojisi kaldırılır; tek başına anlam taşıyan ikonlarda `aria-label`/`title`.
+- [x] Stillenmiş radyo, onay kutusu ve tarih alanı; geçmiş panelinde kullanılır.
+- [x] Testler: core `rozetYaziRengi` (beş varsayılan ortam rengi, `#ffffff`, `#000000`, orta griler); arayüz (dev ve staging rozetinde yazı rengi beklenen değer; ikon düğmeleri erişilebilir adla bulunur, mevcut testler rol/etiketle geçmeye devam eder).
 
 ## Comments
+
+- Sapmalar spec'e yazıldı: seçilebilen çipler (ortam/SSH radyoları, içe aktarma kaynak düğmeleri) `.cip` form kontrolü olarak kaldı; editör kenar çubuğunun durum işaretleri, klavye gösterimi ve fark işaretleri metin kaldı; paletteki prod rozeti varsayılan prod rengini kullanır. Core'daki `TEST_ICONS` glif tablosu kaldırıldı (ikonlar web'de).
+- Görsel kontrol (açık/koyu temada düğme türleri, rozetler, stillenmiş radyo/onay kutusu/tarih alanı) yapılmadı; ticket 14'ün görsel turunda bakılacak.

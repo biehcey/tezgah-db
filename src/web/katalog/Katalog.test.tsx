@@ -60,7 +60,7 @@ function editorCompletion(): TamamlamaGirdisi | null {
 const schemaNames = () => [...(editorCompletion()?.gorunurSemalar ?? [])];
 const tableNames = (schema: string) => editorCompletion()!.katalog!.iliskiler.filter((r) => r.sema === schema).map((r) => r.ad);
 
-const runButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+const runButton = () => screen.getByRole('button', { name: 'Çalıştır' });
 const refreshButton = () => screen.getByRole('button', { name: 'Katalogu yenile' });
 
 /** Bağlantıyı seçip panelden bağlanır ve `postgres`'in şema çiplerini açar. */

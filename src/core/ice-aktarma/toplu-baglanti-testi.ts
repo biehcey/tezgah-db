@@ -1,6 +1,6 @@
 /**
  * İçe aktardıktan sonra toplu test: her bağlantı kayıtlı değerleriyle "Bağlantıyı test et" adımlarından
- * geçer; hiçbir şey sorulmaz. Sonuç tek satırlık bir özet olur (● / ⚠).
+ * geçer; hiçbir şey sorulmaz. Sonuç tek satırlık bir özet olur (arayüzde başarı/uyarı/hata ikonuyla).
  */
 import type { Connection } from '../baglanti';
 import { testSummary, type ConnectionTestRequest, type ConnectionTestResponse } from '../baglanti-testi';
@@ -12,8 +12,6 @@ export interface ImportTestResult {
 
 /** Toplu testte bağlantının durumu: sırası bekleniyor, test ediliyor ya da sonuç. */
 export type ImportTestState = 'bekliyor' | 'calisiyor' | ImportTestResult;
-
-export const TEST_ICONS: Record<ImportTestResult['sonuc'], string> = { basarili: '●', uyari: '⚠', hata: '⚠' };
 
 /** Şifresi keychain'de olmayan bağlantı test edilmez; şifre ilk bağlanmada sorulur. */
 export const SKIPPED_WITHOUT_PASSWORD: ImportTestResult = { sonuc: 'uyari', mesaj: 'şifre yok, test atlandı' };

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { Dugme } from './Dugme';
 
 interface Props {
   title: string;
@@ -34,12 +35,11 @@ export function Onay({ title, description, confirmLabel, onConfirm, onCancel }: 
         <p id={`${id}-aciklama`}>{description}</p>
         <footer className="form-alt">
           <span className="bosluk" />
-          <button type="button" ref={cancelRef} onClick={onCancel}>
+          <Dugme ref={cancelRef} onClick={onCancel}>
             Vazgeç
-          </button>
-          <button
-            type="button"
-            className="tehlikeli"
+          </Dugme>
+          <Dugme
+            tur="tehlikeli"
             disabled={busy}
             onClick={() => {
               setBusy(true);
@@ -47,7 +47,7 @@ export function Onay({ title, description, confirmLabel, onConfirm, onCancel }: 
             }}
           >
             {confirmLabel}
-          </button>
+          </Dugme>
         </footer>
       </div>
     </div>

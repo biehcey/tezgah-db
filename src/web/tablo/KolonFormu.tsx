@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { addColumn, addColumnWarnings, defaultFunctions, typeSuggestions, type NewColumn, type Volatility } from '../../core/kolon-ekle';
 import type { Target } from '../../core/veritabani-secimi';
 import { useApi } from '../api/client';
+import { TriangleAlert } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
 
 /** Varsayılan ifade yazılırken oynaklık bu kadar duraklamadan sonra sorulur. */
 const VOLATILITY_DEBOUNCE_MS = 300;
@@ -119,7 +121,9 @@ export function KolonFormu({ sema, tablo, kolonlar, tablodaSatirVar, kullaniciTi
       {warnings.length > 0 && (
         <ul aria-label="Uyarılar" className="kolon-uyarilari kucuk">
           {warnings.map((w) => (
-            <li key={w}>⚠ {w}</li>
+            <li key={w}>
+              <TriangleAlert aria-hidden="true" /> {w}
+            </li>
           ))}
         </ul>
       )}
@@ -129,9 +133,9 @@ export function KolonFormu({ sema, tablo, kolonlar, tablodaSatirVar, kullaniciTi
       </section>
       {eylemler(valid ? metin : null)}
       <div className="kolon-formu-alt">
-        <button type="button" onClick={onClose} disabled={busy}>
+        <Dugme onClick={onClose} disabled={busy}>
           Vazgeç
-        </button>
+        </Dugme>
       </div>
     </section>
   );

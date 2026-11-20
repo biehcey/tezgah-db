@@ -1,9 +1,10 @@
+import { ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 
 export interface MenuItem {
   label: string;
   onSelect?: () => void;
-  /** Seçilince menü bu öğelerle yer değiştirir (ör. "Klasöre taşı ▸"). */
+  /** Seçilince menü bu öğelerle yer değiştirir (ör. "Klasöre taşı"; yanında ok ikonu). */
   submenu?: MenuItem[];
   disabled?: boolean;
   danger?: boolean;
@@ -89,6 +90,7 @@ export function Menu({ x, y, items: initial, label, onClose }: Props) {
           onClick={() => choose(item)}
         >
           {item.label}
+          {item.submenu && <ChevronRight aria-hidden="true" className="menu-alt-oku" />}
         </button>
       ))}
     </div>

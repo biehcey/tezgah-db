@@ -3,7 +3,8 @@ import type { Folder } from '../../core/ayarlar';
 import { connectionAddress, isProd, type Connection, type DatabaseSelection } from '../../core/baglanti';
 import { compactRowCount, searchTree, type SearchNode, type TreeSearch } from '../../core/gezgin';
 import { searchTables } from '../../core/katalog';
-import { TEST_ICONS, type ImportTestState } from '../../core/ice-aktarma/toplu-baglanti-testi';
+import type { ImportTestState } from '../../core/ice-aktarma/toplu-baglanti-testi';
+import { Circle, Ellipsis, Eye, EyeOff, RefreshCw, Star, Table2, TriangleAlert } from 'lucide-react';
 import {
   databasePanel,
   isTarget as isTargetOf,
@@ -15,6 +16,9 @@ import {
 import { ApiError, useApi } from '../api/client';
 import { catalogKey, type CatalogEntry } from '../katalog/kataloglar';
 import { menuBelow, type MenuPosition } from '../ortak/Menu';
+import { Dugme } from '../ortak/Dugme';
+import { AcKapaOku, DonenIkon, TestIkonu } from '../ortak/ikonlar';
+import { Rozet } from '../ortak/Rozet';
 import type { ConnectionSession } from '../veritabanlari/hedef';
 
 /** Son içe aktarmanın izleri: bir sonraki içe aktarmaya kadar "yeni" rozeti ve toplu test sonucu. */
@@ -67,11 +71,18 @@ interface Props {
 const DRAG_TYPE = 'application/x-tezgah-baglanti';
 const UNFILED = 'klasorsuz';
 
-const STATUS: Record<ConnectionSession['durum'], { icon: string; label: string }> = {
-  baglaniyor: { icon: '◌', label: 'bağlanıyor' },
-  bagli: { icon: '●', label: 'bağlı' },
-  hata: { icon: '⚠', label: 'bağlanamadı' },
+const STATUS: Record<ConnectionSession['durum'], { icon: ReactNode; label: string }> = {
+  baglaniyor: { icon: <DonenIkon />, label: 'bağlanıyor' },
+  bagli: { icon: <Circle aria-hidden="true" fill="currentColor" />, label: 'bağlı' },
+  hata: { icon: <TriangleAlert aria-hidden="true" />, label: 'bağlanamadı' },
 };
+
+/** Hedef olan bağlantı ve veritabanının yanındaki işaret. */
+const HEDEF_ISARETI = (
+  <Rozet tur="vurgu" className="hedef-isareti">
+    hedef
+  </Rozet>
+);
 
 type SchemaState = { kind: 'yukleniyor' } | { kind: 'tamam'; schemas: string[] } | { kind: 'hata'; message: string };
 
@@ -201,12 +212,10 @@ export function GezginAgaci(props: Props) {
       <div className="bos-liste">
         <p>Henüz bağlantı yok.</p>
         <div className="bos-liste-dugmeleri">
-          <button type="button" onClick={props.onImport}>
-            İçe aktar…
-          </button>
-          <button type="button" onClick={props.onNew}>
+          <Dugme onClick={props.onImport}>İçe aktar…</Dugme>
+          <Dugme tur="birincil" onClick={props.onNew}>
             Yeni bağlantı…
-          </button>
+          </Dugme>
         </div>
       </div>
     );
@@ -295,7 +304,7 @@ export function GezginAgaci(props: Props) {
           }
         >
           <span className="ok" aria-hidden="true">
-            {expanded ? '▾' : '▸'}
+            <AcKapaOku acik={expanded} />
           </span>
           <span className="klasor-adi">{name}</span>
           <span className="sayi">{list.length}</span>
@@ -389,7 +398,7 @@ function BaglantiDugumu({
               onToggle();
             }}
           >
-            {expanded ? '▾' : '▸'}
+            <AcKapaOku acik={expanded} />
           </span>
           <span className="ortam-noktasi" data-testid="ortam-noktasi" style={{ backgroundColor: c.color ?? 'transparent' }} aria-hidden="true" />
           <span className="baglanti-adi">{c.name}</span>
@@ -400,36 +409,46 @@ function BaglantiDugumu({
           )}
           {(isNew || (test !== undefined && test !== 'bekliyor')) && (
             <span className="ice-izi">
-              {isNew && <span className="rozet">yeni</span>}
+              {isNew && <Rozet tur="basari">yeni</Rozet>}
               {test === 'calisiyor' && (
                 <span role="img" aria-label="test ediliyor" title="test ediliyor">
-                  ◌
+                  <DonenIkon />
                 </span>
               )}
               {typeof test === 'object' && (
                 <span className={`test-${test.sonuc}`} role="img" aria-label={`test: ${test.mesaj}`} title={test.mesaj}>
-                  {TEST_ICONS[test.sonuc]}
+                  <TestIkonu sonuc={test.sonuc} />
                 </span>
               )}
             </span>
           )}
-          {c.id === props.target?.connectionId && <span className="hedef-isareti">● hedef</span>}
+          {c.id === props.target?.connectionId && HEDEF_ISARETI}
         </button>
         {session?.durum === 'bagli' && (
-          <button type="button" className="satir-menusu" aria-label="Yenile" title="Veritabanlarını yeniden listele" onClick={() => props.onConnect(c)}>
-            ⟳
-          </button>
+          <Dugme
+            tur="sade"
+            boyut="kucuk"
+            ikon
+            className="satir-menusu"
+            aria-label="Yenile"
+            title="Veritabanlarını yeniden listele"
+            onClick={() => props.onConnect(c)}
+          >
+            <RefreshCw aria-hidden="true" />
+          </Dugme>
         )}
-        <button
-          type="button"
+        <Dugme
+          tur="sade"
+          boyut="kucuk"
+          ikon
           className="satir-menusu"
           aria-label="Bağlantı menüsü"
           title="Bağlantı menüsü"
           aria-haspopup="menu"
           onClick={(e) => props.onConnectionMenu(c, menuBelow(e))}
         >
-          ⋯
-        </button>
+          <Ellipsis aria-hidden="true" />
+        </Dugme>
       </div>
       {expanded && children}
     </li>
@@ -477,7 +496,7 @@ function VeritabaniDugumleri({
       title={visible ? 'Görünürlükten çıkar' : 'Görünür yap'}
       onClick={() => onSelectionChange(connection, setDatabaseVisible(connection.databaseSelection, database, !visible))}
     >
-      ⭐
+      <Star aria-hidden="true" fill={visible ? 'currentColor' : 'none'} />
     </button>
   );
 
@@ -519,7 +538,7 @@ function VeritabaniDugumleri({
                 }}
               >
                 <span className="tablo-ikonu" aria-hidden="true">
-                  ▦
+                  <Table2 />
                 </span>
                 {r.ad}
                 <span className="tablo-sayisi" aria-hidden="true">
@@ -554,7 +573,7 @@ function VeritabaniDugumleri({
           onSelectionChange(connection, setSchemaVisible(connection.databaseSelection, entry.database, schema, !on, state.schemas));
         }}
       >
-        {on ? '●' : '○'}
+        {on ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
       </button>
     );
     const dbFull = unfiltered(dbKey(connection.id, entry.database));
@@ -570,7 +589,7 @@ function VeritabaniDugumleri({
                 <div className="dugum-satiri">
                   <button type="button" className="sema-adi" aria-expanded={expanded} title="Tabloları listele" onClick={() => toggleTables(entry.database, schema)}>
                     <span className="agac-oku" aria-hidden="true">
-                      {expanded ? '▾' : '▸'}
+                      <AcKapaOku acik={expanded} />
                     </span>
                     {schema}
                   </button>
@@ -584,7 +603,7 @@ function VeritabaniDugumleri({
           <li className="sema-satiri gizli-semalar">
             <button type="button" className="sema-adi soluk" aria-expanded={hiddenOpen} onClick={() => toggle(hiddenKey)}>
               <span className="agac-oku" aria-hidden="true">
-                {hiddenOpen ? '▾' : '▸'}
+                <AcKapaOku acik={hiddenOpen} />
               </span>
               + {hidden.length} gizli şema
             </button>
@@ -622,7 +641,7 @@ function VeritabaniDugumleri({
               aria-expanded={expanded}
               onClick={() => toggleSchemas(database)}
             >
-              {expanded ? '▾' : '▸'}
+              <AcKapaOku acik={expanded} />
             </button>
           ) : (
             <span className="sema-ac" aria-hidden="true" />
@@ -642,7 +661,7 @@ function VeritabaniDugumleri({
           >
             {database}
           </button>
-          {isTarget(database) && <span className="hedef-isareti">● hedef</span>}
+          {isTarget(database) && HEDEF_ISARETI}
         </div>
         {expanded && schemaList(entry)}
       </li>
@@ -651,7 +670,7 @@ function VeritabaniDugumleri({
 
   const savedStar = (
     <span className="yildiz" aria-hidden="true">
-      ⭐
+      <Star fill="currentColor" />
     </span>
   );
   const visibleEntries = connection.databaseSelection.filter((e) => show(dbKey(connection.id, e.database)));
@@ -659,14 +678,16 @@ function VeritabaniDugumleri({
     <section aria-label={`${connection.name} veritabanları`} data-baglanti={connection.id} className="agac-veritabanlari">
       {session?.durum === 'hata' && full && (
         <div role="alert" className="panel-hatasi">
-          <p>⚠ {session.hata}</p>
+          <p>
+            <TriangleAlert aria-hidden="true" /> {session.hata}
+          </p>
           <div className="dugmeler">
-            <button type="button" onClick={() => onConnect(connection)}>
+            <Dugme boyut="kucuk" onClick={() => onConnect(connection)}>
               Tekrar dene
-            </button>
-            <button type="button" onClick={() => onEdit(connection)}>
+            </Dugme>
+            <Dugme boyut="kucuk" onClick={() => onEdit(connection)}>
               Düzenle
-            </button>
+            </Dugme>
           </div>
         </div>
       )}
@@ -674,13 +695,13 @@ function VeritabaniDugumleri({
         {visibleEntries.map((entry) => visibleRow(entry, connected ? star(entry.database, true) : savedStar, connected))}
       </ul>
       {model.visible.length === 0 && full && (
-        <p className="soluk kucuk agac-notu">{connected ? 'Görünür veritabanı yok; aşağıdan ⭐ ile seçin.' : 'Görünür veritabanı yok.'}</p>
+        <p className="soluk kucuk agac-notu">{connected ? 'Görünür veritabanı yok; aşağıdan yıldızla seçin.' : 'Görünür veritabanı yok.'}</p>
       )}
       {!connected && session?.durum !== 'hata' && full && (
         <div className="agac-notu">
-          <button type="button" className="kucuk" disabled={session?.durum === 'baglaniyor'} onClick={() => onConnect(connection)}>
+          <Dugme boyut="kucuk" disabled={session?.durum === 'baglaniyor'} onClick={() => onConnect(connection)}>
             {session?.durum === 'baglaniyor' ? 'Bağlanıyor…' : 'Bağlan ve tüm veritabanlarını listele'}
-          </button>
+          </Dugme>
         </div>
       )}
       {connected && full && model.hidden !== null && model.hidden.length > 0 && (

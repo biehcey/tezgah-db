@@ -26,6 +26,7 @@ import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, sele
 import { typeName } from '../../core/grid/tipler';
 import { toTsv } from '../../core/grid/tsv';
 import { Menu, menuBelow, type MenuItem, type MenuPosition } from '../ortak/Menu';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { GridOlcumu, canvasTextWidth } from './olcum';
 
 /** Sabit satır ve başlık yüksekliği (px); satırlar ölçülmez. CSS bunları `--grid-*` olarak alır. */
@@ -121,7 +122,7 @@ interface ValueBox {
 const EDITOR_MAX_LINES = 10;
 
 const SORT_ARIA = { artan: 'ascending', azalan: 'descending' } as const;
-const SORT_ARROW = { artan: ' ▲', azalan: ' ▼' } as const;
+const SORT_ARROW = { artan: <ArrowUp />, azalan: <ArrowDown /> } as const;
 
 /** Sona bu kadar satır kala "daha fazla" bildirilir: sayfa, kaydırma bitmeden gelsin. */
 const NEAR_END_ROWS = 100;
