@@ -1,4 +1,5 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
+import { Diyalog } from '../ortak/Diyalog';
 
 interface Props {
   title: string;
@@ -16,12 +17,6 @@ export function KlasorAdi({ title, initial, submitLabel, onSubmit, onCancel }: P
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (name.trim() === '') return setError('Klasör adı gerekli');
@@ -32,27 +27,12 @@ export function KlasorAdi({ title, initial, submitLabel, onSubmit, onCancel }: P
   }
 
   return (
-    <div className="perde">
-      <form role="dialog" aria-modal="true" aria-labelledby={`${id}-baslik`} className="diyalog" onSubmit={submit} noValidate>
-        <h2 id={`${id}-baslik`}>{title}</h2>
-        <div className="alan">
-          <label htmlFor={`${id}-ad`}>Klasör adı</label>
-          <input
-            id={`${id}-ad`}
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? `${id}-hata` : undefined}
-          />
-          {error && (
-            <span id={`${id}-hata`} className="alan-hatasi">
-              {error}
-            </span>
-          )}
-        </div>
-        <footer className="form-alt">
+    <Diyalog
+      baslik={title}
+      onClose={onCancel}
+      onSubmit={submit}
+      dugmeler={
+        <>
           <span className="bosluk" />
           <button type="button" onClick={onCancel}>
             Vazgeç
@@ -60,8 +40,26 @@ export function KlasorAdi({ title, initial, submitLabel, onSubmit, onCancel }: P
           <button type="submit" className="birincil" disabled={busy}>
             {submitLabel}
           </button>
-        </footer>
-      </form>
-    </div>
+        </>
+      }
+    >
+      <div className="alan">
+        <label htmlFor={`${id}-ad`}>Klasör adı</label>
+        <input
+          id={`${id}-ad`}
+          data-autofocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-hata` : undefined}
+        />
+        {error && (
+          <span id={`${id}-hata`} className="alan-hatasi">
+            {error}
+          </span>
+        )}
+      </div>
+    </Diyalog>
   );
 }

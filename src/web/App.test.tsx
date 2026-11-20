@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from './api/client';
@@ -25,6 +25,23 @@ describe('App', () => {
     const unauthorized = () => Promise.reject(new ApiError(401));
     renderWithApi(<App />, createFakeApi({ status: unauthorized, listConnections: unauthorized, listFolders: unauthorized }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Terminaldeki adresi yeniden açın/);
+  });
+});
+
+describe('App: bildirimler', () => {
+  it('işlem hatası çalışma alanı üstünde paragraf değil, kapatılabilir bir toast olarak görünür', async () => {
+    const user = userEvent.setup();
+    const fake = createFakeConnections([connection({ id: 'a', name: 'Analitik' })]);
+    fake.api.copyConnection = () => Promise.reject(new TypeError('Failed to fetch'));
+    renderWithApi(<App />, fake.api);
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /Analitik/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+
+    const toast = await within(screen.getByRole('region', { name: 'Bildirimler' })).findByRole('alert');
+    expect(toast).toHaveTextContent('Kopyalanamadı: Tezgah sunucusuna ulaşılamıyor.');
+    expect(within(screen.getByRole('main')).queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(within(toast).getByRole('button', { name: 'Bildirimi kapat' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 

@@ -3,7 +3,9 @@
  * daraltılmışlığı ve tema. Bağlantı ayarlarından (`tezgah.json`) ayrı dosyada saklanır.
  */
 
-export type Tema = 'sistem' | 'acik' | 'koyu';
+import { bolucuDegeri } from './bolucu';
+
+export type Tema ='sistem' | 'acik' | 'koyu';
 
 export const TEMALAR: readonly Tema[] = ['sistem', 'acik', 'koyu'];
 
@@ -38,6 +40,15 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
 /**
+ * Gezgin genişliğinin sınırları: 200..pencere/2 (aşağı yuvarlanır). Pencerenin yarısı 200'den
+ * darsa pencereye sığmak alt sınırdan önce gelir.
+ */
+export function gezginSinirlari(pencere: Pencere): { min: number; max: number } {
+  const max = Math.floor(pencere.genislik / 2);
+  return { min: Math.min(GEZGIN_EN_DAR, max), max };
+}
+
+/**
  * Ham değeri (dosyadan ya da istekten) şemaya oturtur: bilinmeyen alanlar atılır, eksik ya da
  * yanlış tipteki alanlar varsayılanla dolar, sayılar sınırlanır. Gezgin genişliği
  * 200..pencere/2'dir; pencere bu kadar darsa pencereye sığmak (pencere/2) alt sınırdan önce gelir.
@@ -47,11 +58,12 @@ export function normalizeArayuzTercihleri(ham: unknown, pencere: Pencere): Arayu
   const t = isRecord(ham) ? ham : {};
   const gezgin = isRecord(t.gezgin) ? t.gezgin : {};
   const genislik = finite(gezgin.genislik) ? gezgin.genislik : v.gezgin.genislik;
+  const sinir = gezginSinirlari(pencere);
   return {
     surum: 1,
     gezgin: {
       acik: typeof gezgin.acik === 'boolean' ? gezgin.acik : v.gezgin.acik,
-      genislik: Math.round(Math.min(pencere.genislik / 2, Math.max(GEZGIN_EN_DAR, genislik))),
+      genislik: bolucuDegeri(genislik, sinir.min, sinir.max),
     },
     sonucOrani: clamp(finite(t.sonucOrani) ? t.sonucOrani : v.sonucOrani, SONUC_ORANI_EN_AZ, SONUC_ORANI_EN_COK),
     sonucDaraltilmis: typeof t.sonucDaraltilmis === 'boolean' ? t.sonucDaraltilmis : v.sonucDaraltilmis,

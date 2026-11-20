@@ -1,87 +1,91 @@
-import { useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { bolucuSinirla, bolucuTusu, type BolucuYonu } from '../../core/bolucu';
+import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { bolucuDegeri } from '../../core/bolucu';
 
-interface Props {
-  /** `dikey`: yan yana bölmeler (gezgin); `yatay`: üst üste bölmeler (editör/Sonuç alanı). */
-  yon: BolucuYonu;
-  /** Önündeki (solundaki ya da üstündeki) bölmenin piksel boyu. */
+export interface BolucuProps {
+  /** `dikey`: yan yana iki alanı ayıran dikey çizgi (yatay sürüklenir); `yatay`: üst üste iki alanı ayırır. */
+  yon: 'dikey' | 'yatay';
   deger: number;
   min: number;
   max: number;
-  /** Ok tuşunun oynattığı piksel. */
+  /** Ok tuşlarının bir basışta oynattığı miktar. */
   adim: number;
-  /** Çift tıkın döndüğü değer. */
+  /** Çift tıklamanın döndürdüğü değer. */
   varsayilan: number;
-  /** Sürüklerken her harekette. */
-  onDegis: (v: number) => void;
-  /** Sürükleme bitince, ok tuşunda ve çift tıkta: kalıcı yazılacak değer. */
-  onBitir: (v: number) => void;
+  /** Sürüklerken her değişiklikte. */
+  onDegis: (deger: number) => void;
+  /** Sürükleme bitince, ok tuşunda ve çift tıkta: kalıcı yazma burada yapılır. */
+  onBitir: (deger: number) => void;
   'aria-label': string;
 }
 
+interface Drag {
+  pointerId: number;
+  start: number;
+  from: number;
+  last: number;
+}
+
 /**
- * Sürüklenebilir bölücü: işaretçiyle sürüklenir, odaktayken ok tuşlarıyla `adim` kadar oynar,
- * çift tıkla varsayılana döner. Değer her zaman `min..max` aralığına sınırlanır.
+ * Sürüklenebilir ayırıcı (`role="separator"`). Değer işaretçi ekseninde artar: `dikey`de sağa,
+ * `yatay`da aşağı sürüklemek ve →/↓ değeri büyütür; ←/↑ küçültür.
  */
-export function Bolucu({ yon, deger, min, max, adim, varsayilan, onDegis, onBitir, 'aria-label': ariaLabel }: Props) {
-  const latest = useRef({ min, max, onDegis, onBitir });
-  latest.current = { min, max, onDegis, onBitir };
-  /** Süren sürüklemenin temizliği. */
-  const stopDrag = useRef<(() => void) | null>(null);
-  useEffect(() => () => stopDrag.current?.(), []);
+export function Bolucu({ yon, deger, min, max, adim, varsayilan, onDegis, onBitir, 'aria-label': label }: BolucuProps) {
+  const drag = useRef<Drag | null>(null);
+  const axis = (e: PointerEvent) => (yon === 'dikey' ? e.clientX : e.clientY);
 
-  const sinirla = (v: number) => bolucuSinirla(v, min, max);
-  const eksen = (e: { clientX: number; clientY: number }) => (yon === 'dikey' ? e.clientX : e.clientY);
-
-  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    stopDrag.current?.();
-    const bas = eksen(e);
-    const basDeger = deger;
-    let son = basDeger;
-    const move = (ev: PointerEvent) => {
-      son = bolucuSinirla(basDeger + eksen(ev) - bas, latest.current.min, latest.current.max);
-      latest.current.onDegis(son);
-    };
-    const up = () => {
-      stop();
-      latest.current.onBitir(son);
-    };
-    const stop = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-      document.body.classList.remove('bolucu-surukleniyor');
-      stopDrag.current = null;
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    document.body.classList.add('bolucu-surukleniyor');
-    stopDrag.current = stop;
+  function commit(next: number) {
+    const value = bolucuDegeri(next, min, max);
+    onDegis(value);
+    onBitir(value);
   }
 
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const yonu = bolucuTusu(yon, e.key);
-    if (yonu === null) return;
+  function pointerDown(e: PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
     e.preventDefault();
-    onBitir(sinirla(deger + yonu * adim));
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = { pointerId: e.pointerId, start: axis(e), from: deger, last: deger };
+  }
+
+  function pointerMove(e: PointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    const value = bolucuDegeri(d.from + axis(e) - d.start, min, max);
+    if (value === d.last) return;
+    d.last = value;
+    onDegis(value);
+  }
+
+  function pointerEnd(e: PointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    drag.current = null;
+    // Yerinde tıklama (ör. çift tıklamanın parçaları) yazmaz.
+    if (d.last !== d.from) onBitir(d.last);
+  }
+
+  function keyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const [less, more] = yon === 'dikey' ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown'];
+    if (e.key !== less && e.key !== more) return;
+    e.preventDefault();
+    commit(deger + (e.key === more ? adim : -adim));
   }
 
   return (
     <div
       role="separator"
-      aria-label={ariaLabel}
+      className={`bolucu bolucu-${yon}`}
+      aria-label={label}
       aria-orientation={yon === 'dikey' ? 'vertical' : 'horizontal'}
-      aria-valuenow={Math.round(deger)}
-      aria-valuemin={Math.round(min)}
-      aria-valuemax={Math.round(max)}
+      aria-valuenow={deger}
+      aria-valuemin={min}
+      aria-valuemax={max}
       tabIndex={0}
-      className={`bolucu ${yon}`}
-      onPointerDown={onPointerDown}
-      onKeyDown={onKeyDown}
-      onDoubleClick={() => onBitir(sinirla(varsayilan))}
+      onPointerDown={pointerDown}
+      onPointerMove={pointerMove}
+      onPointerUp={pointerEnd}
+      onPointerCancel={pointerEnd}
+      onKeyDown={keyDown}
+      onDoubleClick={() => commit(varsayilan)}
     />
   );
 }

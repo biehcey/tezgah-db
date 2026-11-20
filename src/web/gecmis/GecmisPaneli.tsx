@@ -11,6 +11,7 @@ import {
 } from '../../core/gecmis-filtresi';
 import type { Target } from '../../core/veritabani-secimi';
 import { useApi } from '../api/client';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 
 interface Props {
   connections: readonly Connection[];
@@ -147,7 +148,7 @@ export function GecmisPaneli({ connections, activeTarget, onOpen, onClose }: Pro
           <GecmisKaydi key={entry.runId} entry={entry} connections={connections} onOpen={onOpen} />
         ))}
       </ul>
-      {listing.loading && <p className="soluk kucuk gecmis-durumu">Yükleniyor…</p>}
+      {listing.loading && <p className="soluk kucuk gecmis-durumu"><Yukleniyor /></p>}
       {/* Liste paneli doldurmuyorsa kaydırma olayı gelmez; sonraki sayfa düğmeyle de istenir. */}
       {!listing.loading && listing.next !== null && (
         <button type="button" className="gecmis-durumu" onClick={() => load(listing.next)}>

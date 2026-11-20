@@ -190,7 +190,9 @@ body,
   box-shadow: inset 0 0 0 2px var(--prod);
 }
 
+/* Genişlik Arayüz tercihlerinden satır içi gelir; sağ kenardaki bölücü onu değiştirir. */
 .kenar {
+  position: relative;
   width: 280px;
   min-height: 0;
   display: flex;
@@ -584,7 +586,7 @@ button.tehlikeli {
   flex: 1;
 }
 
-/* Onay penceresi */
+/* Pencereler (ortak/Diyalog.tsx: yerel <dialog>; hızlı geçiş paleti hâlâ .perde kullanır) */
 
 .perde {
   position: fixed;
@@ -609,6 +611,111 @@ button.tehlikeli {
 
 .diyalog p {
   margin: 0;
+}
+
+dialog.diyalog {
+  max-height: calc(100vh - var(--bosluk-32));
+  color: var(--metin);
+  box-shadow: var(--golge-acilir);
+}
+
+dialog.diyalog::backdrop {
+  background: var(--perde-zemin);
+}
+
+.diyalog-basligi {
+  display: flex;
+  align-items: center;
+  gap: var(--bosluk-8);
+  margin-bottom: var(--bosluk-8);
+}
+
+.diyalog-basligi h2 {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--bosluk-8);
+  min-width: 0;
+  margin: 0;
+}
+
+.diyalog-kapat {
+  flex: none;
+  border-color: transparent;
+}
+
+/* Bildirimler (ortak/Bildirimler.tsx): sağ altta toast yığını */
+
+.bildirimler {
+  position: fixed;
+  right: var(--bosluk-16);
+  bottom: var(--bosluk-16);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bosluk-8);
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--bosluk-8);
+  padding: var(--bosluk-8) var(--bosluk-12);
+  border: 1px solid var(--cizgi);
+  border-left: 3px solid var(--basarili);
+  border-radius: var(--yaricap-orta);
+  background: var(--zemin);
+  box-shadow: var(--golge-acilir);
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+}
+
+.toast-hata {
+  border-left-color: var(--uyari);
+}
+
+.toast-metni {
+  flex: 1;
+  align-self: center;
+}
+
+.toast .ikon-dugme {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-color: transparent;
+}
+
+/* Yükleniyor göstergesi (ortak/Yukleniyor.tsx) */
+
+.yukleniyor {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bosluk-6);
+}
+
+.yukleniyor-isareti {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--cizgi);
+  border-top-color: var(--vurgu);
+  border-radius: var(--yaricap-tam);
+  animation: yukleniyor-don 0.8s linear infinite;
+}
+
+@keyframes yukleniyor-don {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yukleniyor-isareti {
+    animation: none;
+  }
 }
 
 /* Menü */
@@ -649,20 +756,10 @@ button.tehlikeli {
   border-top: 1px solid var(--cizgi);
 }
 
-.bilgi {
-  margin: 0;
-  color: var(--soluk);
-  overflow-wrap: anywhere;
-}
-
 .url-ozeti {
   margin: var(--bosluk-4) 0 0;
   color: var(--soluk);
   font-size: var(--yazi-12);
-}
-
-.calisma-alani > .uyari + .uyari {
-  margin-top: var(--bosluk-8);
 }
 
 /* Bağlantıyı test et */
@@ -830,6 +927,37 @@ button.kucuk {
 
 .kenar[hidden] {
   display: none;
+}
+
+/* Bölücü: ince görünür çizgi, daha geniş tutma alanı; üzerine gelince ya da odakta vurgulanır. */
+.bolucu {
+  flex: none;
+  touch-action: none;
+  background: transparent;
+}
+
+.bolucu:hover,
+.bolucu:focus-visible {
+  background: var(--vurgu);
+}
+
+.bolucu-dikey {
+  width: 6px;
+  cursor: col-resize;
+}
+
+.bolucu-yatay {
+  height: 6px;
+  cursor: row-resize;
+}
+
+/* Gezginin bölücüsü sağ kenarın üstüne biner, yerleşimi kaydırmaz. */
+.kenar > .bolucu-dikey {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  z-index: 1;
 }
 
 .dugum-satiri {
@@ -1166,31 +1294,9 @@ button.kucuk {
   border-top: 1px solid var(--cizgi);
 }
 
-/* Sürüklenebilir bölücü; dikey: yan yana, yatay: üst üste bölmeler arasında. */
-.bolucu {
-  flex: 0 0 auto;
-  background: var(--cizgi);
-  touch-action: none;
-}
-
-.bolucu.yatay {
-  height: 4px;
-  cursor: row-resize;
-}
-
-.bolucu.dikey {
-  width: 4px;
-  cursor: col-resize;
-}
-
-.bolucu:hover,
-.bolucu:focus-visible {
-  background: var(--vurgu);
-}
-
-/* Sürüklerken metin seçilmez ve imleç bölücünün imleci kalır. */
-body.bolucu-surukleniyor {
-  user-select: none;
+/* Editör ile Sonuç alanı arasındaki bölücünün görünür çizgisi. */
+.script-govde > .bolucu-yatay {
+  border-top: 1px solid var(--cizgi);
 }
 
 .script-editoru,
@@ -2006,12 +2112,6 @@ button.grid-kose:hover,
 }
 
 /* Oturumluk şifre penceresi: başlıkta bağlantının renk noktası ve adı. */
-.sifre-basligi {
-  display: flex;
-  align-items: center;
-  gap: var(--bosluk-8);
-}
-
 /* Hızlı geçiş paleti */
 
 .kisayol-dugmesi {
@@ -2169,7 +2269,7 @@ button.grid-kose:hover,
   gap: var(--bosluk-8);
 }
 
-.diyalog.ice-aktarma {
+.diyalog.ice-aktarma[open] {
   display: flex;
   flex-direction: column;
   width: min(980px, calc(100vw - 32px));

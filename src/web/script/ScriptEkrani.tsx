@@ -43,6 +43,7 @@ import { STATUS_LABELS, STATUS_SYMBOLS, WRITE_LOCK_LABELS, type AnalysisMark } f
 import { ScriptEditoru, type EditorMarks, type EditorSecimi, type ScriptEditoruHandle } from './ScriptEditoru';
 import { resultSummary, resultTotal } from '../../core/grid/ozet';
 import { SonucGovdesi } from '../grid/SonucGovdesi';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 import { catalogUse, type CatalogEntry, type CatalogReason } from '../katalog/kataloglar';
 
 interface Props {
@@ -761,7 +762,12 @@ function SonucAlani({
         <>
           <p className="kucuk soluk sonuc-ozeti">
             {resultSummary(s.onizleme!, s.rowCount)}
-            {s.yukleniyor && <span> · Satırlar yükleniyor…</span>}
+            {s.yukleniyor && (
+              <span>
+                {' · '}
+                <Yukleniyor>Satırlar yükleniyor…</Yukleniyor>
+              </span>
+            )}
             {s.sinir && <span className="sonuc-notu"> · {ROW_LIMIT_MESSAGE}</span>}
             {s.devamKapandi && <span className="sonuc-notu"> · {s.devamKapandi}</span>}
           </p>
