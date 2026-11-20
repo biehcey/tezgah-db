@@ -50,6 +50,20 @@ export function setEditorScript(text: string) {
 
 export const editorScript = () => editorView().state.doc.toString();
 
+/**
+ * Editöre odaklanır ve imleci `ilk` metninin başına (ya da `secim` verilirse o metni seçer) koyar;
+ * jsdom'da tıklama imleci güvenilir biçimde konumlandırmaz.
+ */
+export function setEditorCursor(ilk: string, { secim = false }: { secim?: boolean } = {}) {
+  const view = editorView();
+  const from = view.state.doc.toString().indexOf(ilk);
+  if (from === -1) throw new Error(`Editörde yok: ${ilk}`);
+  act(() => {
+    view.focus();
+    view.dispatch({ selection: { anchor: from, head: secim ? from + ilk.length : from } });
+  });
+}
+
 /** İmlecin bulunduğu 1 tabanlı satır. */
 export function editorCursorLine(): number {
   const { state } = editorView();

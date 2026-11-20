@@ -1177,6 +1177,78 @@ button.kucuk {
   border-left-color: var(--metin);
 }
 
+/* Aktif satır CodeMirror'ın tema rengini ezer; hata/analiz zeminleri (aşağıda) yine öne geçer. */
+.script-editoru .cm-line.cm-activeLine {
+  background-color: color-mix(in srgb, var(--vurgu) 6%, transparent);
+}
+
+.script-editoru.script-editoru .cm-selectionMatch {
+  background-color: color-mix(in srgb, var(--vurgu) 16%, transparent);
+}
+
+.script-editoru.script-editoru .cm-searchMatch {
+  outline: 1px solid color-mix(in srgb, var(--dikkat) 60%, transparent);
+  background-color: color-mix(in srgb, var(--dikkat) 22%, transparent);
+}
+
+.script-editoru.script-editoru .cm-searchMatch.cm-searchMatch-selected {
+  background-color: color-mix(in srgb, var(--dikkat) 42%, transparent);
+}
+
+.script-editoru.script-editoru .cm-matchingBracket {
+  outline: 1px solid color-mix(in srgb, var(--vurgu) 60%, transparent);
+  background-color: color-mix(in srgb, var(--vurgu) 18%, transparent);
+  color: inherit;
+}
+
+.script-editoru.script-editoru .cm-nonmatchingBracket {
+  background-color: color-mix(in srgb, var(--uyari) 18%, transparent);
+  color: var(--uyari);
+}
+
+.script-editoru.script-editoru .cm-panels {
+  border-color: var(--cizgi);
+  background: var(--kenar-zemin);
+  color: var(--metin);
+}
+
+.script-editoru.script-editoru .cm-panels .cm-search {
+  font-family: inherit;
+  font-size: var(--yazi-12);
+}
+
+.script-editoru.script-editoru .cm-search .cm-textfield {
+  border: 1px solid var(--cizgi);
+  border-radius: var(--yaricap-kucuk);
+  background: var(--zemin);
+  color: var(--metin);
+}
+
+.script-editoru.script-editoru .cm-search .cm-textfield:focus {
+  outline: 2px solid var(--odak-halkasi);
+  outline-offset: -1px;
+}
+
+.script-editoru.script-editoru .cm-search .cm-button {
+  border: 1px solid var(--cizgi);
+  border-radius: var(--yaricap-kucuk);
+  background: var(--zemin);
+  background-image: none;
+  color: var(--metin);
+}
+
+.script-editoru.script-editoru .cm-search .cm-button:hover {
+  border-color: var(--vurgu);
+}
+
+.script-editoru.script-editoru .cm-search label {
+  color: var(--soluk);
+}
+
+.script-editoru.script-editoru .cm-search button[name='close'] {
+  color: var(--soluk);
+}
+
 /* CodeMirror'ın koyu temada görünmeyen noktalı odak çerçevesi yerine ince token'lı halka. */
 .script-editoru .cm-editor.cm-focused {
   outline: 1px solid var(--odak-halkasi);
@@ -1208,15 +1280,23 @@ button.kucuk {
   color: var(--vurgu);
 }
 
-.cm-hatali-satir {
+.cm-hatali-satir,
+.script-editoru .cm-line.cm-activeLine.cm-hatali-satir {
   background: color-mix(in srgb, var(--uyari) 14%, transparent);
 }
 
-.cm-transaction-disi {
+/* Ctrl/Cmd+Enter'ın çalıştıracağı ifade (odak + boş seçim). */
+.cm-calisacak-aralik {
+  background: color-mix(in srgb, var(--vurgu) 8%, transparent);
+}
+
+.cm-transaction-disi,
+.script-editoru .cm-line.cm-activeLine.cm-transaction-disi {
   background: color-mix(in srgb, var(--dikkat) 16%, transparent);
 }
 
-.cm-reddedilen {
+.cm-reddedilen,
+.script-editoru .cm-line.cm-activeLine.cm-reddedilen {
   background: color-mix(in srgb, var(--uyari) 10%, transparent);
 }
 
