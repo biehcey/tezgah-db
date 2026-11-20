@@ -1,8 +1,7 @@
-import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import { emptySettings, migrateSettings, type Settings } from '../core/ayarlar';
+import { JsonFileError, createJsonFile } from './json-dosyasi';
 
 export const SETTINGS_FILE = 'tezgah.json';
 
@@ -38,72 +37,34 @@ export function defaultConfigDir({
 }
 
 export function createSettingsStore(configDir: string): SettingsStore {
-  const file = join(configDir, SETTINGS_FILE);
-  let queue: Promise<unknown> = Promise.resolve();
+  const store = createJsonFile(join(configDir, SETTINGS_FILE));
 
   async function read(): Promise<Settings> {
-    let text: string;
+    let found: { raw: unknown } | undefined;
     try {
-      text = await readFile(file, 'utf8');
+      found = await store.read();
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return emptySettings();
-      throw new SettingsFileError(`${file} okunamadı: ${(err as Error).message}`, { cause: err });
+      if (err instanceof JsonFileError) throw new SettingsFileError(err.message, { cause: err.cause });
+      throw err;
     }
+    if (!found) return emptySettings();
     try {
-      return migrateSettings(JSON.parse(text));
+      return migrateSettings(found.raw);
     } catch (err) {
-      throw new SettingsFileError(`${file} çözümlenemedi: ${(err as Error).message}`, { cause: err });
+      throw new SettingsFileError(`${store.file} çözümlenemedi: ${(err as Error).message}`, { cause: err });
     }
-  }
-
-  async function write(settings: Settings) {
-    await mkdir(configDir, { recursive: true });
-    await writeFileAtomic(file, `${JSON.stringify(settings, null, 2)}\n`);
   }
 
   return {
     read,
     update<T>(change: (settings: Settings) => T): Promise<T> {
-      const run = queue.then(async () => {
+      return store.serial(async () => {
         const current = await read();
         const settings = structuredClone(current);
         const result = change(settings);
-        if (JSON.stringify(settings) !== JSON.stringify(current)) await write(settings);
+        if (JSON.stringify(settings) !== JSON.stringify(current)) await store.write(settings);
         return result;
       });
-      queue = run.catch(() => {});
-      return run;
     },
   };
-}
-
-/**
- * Dosyayı geçici dosya + rename ile yazar: okuyan ya da çöken süreç yarım dosya görmez. `mode`
- * yalnızca POSIX'te etkilidir (ör. `0o600`).
- */
-export async function writeFileAtomic(file: string, text: string, { mode }: { mode?: number } = {}) {
-  const tmp = `${file}.${randomBytes(6).toString('hex')}.tmp`;
-  try {
-    await writeFile(tmp, text, { encoding: 'utf8', flush: true, mode });
-    await renameWithRetry(tmp, file);
-  } catch (err) {
-    await unlink(tmp).catch(() => {});
-    throw err;
-  }
-}
-
-/**
- * Windows'ta hedef dosya o an başka bir süreçte (antivirüs, OneDrive, dizin indeksleyici)
- * açıksa rename kısa süreliğine EPERM/EACCES/EBUSY verebilir.
- */
-async function renameWithRetry(from: string, to: string) {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await rename(from, to);
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (attempt >= 5 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '')) throw err;
-      await new Promise((resolve) => setTimeout(resolve, 20 * 2 ** attempt));
-    }
-  }
 }

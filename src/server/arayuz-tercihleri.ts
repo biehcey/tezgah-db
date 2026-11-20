@@ -1,8 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ARAYUZ_TERCIHLERI_VARSAYILAN, normalizeArayuzTercihleri, type ArayuzTercihleri } from '../core/arayuz-tercihleri';
-import { writeFileAtomic } from './ayar-deposu';
+import { JsonFileError, createJsonFile } from './json-dosyasi';
 import { json, methodNotAllowed, readJson } from './http';
 
 /** Arayüz tercihleri `tezgah.json`'dan ayrı: bağlantı ayarlarının sürüm/göç mekanizmasına girmez. */
@@ -19,40 +18,30 @@ export interface PreferenceStore {
 }
 
 export function createPreferenceStore(configDir: string): PreferenceStore {
-  const file = join(configDir, PREFERENCES_FILE);
-  let queue: Promise<unknown> = Promise.resolve();
+  const store = createJsonFile(join(configDir, PREFERENCES_FILE), { mode: 0o600 });
 
   async function read(): Promise<ArayuzTercihleri> {
-    let text: string;
+    let found: { raw: unknown } | undefined;
     try {
-      text = await readFile(file, 'utf8');
+      found = await store.read();
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return structuredClone(ARAYUZ_TERCIHLERI_VARSAYILAN);
-      throw err;
-    }
-    let raw: unknown;
-    try {
-      raw = JSON.parse(text);
-    } catch {
+      if (!(err instanceof JsonFileError)) throw err;
+      if (err.asama === 'okuma') throw err.cause;
       // Bozuk dosya varsayılanlara düşer; ilk yazma onu düzeltir.
-      raw = null;
+      found = { raw: null };
     }
-    return normalizeArayuzTercihleri(raw, UNKNOWN_WINDOW);
-  }
-
-  async function write(raw: unknown): Promise<ArayuzTercihleri> {
-    const preferences = normalizeArayuzTercihleri(raw, UNKNOWN_WINDOW);
-    await mkdir(configDir, { recursive: true });
-    await writeFileAtomic(file, `${JSON.stringify(preferences, null, 2)}\n`, { mode: 0o600 });
-    return preferences;
+    if (!found) return structuredClone(ARAYUZ_TERCIHLERI_VARSAYILAN);
+    return normalizeArayuzTercihleri(found.raw, UNKNOWN_WINDOW);
   }
 
   return {
     read,
     write(raw) {
-      const run = queue.then(() => write(raw));
-      queue = run.catch(() => {});
-      return run;
+      return store.serial(async () => {
+        const preferences = normalizeArayuzTercihleri(raw, UNKNOWN_WINDOW);
+        await store.write(preferences);
+        return preferences;
+      });
     },
   };
 }
