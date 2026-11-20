@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { ARAYUZ_TERCIHLERI_VARSAYILAN, normalizeArayuzTercihleri } from './arayuz-tercihleri';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari, normalizeArayuzTercihleri } from './arayuz-tercihleri';
+
+describe('gezginSinirlari', () => {
+  it.each([
+    [1600, { min: 200, max: 800 }],
+    [1024, { min: 200, max: 512 }],
+    [301, { min: 150, max: 150 }],
+    [Infinity, { min: 200, max: Infinity }],
+  ])('pencere %d px: %o', (genislik, beklenen) => {
+    expect(gezginSinirlari({ genislik })).toEqual(beklenen);
+  });
+});
 
 const PENCERE = { genislik: 1600 };
 

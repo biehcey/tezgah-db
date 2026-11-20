@@ -190,7 +190,9 @@ body,
   box-shadow: inset 0 0 0 2px var(--prod);
 }
 
+/* Genişlik Arayüz tercihlerinden satır içi gelir; sağ kenardaki bölücü onu değiştirir. */
 .kenar {
+  position: relative;
   width: 280px;
   min-height: 0;
   display: flex;
@@ -1082,6 +1084,37 @@ dialog.diyalog::backdrop {
 
 .kenar[hidden] {
   display: none;
+}
+
+/* Bölücü: ince görünür çizgi, daha geniş tutma alanı; üzerine gelince ya da odakta vurgulanır. */
+.bolucu {
+  flex: none;
+  touch-action: none;
+  background: transparent;
+}
+
+.bolucu:hover,
+.bolucu:focus-visible {
+  background: var(--vurgu);
+}
+
+.bolucu-dikey {
+  width: 6px;
+  cursor: col-resize;
+}
+
+.bolucu-yatay {
+  height: 6px;
+  cursor: row-resize;
+}
+
+/* Gezginin bölücüsü sağ kenarın üstüne biner, yerleşimi kaydırmaz. */
+.kenar > .bolucu-dikey {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  z-index: 1;
 }
 
 .dugum-satiri {
