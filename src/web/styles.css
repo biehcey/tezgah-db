@@ -1285,6 +1285,11 @@ button.kucuk {
   background: color-mix(in srgb, var(--uyari) 14%, transparent);
 }
 
+/* Ctrl/Cmd+Enter'ın çalıştıracağı ifade (odak + boş seçim). */
+.cm-calisacak-aralik {
+  background: color-mix(in srgb, var(--vurgu) 8%, transparent);
+}
+
 .cm-transaction-disi,
 .script-editoru .cm-line.cm-activeLine.cm-transaction-disi {
   background: color-mix(in srgb, var(--dikkat) 16%, transparent);

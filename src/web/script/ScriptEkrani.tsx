@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { isProd, type Connection } from '../../core/baglanti';
+import { calisacakAralik, editorSatiri, type AralikYeri } from '../../core/calisacak-aralik';
 import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } from '../../core/calistirma-modu';
 import { positionOf, splitStatements, type Statement } from '../../core/ifade-bolme';
 import { formatRemaining, startDecision, type DecisionTimer } from '../../core/karar-suresi';
@@ -24,7 +25,7 @@ import type { SessionTab } from '../../core/konsol-sekmeleri';
 import type { Target } from '../../core/veritabani-secimi';
 import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
 import { STATUS_LABELS, STATUS_SYMBOLS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
-import { ScriptEditoru, type EditorMarks, type ScriptEditoruHandle } from './ScriptEditoru';
+import { ScriptEditoru, type EditorMarks, type EditorSecimi, type ScriptEditoruHandle } from './ScriptEditoru';
 import { resultSummary, resultTotal } from '../../core/grid/ozet';
 import { SonucGovdesi } from '../grid/SonucGovdesi';
 import { catalogUse, type CatalogEntry, type CatalogReason } from '../katalog/kataloglar';
@@ -68,6 +69,9 @@ const AUTOCOMMIT_CONNECTION_LOST: ServerEvent = {
   sonuc: 'hata',
   mesaj: 'Tezgah sunucusuyla bağlantı koptu; çalışan ifade iptal edildi, uygulanmış ifadeler kalıcıdır.',
 };
+
+/** Ctrl/Cmd+Enter'ın imlecinde ve öncesinde ifade yok. */
+const NO_RANGE_MESSAGE = 'İmleçte çalışacak ifade yok';
 
 /** Yazarken analiz bu kadar duraklamadan sonra yenilenir. */
 const ANALYSIS_DELAY_MS = 200;
@@ -182,6 +186,32 @@ export function ScriptEkrani({
   );
   const blocked = reasons.length > 0;
   const tryBlocked = tryReasons.length > 0;
+  /** Editörün seçimi; Çalışacak aralık bundan çıkar. */
+  const [secim, setSecim] = useState<EditorSecimi>({ from: 0, to: 0, imlec: 0 });
+  const aralik = useMemo(() => {
+    const a = calisacakAralik(script, secim, secim.imlec);
+    return a && { bas: a.bas, metin: script.slice(a.bas, a.bit) };
+  }, [script, secim]);
+  /**
+   * Çalışacak aralığın engelleri; yalnızca o aralığın içeriğine bakılır (Çalıştırma modu da ondan
+   * çıkar). Satırlar editörün satırlarıdır.
+   */
+  const rangeReasons = useCallback(
+    (deneme: boolean) => {
+      if (!aralik) return [];
+      const yer = { bas: aralik.bas, editorMetni: script };
+      return runBlockReasons(aralik.metin, splitStatements(aralik.metin), lock, { deneme }).map((r) => ({
+        ...r,
+        satir: r.satir === null ? null : editorSatiri(yer, r.satir),
+      }));
+    },
+    [aralik, script, lock],
+  );
+  const rangeRunReasons = useMemo(() => rangeReasons(false), [rangeReasons]);
+  const rangeTryReasons = useMemo(() => rangeReasons(true), [rangeReasons]);
+  /** Kısayolun kısa geri bildirimi (ör. imleçte ifade yok); seçim ya da metin değişince kalkar. */
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => setNotice(null), [script, secim]);
   /** Sonuç sütununun seçili sekmesi; Değişiklikler yalnızca denemede var. */
   const [tab, setTab] = useState<Tab>('log');
   const tabs: Tab[] = run?.deneme ? ['degisiklikler', 'log'] : ['log'];
@@ -192,10 +222,15 @@ export function ScriptEkrani({
   const [resultTab, setResultTab] = useState<number | null>(null);
 
   /**
-   * `zorlaTransaction`: Okuma deseni yanıldı (25006); hata alan script (`metin`, editör sonradan
-   * değişmiş olabilir) karar kartıyla Transaction modunda çalışır. Sunucu yine kendi analizini yapar.
+   * `metin` sunucuya bir script olarak gider (ADR-0003, ADR-0006); `yer` onun editördeki yeridir
+   * (tüm script: ofset 0). `zorlaTransaction`: Okuma deseni yanıldı (25006); hata alan aralık (editör
+   * sonradan değişmiş olabilir) karar kartıyla Transaction modunda çalışır. Sunucu yine kendi
+   * analizini yapar.
    */
-  function start(deneme: boolean, { zorlaTransaction = false, metin = script }: { zorlaTransaction?: boolean; metin?: string } = {}) {
+  function start(
+    deneme: boolean,
+    { metin, yer, zorlaTransaction = false }: { metin: string; yer: AralikYeri; zorlaTransaction?: boolean },
+  ) {
     if (!targetRef || busy) return;
     // Analiz yazmanın gerisinde kalabilir; çalıştırmadan önce güncel metinle yeniden bakılır.
     const currentStatements = splitStatements(metin);
@@ -203,7 +238,8 @@ export function ScriptEkrani({
     if (runBlockReasons(metin, currentStatements, lock, { analysis: current, deneme }).length > 0) return;
     // Açık Okuma transaction'ı da bu soketle birlikte geri alınır.
     handle.current?.close();
-    setRun(startRunView(metin, { deneme }));
+    setNotice(null);
+    setRun(startRunView(metin, { deneme, aralik: yer }));
     setRunOnProd(prod);
     setTab(deneme ? 'degisiklikler' : 'log');
     setRunNo((n) => n + 1);
@@ -225,18 +261,42 @@ export function ScriptEkrani({
     });
   }
 
+  /** Tüm script: ofset 0'lı Çalışacak aralık. */
+  const runAll = (deneme: boolean) => start(deneme, { metin: script, yer: { bas: 0, editorMetni: script } });
+  const runRange = (deneme: boolean) => {
+    if (!aralik) {
+      setNotice(NO_RANGE_MESSAGE);
+      return;
+    }
+    start(deneme, { metin: aralik.metin, yer: { bas: aralik.bas, editorMetni: script } });
+  };
+
   /**
-   * Editörde Ctrl/Cmd+Enter Çalıştır, +Shift Dene: düğmesi kapalıysa hiçbir şey yapmaz. Yakalama
-   * evresinde: CodeMirror'ın Mod-Enter'ı (boş satır ekle) çalışmasın.
+   * Editörde Ctrl/Cmd+Enter Çalışacak aralığı çalıştırır, +Shift dener; +Alt tüm script için aynısı.
+   * Düğmesi kapalıysa hiçbir şey yapmaz. Yakalama evresinde: CodeMirror'ın Mod-Enter'ı (boş satır
+   * ekle) çalışmasın.
    */
   function onEditorShortcut(e: KeyboardEvent<HTMLElement>) {
     const eylem = scriptShortcut(shortcutKey(e.nativeEvent));
     if (!eylem) return;
     e.preventDefault();
     e.stopPropagation();
-    if (!target || busy || !hasStatements) return;
-    if (eylem === 'calistir' ? blocked : tryBlocked) return;
-    start(eylem === 'dene');
+    if (!target || busy) return;
+    switch (eylem) {
+      case 'calistir':
+      case 'dene': {
+        const deneme = eylem === 'dene';
+        if ((deneme ? rangeTryReasons : rangeRunReasons).length > 0) return;
+        runRange(deneme);
+        return;
+      }
+      case 'tumunuCalistir':
+      case 'tumunuDene': {
+        const deneme = eylem === 'tumunuDene';
+        if (!hasStatements || (deneme ? tryBlocked : blocked)) return;
+        runAll(deneme);
+      }
+    }
   }
 
   /**
@@ -257,7 +317,7 @@ export function ScriptEkrani({
 
   // Satır işaretleri yalnızca editördeki metin çalıştırılanla aynıyken anlamlı.
   const marks = useMemo((): EditorMarks => {
-    if (!run || run.script !== script) return analyzed === script ? analysisMarks(script, statements, analysis) : NO_MARKS;
+    if (!run || run.editorMetni !== script) return analyzed === script ? analysisMarks(script, statements, analysis) : NO_MARKS;
     const lines = new Map<number, StatementStatus>();
     for (const s of run.ifadeler) {
       const existing = lines.get(s.satir);
@@ -324,7 +384,7 @@ export function ScriptEkrani({
       <div className="script-govde">
         <div className="script-sol">
           <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
-            <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} />
+            <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} onSelectionChange={setSecim} />
           </section>
           {!busy && blocked && <BlockReasons reasons={reasons} />}
           <div className="script-cubugu">
@@ -350,22 +410,59 @@ export function ScriptEkrani({
               </button>
             ) : (
               <>
+                {notice && (
+                  <span role="status" aria-label="Çalıştırma bildirimi" className="soluk kucuk">
+                    {notice}
+                  </span>
+                )}
                 <button
-                  type='button'
-                  title={tryBlocked ? tryReasons.map(formatReason).join('\n') : 'Çalıştır ve her zaman geri al (Ctrl/Cmd+Shift+Enter)'}
-                  aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
-                  onClick={() => start(true)}
+                  type="button"
+                  title={
+                    tryBlocked ? tryReasons.map(formatReason).join('\n') : "Tüm script'i çalıştır ve her zaman geri al (Ctrl/Cmd+Alt+Shift+Enter)"
+                  }
+                  aria-keyshortcuts="Control+Alt+Shift+Enter Meta+Alt+Shift+Enter"
+                  onClick={() => runAll(true)}
                   disabled={!target || busy || !hasStatements || tryBlocked}
+                >
+                  Tümünü dene
+                </button>
+                <button
+                  type="button"
+                  title={
+                    !aralik
+                      ? NO_RANGE_MESSAGE
+                      : rangeTryReasons.length > 0
+                        ? rangeTryReasons.map(formatReason).join('\n')
+                        : 'Seçimi ya da imleçteki ifadeyi çalıştır ve her zaman geri al (Ctrl/Cmd+Shift+Enter)'
+                  }
+                  aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
+                  onClick={() => runRange(true)}
+                  disabled={!target || busy || !aralik || rangeTryReasons.length > 0}
                 >
                   ⟲ Dene
                 </button>
                 <button
                   type="button"
-                  className="birincil"
-                  title="Ctrl/Cmd+Enter"
-                  aria-keyshortcuts="Control+Enter Meta+Enter"
-                  onClick={() => start(false)}
+                  title={blocked ? reasons.map(formatReason).join('\n') : "Tüm script'i çalıştır (Ctrl/Cmd+Alt+Enter)"}
+                  aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
+                  onClick={() => runAll(false)}
                   disabled={!target || busy || !hasStatements || blocked}
+                >
+                  Tümünü çalıştır
+                </button>
+                <button
+                  type="button"
+                  className="birincil"
+                  title={
+                    !aralik
+                      ? NO_RANGE_MESSAGE
+                      : rangeRunReasons.length > 0
+                        ? rangeRunReasons.map(formatReason).join('\n')
+                        : 'Seçimi ya da imleçteki ifadeyi çalıştır (Ctrl/Cmd+Enter)'
+                  }
+                  aria-keyshortcuts="Control+Enter Meta+Enter"
+                  onClick={() => runRange(false)}
+                  disabled={!target || busy || !aralik || rangeRunReasons.length > 0}
                 >
                   ▶ Çalıştır
                 </button>
@@ -413,7 +510,9 @@ export function ScriptEkrani({
                       key={s.i}
                       statement={s}
                       onGoTo={goToLine}
-                      onForceTransaction={busy ? undefined : () => start(false, { zorlaTransaction: true, metin: run.script })}
+                      onForceTransaction={
+                        busy ? undefined : () => start(false, { zorlaTransaction: true, metin: run.script, yer: { bas: run.bas, editorMetni: run.editorMetni } })
+                      }
                     />
                   ))}
                 </ol>
