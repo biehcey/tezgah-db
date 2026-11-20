@@ -18,7 +18,7 @@ import {
 } from 'react';
 import { DEFAULT_LABEL, NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
 import { CONSOLE_READ_ONLY_REASON, DELETED_REASON, isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
-import { rowViewShortcut, shortcutKey, type ShortcutId } from '../../core/kisayollar';
+import { gridCopyShortcut, rowViewShortcut, shortcutKey, type ShortcutId } from '../../core/kisayollar';
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
@@ -352,9 +352,10 @@ export function SonucGridi({
       if (onDuzenle && satirlar.length > 0) setNull(sel);
       return;
     }
-    if (ctrl && e.key.toLowerCase() === 'c') {
+    const copyFormat = gridCopyShortcut(shortcutKey(e.nativeEvent));
+    if (copyFormat) {
       e.preventDefault();
-      copy(e.shiftKey ? 'baslikliTsv' : 'tsv', sel);
+      copy(copyFormat, sel);
       return;
     }
     if (e.key === 'F2') {

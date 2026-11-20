@@ -3,6 +3,7 @@ import {
   SHORTCUTS,
   SHORTCUT_GROUPS,
   ariaKeyShortcuts,
+  gridCopyShortcut,
   historyShortcut,
   navigatorShortcut,
   rowViewShortcut,
@@ -16,6 +17,21 @@ import {
 } from './kisayollar';
 
 const key = (k: Partial<ShortcutKey>): ShortcutKey => ({ key: 'Enter', code: 'Enter', ctrl: false, meta: false, shift: false, alt: false, altGraph: false, ...k });
+
+describe('gridCopyShortcut: grid’de TSV kopyala', () => {
+  it.each<[string, Partial<ShortcutKey>, ReturnType<typeof gridCopyShortcut>]>([
+    ['Ctrl+C', { key: 'c', ctrl: true }, 'tsv'],
+    ['Cmd+C', { key: 'c', meta: true }, 'tsv'],
+    ['Ctrl+Shift+C başlıklı', { key: 'C', ctrl: true, shift: true }, 'baslikliTsv'],
+    ['Ctrl+Alt+C kopyalamaz', { key: 'c', ctrl: true, alt: true }, null],
+    ['AltGr+C (Windows: Ctrl+Alt) kopyalamaz', { key: 'c', ctrl: true, alt: true, altGraph: true }, null],
+    ['yalnızca AltGraph da kopyalamaz', { key: 'c', ctrl: true, altGraph: true }, null],
+    ['değiştiricisiz C', { key: 'c' }, null],
+    ['Ctrl+V', { key: 'v', ctrl: true }, null],
+  ])('%s', (_, k, expected) => {
+    expect(gridCopyShortcut(key(k))).toBe(expected);
+  });
+});
 
 describe('tableShortcut: Tablo sekmesi kısayolları', () => {
   it.each([
@@ -155,6 +171,8 @@ describe('eşleyiciler katalogla tutarlı', () => {
     ['tabloDene', (e: ShortcutKey) => tableShortcut(e), 'dene'],
     ['tabloSql', (e: ShortcutKey) => tableShortcut(e), 'sql'],
     ['satirGorunumu', (e: ShortcutKey) => rowViewShortcut(e, false), 'ac'],
+    ['kopyala', (e: ShortcutKey) => gridCopyShortcut(e), 'tsv'],
+    ['baslikliKopyala', (e: ShortcutKey) => gridCopyShortcut(e), 'baslikliTsv'],
     ['gezgin', (e: ShortcutKey) => navigatorShortcut(e), true],
     ['gecmis', (e: ShortcutKey) => historyShortcut(e), true],
     ['kisayollar', (e: ShortcutKey) => shortcutsPageShortcut(e), true],

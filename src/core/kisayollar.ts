@@ -152,6 +152,15 @@ export function rowViewShortcut(e: ShortcutKey, open: boolean): 'ac' | 'kapat' |
   return null;
 }
 
+/**
+ * Grid'de Ctrl/Cmd+C TSV, +Shift başlıklı TSV kopyalar. Alt'lı vuruş kopyalamaz: Windows'ta AltGr
+ * Ctrl+Alt gelir ve bazı düzenlerde AltGr+C bir karakter yazar.
+ */
+export function gridCopyShortcut(e: ShortcutKey): 'tsv' | 'baslikliTsv' | null {
+  if (!(e.ctrl || e.meta) || e.alt || e.altGraph || e.key.toLowerCase() !== 'c') return null;
+  return e.shift ? 'baslikliTsv' : 'tsv';
+}
+
 /** Ctrl/Cmd+B: kenar çubuğundaki gezgini gizler/açar. Alt ile `key` klavyeye göre değişir; `code` değişmez. */
 export function navigatorShortcut(e: ShortcutKey): boolean {
   return (e.ctrl || e.meta) && !e.shift && !e.alt && !e.altGraph && e.code === 'KeyB';
