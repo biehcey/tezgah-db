@@ -6,7 +6,7 @@ Spec: [Yerleşim (hikâyeler)](../spec.md#yerleşim) (hikâye 50–56, 60), [Yer
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done (0f35e38)
 
 - [x] Sağ çalıştırma kolonu kaldırılır; editör ve sonuçlar ana alanın tüm genişliğini kullanır.
 - [x] Ticket 08'deki bölücü bileşeni yatay olarak editör/Sonuç alanı arasında; oran tercihe yazılır.
