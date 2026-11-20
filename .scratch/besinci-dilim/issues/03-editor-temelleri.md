@@ -6,7 +6,7 @@ Spec: [Editör temelleri](../spec.md#editör-temelleri), [Editör eklentileri](.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** done (3044355)
 
 - [x] `@codemirror/search` bağımlılığı; arama paneli, `searchKeymap`, `highlightSelectionMatches`.
 - [x] Panel metinleri `EditorState.phrases` ile Türkçe.
