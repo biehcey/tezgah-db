@@ -30,6 +30,8 @@ export default defineConfig({
           // varsayılan 5 sn'yi aşabiliyor. Yavaş bir testi hızlandırmak (ör. `fill`) asıl çözüm.
           testTimeout: 15_000,
           setupFiles: ['src/web/test/setup.ts'],
+          // Vitest CSS'i varsayılan olarak boşaltır; token sözleşmesi testi (`styles.test.ts`) stil dosyasının metnini okur.
+          css: { include: [/styles\.css/] },
         },
       },
     ],
