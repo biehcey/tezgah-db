@@ -1,10 +1,14 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render as baseRender, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { JSDOM_OLCUMU } from '../test/grid';
 import { GridOlcumu } from './olcum';
 import { AUTO_SCROLL_MS, SonucGridi } from './SonucGridi';
+import { BildirimSaglayici } from '../ortak/Bildirimler';
+
+/** Kopyalama geri bildirimi toast'tır; grid Bildirimler sağlayıcısının içinde çizilir. */
+const render = (ui: ReactElement) => baseRender(ui, { wrapper: BildirimSaglayici });
 
 const KOLONLAR = ['id', 'ad', 'not'];
 

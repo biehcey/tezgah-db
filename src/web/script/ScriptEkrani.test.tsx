@@ -191,7 +191,8 @@ describe('Script ekranı: Çalışacak aralık', () => {
     expect(fake.last().script).toBe('VACUUM t;');
   });
 
-  it('imleçte ifade yoksa hiçbir şey çalışmaz ve geri bildirim görünür', async () => {
+  // Geri bildirimin Durum çubuğunda görünmesi DurumCubugu.test.tsx'te.
+  it('imleçte ifade yoksa hiçbir şey çalışmaz', async () => {
     const { user, fake } = setup();
     setEditorScript('-- not\nSELECT 1;');
     setEditorCursor('-- not');
@@ -199,7 +200,6 @@ describe('Script ekranı: Çalışacak aralık', () => {
     expect(runButton()).toBeEnabled();
     await user.keyboard('{Control>}{Enter}{/Control}');
     expect(fake.runs).toHaveLength(0);
-    expect(screen.getByRole('status', { name: 'Çalıştırma bildirimi' })).toHaveTextContent('İmleçte çalışacak ifade yok');
   });
 
   it('25006 sonrası Transaction teklifi hata alan aralığı yeniden çalıştırır', async () => {

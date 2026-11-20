@@ -181,7 +181,7 @@ body,
   display: grid;
   grid-template-columns: auto 1fr;
   /* Satır pencere yüksekliğinde kalır; uzun içerik (sonuç grid'i) sayfayı uzatmaz, kendi içinde kayar. */
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
 }
 
@@ -221,10 +221,52 @@ body,
   overflow: auto;
 }
 
-.kenar-alt {
-  padding: var(--bosluk-8) var(--bosluk-16);
+/* Durum çubuğu: kökün altında, tüm genişlikte tek satır; taşan metin kesilir, satır kırılmaz. */
+.durum-cubugu {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--bosluk-12);
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--bosluk-8) 0 var(--bosluk-12);
+  border-top: 1px solid var(--cizgi);
+  background: var(--kenar-zemin);
   color: var(--soluk);
   font-size: var(--yazi-12);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.durum-cubugu > * {
+  flex-shrink: 0;
+}
+
+.durum-cubugu .bosluk {
+  flex: 1;
+  flex-shrink: 1;
+}
+
+.durum-hedefi {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bosluk-6);
+  color: var(--metin);
+}
+
+.durum-transaction.karar {
+  color: var(--dikkat);
+  font-weight: 600;
+}
+
+.durum-transaction.calisiyor,
+.durum-transaction.okuma {
+  color: var(--metin);
+}
+
+.durum-bildirimi {
+  color: var(--metin);
 }
 
 .calisma-alani {
@@ -1658,11 +1700,18 @@ dialog.diyalog::backdrop {
 
 .script-cubugu {
   display: flex;
+  min-width: 0;
   justify-content: flex-end;
   gap: var(--bosluk-8);
   padding: var(--bosluk-8) var(--bosluk-12);
   border-bottom: 1px solid var(--cizgi);
   background: var(--kenar-zemin);
+}
+
+/* Tek satır: öğeler doğal genişliğinde kalır (taşma kuralı onları ölçer), sığmayanlar "⋯"e gider. */
+.script-cubugu > * {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .karar-karti {
@@ -2165,21 +2214,6 @@ button.grid-kose:hover,
   background: var(--kenar-zemin);
 }
 
-/* Kopyalama bilgisi (ticket 05'in Bildirimler'i gelene kadar). */
-.grid-kopyalama-bilgisi {
-  position: fixed;
-  right: var(--bosluk-16);
-  bottom: var(--bosluk-16);
-  z-index: 10;
-  margin: 0;
-  padding: var(--bosluk-6) var(--bosluk-12);
-  border: 1px solid var(--cizgi);
-  border-radius: var(--yaricap-orta);
-  background: var(--zemin);
-  box-shadow: var(--golge-acilir);
-  font-family: var(--font-ui);
-}
-
 .grid-hucresi.secili {
   background: color-mix(in srgb, var(--vurgu) 16%, transparent);
 }
@@ -2579,8 +2613,9 @@ button.grid-kose:hover,
   }
 }
 
-/* Konsol gövdesi: solda aktif sekmenin ekranı, sağda (açıksa) Sorgu geçmişi paneli. */
+/* Konsol gövdesi: aktif sekmenin ekranı; Sorgu geçmişi çekmecesi sağdan üstüne biner. */
 .konsol-govde {
+  position: relative;
   display: flex;
   flex: 1;
   gap: var(--bosluk-6);
@@ -2595,11 +2630,24 @@ button.grid-kose:hover,
   min-height: 0;
 }
 
+/* Editörü daraltmaz: akıştan çıkar, konsol gövdesinin sağ kenarına yapışır. */
+.gecmis-cekmecesi {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  max-width: 100%;
+  box-shadow: var(--golge-acilir);
+}
+
 .gecmis-paneli {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   width: 340px;
+  max-width: 100%;
   min-height: 0;
   border: 1px solid var(--cizgi);
   border-radius: var(--yaricap-orta);

@@ -5,7 +5,7 @@ import { typeName } from '../../core/grid/tipler';
 import { SatirGorunumu } from './SatirGorunumu';
 import { SonucGridi } from './SonucGridi';
 
-type Props = Pick<ComponentProps<typeof SonucGridi>, 'etiket' | 'kolonlar' | 'tipler' | 'tipAdlari' | 'satirlar' | 'toplamSatir' | 'onSonaYaklasti'>;
+type Props = Pick<ComponentProps<typeof SonucGridi>, 'etiket' | 'kolonlar' | 'tipler' | 'tipAdlari' | 'satirlar' | 'toplamSatir' | 'onSonaYaklasti' | 'onSecimOzeti'>;
 
 const CLOSED = { kapali: CONSOLE_READ_ONLY_REASON };
 

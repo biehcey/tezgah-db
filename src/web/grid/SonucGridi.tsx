@@ -24,10 +24,12 @@ import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
 import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
 import { columnAlignment, typeName } from '../../core/grid/tipler';
+import { secimOzeti, type SecimOzeti } from '../../core/grid/secim-ozeti';
 import { COPY_FORMATS, copyAs, copyFeedback, type CopyFormat } from '../../core/grid/kopyalama';
 import { MENU_SEPARATOR, Menu, menuBelow, type MenuEntry, type MenuPosition } from '../ortak/Menu';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { GridOlcumu, canvasTextWidth } from './olcum';
+import { useBildirimler } from '../ortak/Bildirimler';
 
 /** Sabit satır ve başlık yüksekliği (px); satırlar ölçülmez. CSS bunları `--grid-*` olarak alır. */
 const ROW_HEIGHT = 24;
@@ -44,8 +46,6 @@ const VALUE_BOX_HEIGHT = 144;
 /** Satır numarası kolonunun en az genişliği (px); hane başına `ROW_NO_DIGIT_PX` büyür. */
 const ROW_NO_MIN_WIDTH = 40;
 const ROW_NO_DIGIT_PX = 8;
-/** Kopyalama geri bildiriminin görünme süresi (ms). */
-const FEEDBACK_MS = 3000;
 
 /** Çağıranın düzenleyiciyi denetlemesi (Tablo sekmesinin kısayolları). */
 export interface GridHandle {
@@ -103,6 +103,8 @@ interface Props {
   onSatirGorunumu?: (acik: boolean) => void;
   /** Aktif hücrenin satırı değişti (ilk çizimde de bildirilir); satır görünümü onu gösterir. */
   onAktifSatir?: (satir: number) => void;
+  /** Seçim ya da satırlar değişti (ilk çizimde de bildirilir); Durum çubuğu özeti gösterir. */
+  onSecimOzeti?: (ozet: SecimOzeti) => void;
 }
 
 const DURUM_ETIKETI = { eklendi: 'eklendi', silinecek: 'silinecek' } as const;
@@ -164,6 +166,7 @@ export function SonucGridi({
   satirGorunumuAcik = false,
   onSatirGorunumu,
   onAktifSatir,
+  onSecimOzeti,
 }: Props) {
   const olcum = useContext(GridOlcumu);
   const noteId = useId();
@@ -176,13 +179,8 @@ export function SonucGridi({
   );
   /** Sayısal kolonlar (başlıklarıyla) sağa yaslanır. */
   const sagda = useMemo(() => kolonlar.map((_, c) => columnAlignment(tipler?.[c]) === 'sag'), [kolonlar, tipler]);
-  /** Son kopyalamanın kısa bilgisi; `FEEDBACK_MS` sonra kaybolur. */
-  const [feedback, setFeedback] = useState<{ metin: string; key: number } | null>(null);
-  useEffect(() => {
-    if (!feedback) return;
-    const timer = window.setTimeout(() => setFeedback(null), FEEDBACK_MS);
-    return () => window.clearTimeout(timer);
-  }, [feedback]);
+  /** Kopyalamanın kısa geri bildirimi toast olarak. */
+  const bildir = useBildirimler();
   /** Genişlik ölçümünde başlık: ad ve tip birlikte. */
   const basliklar = kolonlar.map((ad, c) => (tipAdi[c] ? `${ad}  ${tipAdi[c]}` : ad));
   // Ölçü verilmediyse (tarayıcı) genişlik, yazı tipi okunabilsin diye ilk çizimden hemen sonra ölçülür.
@@ -293,6 +291,14 @@ export function SonucGridi({
   const onAktifSatirRef = useRef(onAktifSatir);
   onAktifSatirRef.current = onAktifSatir;
   useEffect(() => onAktifSatirRef.current?.(activeRow), [activeRow]);
+
+  const onSecimOzetiRef = useRef(onSecimOzeti);
+  onSecimOzetiRef.current = onSecimOzeti;
+  useEffect(() => {
+    if (!onSecimOzetiRef.current || satirlar.length === 0) return;
+    const r = selectionRange(sel);
+    onSecimOzetiRef.current(secimOzeti(selectedValues(satirlar, sel), kolonlar.slice(r.sol, r.sag + 1).map((_, c) => tipler?.[r.sol + c])));
+  }, [sel, satirlar, kolonlar, tipler]);
 
   function moveTo(next: Selection) {
     setSel(next);
@@ -512,7 +518,7 @@ export function SonucGridi({
       bicim === 'insert'
         ? insertStatements({ tablo: PLACEHOLDER_TABLE, kolonlar, tipler, katalog: tipAdlari, satirlar: rows })
         : copyAs(bicim, { kolonlar: kolonlar.slice(r.sol, r.sag + 1), tipler: tipler?.slice(r.sol, r.sag + 1), satirlar: selectedValues(satirlar, s) });
-    void copyText(metin).then((ok) => setFeedback((f) => ({ metin: ok ? copyFeedback(rows.length, bicim) : 'Panoya kopyalanamadı', key: (f?.key ?? 0) + 1 })));
+    void copyText(metin).then((ok) => (ok ? bildir.basari(copyFeedback(rows.length, bicim)) : bildir.hata('Panoya kopyalanamadı')));
   }
 
   /** Sağ tık menüsü: düzenlenebilir grid'de NULL ve satır eylemleri, her zaman "Kopyala" alt menüsünde biçimler. */
@@ -730,12 +736,6 @@ export function SonucGridi({
           )}
         </div>
       </div>
-      {feedback && (
-        // Ticket 05'in Bildirimler'i gelene kadar grid'in kendi kısa bilgisi.
-        <p key={feedback.key} role="status" className="grid-kopyalama-bilgisi">
-          {feedback.metin}
-        </p>
-      )}
       {menu && (
         <Menu
           key={menu.key}

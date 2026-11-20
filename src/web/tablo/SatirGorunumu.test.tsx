@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import { BildirimSaglayici } from '../ortak/Bildirimler';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '../../core/katalog';
@@ -207,6 +208,7 @@ describe('Satır görünümü: konsol sonucu', () => {
       <GridOlcumu.Provider value={JSDOM_OLCUMU}>
         <SonucGovdesi etiket="Sonuç 1" kolonlar={['a']} satirlar={[['uzun\ndeğer']]} toplamSatir={1} />
       </GridOlcumu.Provider>,
+      { wrapper: BildirimSaglayici },
     );
     const grid = screen.getByRole('grid', { name: 'Sonuç 1' });
     await user.click(within(grid).getAllByRole('gridcell')[0]!);

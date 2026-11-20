@@ -98,4 +98,12 @@ describe('stil dosyası token sözleşmesi', () => {
     const prodTanimlari = KURALLAR.filter(tokenBloku).filter((k) => k.bildirimler.some(([o]) => o === '--env-prod'));
     expect(prodTanimlari.map((k) => k.secici)).toEqual([':root']);
   });
+
+  it('Sorgu geçmişi çekmecesi akıştan çıkar (editörü daraltmaz); Durum çubuğu tek satırdır', () => {
+    const kural = (secici: string) => new Map(KULLANIM.find((k) => k.secici === secici)?.bildirimler);
+    expect(kural('.gecmis-cekmecesi').get('position')).toBe('absolute');
+    expect(kural('.konsol-govde').get('position')).toBe('relative');
+    expect(kural('.durum-cubugu').get('white-space')).toBe('nowrap');
+    expect(kural('.script-cubugu').get('flex-wrap') ?? 'nowrap').toBe('nowrap');
+  });
 });

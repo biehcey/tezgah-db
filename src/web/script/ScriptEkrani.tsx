@@ -39,10 +39,14 @@ import type { ServerEvent } from '../../core/script-calistirma';
 import type { SessionTab } from '../../core/konsol-sekmeleri';
 import type { Target } from '../../core/veritabani-secimi';
 import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
-import { ChevronDown, ChevronUp, FlaskConical, Play, RefreshCw, Square, TriangleAlert } from 'lucide-react';
+import { ChevronDown, ChevronUp, Ellipsis, FlaskConical, History, Play, RefreshCw, Square, TriangleAlert } from 'lucide-react';
 import { STATUS_LABELS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
 import { DurumIkonu, KilitIkonu } from './ikonlar';
 import { Dugme } from '../ortak/Dugme';
+import type { SekmeDurumu } from '../ortak/DurumCubugu';
+import { Menu, menuBelow, type MenuPosition } from '../ortak/Menu';
+import { TASMA_MENUSU, useTasanEylemler } from '../ortak/tasma';
+import type { SecimOzeti } from '../../core/grid/secim-ozeti';
 import { OrtamRozeti, Rozet, type RozetTuru } from '../ortak/Rozet';
 import { ScriptEditoru, type EditorMarks, type EditorSecimi, type ScriptEditoruHandle } from './ScriptEditoru';
 import { resultSummary, resultTotal } from '../../core/grid/ozet';
@@ -82,6 +86,10 @@ interface Props {
   sonucDaraltilmis: boolean;
   /** Oran (sürükleme bitince) ya da daraltılmışlık değişti; tercihe yazılır. */
   onSonucAlani: (change: Partial<Pick<ArayuzTercihleri, 'sonucOrani' | 'sonucDaraltilmis'>>) => void;
+  /** Durum çubuğunun değerleri (çalıştırma, geri sayım, görünen grid'in seçimi, kısa geri bildirim). */
+  onDurum?: (durum: SekmeDurumu) => void;
+  /** Hedef başlığındaki düğme: Sorgu geçmişi çekmecesini açar ya da kapatır. */
+  onHistory?: () => void;
 }
 
 /** Aynı satırda başlayan birden çok ifadede satır işareti en önemli durumu gösterir. */
@@ -102,6 +110,21 @@ const NO_RANGE_MESSAGE = 'İmleçte çalışacak ifade yok';
 const ANALYSIS_DELAY_MS = 200;
 
 const MODE_LABELS: Record<RunMode, string> = { transaction: 'Transaction', autocommit: 'Autocommit', okuma: 'Okuma', karisik: 'Karışık' };
+/** Araç çubuğunun eylemleri sırasıyla; birincil olanlar (mod rozeti ve kilit dahil) hiç taşmaz. */
+const TOOLBAR_IDLE = [
+  { anahtar: 'mod', birincil: true },
+  { anahtar: 'kilit', birincil: true },
+  { anahtar: 'tumunuDene', birincil: false },
+  { anahtar: 'dene', birincil: true },
+  { anahtar: 'tumunuCalistir', birincil: false },
+  { anahtar: 'calistir', birincil: true },
+] as const;
+const TOOLBAR_RUNNING = [
+  { anahtar: 'mod', birincil: true },
+  { anahtar: 'kilit', birincil: true },
+  { anahtar: 'iptal', birincil: true },
+] as const;
+
 const MODE_ROZETLERI: Record<RunMode, RozetTuru> = { transaction: 'notr', autocommit: 'dikkat', okuma: 'basari', karisik: 'tehlike' };
 
 
@@ -149,6 +172,8 @@ export function ScriptEkrani({
   sonucOrani,
   sonucDaraltilmis,
   onSonucAlani,
+  onDurum,
+  onHistory,
 }: Props) {
   const api = useApi();
   const prod = target !== null && isProd(target.connection.envTag);
@@ -280,6 +305,7 @@ export function ScriptEkrani({
     setRunNo((n) => n + 1);
     setDeadline(null);
     setPoolFullTabs([]);
+    setSecimler({});
     moreAsked.current.clear();
     // Sekmenin ilk çalıştırması (bu hedefin katalogu yoksa) katalogu ister.
     onCatalog?.('calistir');
@@ -382,6 +408,25 @@ export function ScriptEkrani({
   const [surukleme, setSurukleme] = useState<number | null>(null);
   const oran = surukleme ?? sonucOrani;
 
+  /** Araç çubuğu tek satırda kalır; sığmayan ikincil eylemler "⋯" menüsüne taşınır. */
+  const toolbar = useRef<HTMLDivElement>(null);
+  const tasan = useTasanEylemler(toolbar, running ? TOOLBAR_RUNNING : TOOLBAR_IDLE);
+  const [overflowMenu, setOverflowMenu] = useState<MenuPosition | null>(null);
+  const closeOverflowMenu = useCallback(() => setOverflowMenu(null), []);
+  const tumunuDeneKapali = !target || busy || !hasStatements || tryBlocked;
+  const tumunuDeneIpucu = tryBlocked ? tryReasons.map(formatReason).join('\n') : "Tüm script'i çalıştır ve her zaman geri al (Ctrl/Cmd+Alt+Shift+Enter)";
+  const tumunuCalistirKapali = !target || busy || !hasStatements || blocked;
+  const tumunuCalistirIpucu = blocked ? reasons.map(formatReason).join('\n') : "Tüm script'i çalıştır (Ctrl/Cmd+Alt+Enter)";
+
+  /** Sonuç sekmesi başına grid seçiminin özeti; yeni çalıştırmada silinir. */
+  const [secimler, setSecimler] = useState<Readonly<Record<number, SecimOzeti>>>({});
+  const shown = gosterilenSekme(sekmeSecimi, run);
+  const shownResult = sonucSekmeleri(run).find((t) => t.anahtar === shown)?.i;
+  const gridSecimi = shownResult === undefined || sonucDaraltilmis ? null : (secimler[shownResult] ?? null);
+  const onDurumRef = useRef(onDurum);
+  onDurumRef.current = onDurum;
+  useEffect(() => onDurumRef.current?.({ run, deadline, secim: gridSecimi, bildirim: notice }), [run, deadline, gridSecimi, notice]);
+
   return (
     <div className="script-ekrani" hidden={hidden}>
       <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}`}>
@@ -414,6 +459,11 @@ export function ScriptEkrani({
         <Dugme tur="sade" boyut="kucuk" className="hedef-degistir" onClick={onChangeTarget}>
           hedefi değiştir <ChevronDown aria-hidden="true" />
         </Dugme>
+        {onHistory && (
+          <Dugme tur="sade" ikon className="gecmis-dugmesi" aria-label="Sorgu geçmişi" title="Sorgu geçmişi (Ctrl/Cmd+Alt+E)" onClick={onHistory}>
+            <History aria-hidden="true" />
+          </Dugme>
+        )}
         <Dugme tur="sade" boyut="kucuk" className="kayit-klasoru" onClick={openHistoryFolder}>
           Çalıştırma kayıtları klasörünü aç
         </Dugme>
@@ -429,13 +479,14 @@ export function ScriptEkrani({
         </div>
       )}
       {runOnProd && run?.deneme && <DenemeProdUyarisi />}
-          <div className="script-cubugu">
-            <Rozet tur={MODE_ROZETLERI[analysis.mod]} title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
+          <div className="script-cubugu" role="toolbar" aria-label="Çalıştırma" ref={toolbar}>
+            <Rozet data-eylem="mod" tur={MODE_ROZETLERI[analysis.mod]} title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
               {MODE_LABELS[analysis.mod]}
             </Rozet>
             {lock && (
               // Tek tık; onay, şerit ya da tema değişimi yok. Açık transaction'ın kilidi değişmez.
               <Dugme
+                data-eylem="kilit"
                 tur={lock === 'yazma-acik' ? 'tehlikeli' : 'ikincil'}
                 boyut="kucuk"
                 className="kilit-dugmesi"
@@ -449,27 +500,37 @@ export function ScriptEkrani({
               </Dugme>
             )}
             {running ? (
-              <Dugme tur="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
+              <Dugme data-eylem="iptal" tur="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
                 <Square aria-hidden="true" /> İptal
               </Dugme>
             ) : (
               <>
-                {notice && (
-                  <span role="status" aria-label="Çalıştırma bildirimi" className="soluk kucuk">
-                    {notice}
-                  </span>
+                {tasan.length > 0 && (
+                  <Dugme
+                    data-eylem={TASMA_MENUSU}
+                    tur="sade"
+                    ikon
+                    aria-label="Diğer eylemler"
+                    aria-haspopup="menu"
+                    title="Diğer eylemler"
+                    onClick={(e) => setOverflowMenu(menuBelow(e))}
+                  >
+                    <Ellipsis aria-hidden="true" />
+                  </Dugme>
+                )}
+                {!tasan.includes('tumunuDene') && (
+                  <Dugme
+                    data-eylem="tumunuDene"
+                    title={tumunuDeneIpucu}
+                    aria-keyshortcuts="Control+Alt+Shift+Enter Meta+Alt+Shift+Enter"
+                    onClick={() => runAll(true)}
+                    disabled={tumunuDeneKapali}
+                  >
+                    Tümünü dene
+                  </Dugme>
                 )}
                 <Dugme
-                  title={
-                    tryBlocked ? tryReasons.map(formatReason).join('\n') : "Tüm script'i çalıştır ve her zaman geri al (Ctrl/Cmd+Alt+Shift+Enter)"
-                  }
-                  aria-keyshortcuts="Control+Alt+Shift+Enter Meta+Alt+Shift+Enter"
-                  onClick={() => runAll(true)}
-                  disabled={!target || busy || !hasStatements || tryBlocked}
-                >
-                  Tümünü dene
-                </Dugme>
-                <Dugme
+                  data-eylem="dene"
                   title={
                     !aralik
                       ? NO_RANGE_MESSAGE
@@ -483,15 +544,19 @@ export function ScriptEkrani({
                 >
                   <FlaskConical aria-hidden="true" /> Dene
                 </Dugme>
+                {!tasan.includes('tumunuCalistir') && (
+                  <Dugme
+                    data-eylem="tumunuCalistir"
+                    title={tumunuCalistirIpucu}
+                    aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
+                    onClick={() => runAll(false)}
+                    disabled={tumunuCalistirKapali}
+                  >
+                    Tümünü çalıştır
+                  </Dugme>
+                )}
                 <Dugme
-                  title={blocked ? reasons.map(formatReason).join('\n') : "Tüm script'i çalıştır (Ctrl/Cmd+Alt+Enter)"}
-                  aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
-                  onClick={() => runAll(false)}
-                  disabled={!target || busy || !hasStatements || blocked}
-                >
-                  Tümünü çalıştır
-                </Dugme>
-                <Dugme
+                  data-eylem="calistir"
                   tur="birincil"
                   title={
                     !aralik
@@ -509,6 +574,19 @@ export function ScriptEkrani({
               </>
             )}
           </div>
+      {overflowMenu && (
+        <Menu
+          x={overflowMenu.x}
+          y={overflowMenu.y}
+          label="Diğer eylemler"
+          items={tasan.map((anahtar) =>
+            anahtar === 'tumunuDene'
+              ? { label: 'Tümünü dene', disabled: tumunuDeneKapali, onSelect: () => runAll(true) }
+              : { label: 'Tümünü çalıştır', disabled: tumunuCalistirKapali, onSelect: () => runAll(false) },
+          )}
+          onClose={closeOverflowMenu}
+        />
+      )}
       {!busy && blocked && <BlockReasons reasons={reasons} />}
       <div className="script-govde" ref={govde}>
         <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
@@ -548,7 +626,8 @@ export function ScriptEkrani({
           <SonucAlani
             run={run}
             runNo={runNo}
-            shown={gosterilenSekme(sekmeSecimi, run)}
+            shown={shown}
+            onSecim={(i, ozet) => setSecimler((s) => ({ ...s, [i]: ozet }))}
             onSelect={(anahtar) => {
               setSekmeSecimi((s) => kullaniciSecti(s ?? { secili: 'log', elle: false }, anahtar));
               if (sonucDaraltilmis) onSonucAlani({ sonucDaraltilmis: false });
@@ -728,6 +807,7 @@ function SonucAlani({
   daraltilmis,
   onToggle,
   onMore,
+  onSecim,
   tipAdlari,
   log,
 }: {
@@ -739,6 +819,8 @@ function SonucAlani({
   onToggle: () => void;
   /** `i`. sonucun grid'i yüklü satırların sonuna yaklaştı. */
   onMore: (i: number) => void;
+  /** `i`. sonucun grid'inde seçim değişti. */
+  onSecim: (i: number, ozet: SecimOzeti) => void;
   /** Katalogdan OID → tip adı ("INSERT olarak kopyala"). */
   tipAdlari?: ReadonlyMap<number, string>;
   /** Log sekmesinin içeriği. */
@@ -784,6 +866,7 @@ function SonucAlani({
             satirlar={s.onizleme!.satirlar}
             toplamSatir={resultTotal(s.onizleme!, s.rowCount)}
             onSonaYaklasti={() => onMore(s.i)}
+            onSecimOzeti={(ozet) => onSecim(s.i, ozet)}
           />
         </>
       );

@@ -58,6 +58,7 @@ import {
 } from '../core/veritabani-secimi';
 import type { ConnectionSession } from './veritabanlari/hedef';
 import { navigatorShortcut, shortcutKey } from '../core/kisayollar';
+import { DurumCubugu, type SekmeDurumu } from './ortak/DurumCubugu';
 import { APPLE, modalOpen, useWindowWidth } from './ortak/pencere';
 import { Bolucu } from './ortak/Bolucu';
 import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari } from '../core/arayuz-tercihleri';
@@ -274,6 +275,10 @@ export function App() {
   const toggleTabWriteMode = useCallback((id: string) => setKonsol((k) => toggleWriteMode(k, id)), []);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closeHistory = useCallback(() => setHistoryOpen(false), []);
+  const toggleHistory = useCallback(() => setHistoryOpen((open) => !open), []);
+  /** Sekme başına Durum çubuğu değerleri; çubuk etkin sekmeninkini gösterir. */
+  const [tabStatuses, setTabStatuses] = useState<Readonly<Record<string, SekmeDurumu>>>({});
+  const changeTabStatus = useCallback((id: string, durum: SekmeDurumu) => setTabStatuses((d) => ({ ...d, [id]: durum })), []);
   /** Metin verilen hedefte yeni konsol sekmesinde (geçmişten açma, Tablo sekmesinden "Konsola aktar"). */
   const openConsoleWith = useCallback(
     (hedef: TabTarget | null, metin: string) => setKonsol((k) => openConsoleTab(k, newTabId(), hedef, metin)),
@@ -812,7 +817,6 @@ export function App() {
             />
           )}
         </nav>
-        <footer className="kenar-alt">{status.kind === 'ok' && <span>v{status.version}</span>}</footer>
       </aside>
       <main className="calisma-alani">
         {formOpen && (
@@ -844,6 +848,8 @@ export function App() {
           hidden={formOpen}
           historyOpen={historyOpen}
           onCloseHistory={closeHistory}
+          onToggleHistory={toggleHistory}
+          onSekmeDurumu={changeTabStatus}
           onOpenFromHistory={openFromHistory}
           onOpenConsole={openConsoleWith}
           autoLoadTabs={autoLoadTabs}
@@ -852,6 +858,11 @@ export function App() {
           onSonucAlani={updatePreferences}
         />
       </main>
+      <DurumCubugu
+        hedef={targetConnection && target ? { connection: targetConnection, database: target.database } : null}
+        durum={(activeTab && tabStatuses[activeTab.id]) ?? null}
+        surum={status.kind === 'ok' ? status.version : null}
+      />
       {paletteOpen && (
         <HizliGecis
           connections={connections ?? []}

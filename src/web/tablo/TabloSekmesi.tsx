@@ -59,6 +59,8 @@ import { KolonFormu } from './KolonFormu';
 import { tableHasRows } from '../../core/kolon-ekle';
 import type { CatalogReason } from '../katalog/kataloglar';
 import { Yukleniyor } from '../ortak/Yukleniyor';
+import type { SekmeDurumu } from '../ortak/DurumCubugu';
+import type { SecimOzeti } from '../../core/grid/secim-ozeti';
 
 interface Props {
   tab: TableTab;
@@ -86,6 +88,8 @@ interface Props {
    * `tazelendi` sunucu DDL commit'inden sonra katalogu tazeleyince (`bitti.katalogYenilendi`).
    */
   onCatalog?: (reason: Extract<CatalogReason, 'hedef' | 'tazelendi'>) => void;
+  /** Durum çubuğunun değerleri: "Uygula" çalıştırması, tahmini satır, bekleyen değişiklik, grid seçimi. */
+  onDurum?: (durum: SekmeDurumu) => void;
   hidden: boolean;
 }
 
@@ -192,6 +196,7 @@ export function TabloSekmesi({
   onPendingChange,
   onExportToConsole,
   onCatalog,
+  onDurum,
   hidden,
 }: Props) {
   const api = useApi();
@@ -376,6 +381,14 @@ export function TabloSekmesi({
       onPendingChangeRef.current?.(0);
     },
     [],
+  );
+  /** Grid seçiminin özeti; grid yeniden kurulunca (yeni sayfa, filtre) yeniden bildirilir. */
+  const [secim, setSecim] = useState<SecimOzeti | null>(null);
+  const onDurumRef = useRef(onDurum);
+  onDurumRef.current = onDurum;
+  useEffect(
+    () => onDurumRef.current?.({ run, deadline, secim, tablo: { tahmin: estimate, bekleyen: count } }),
+    [run, deadline, secim, estimate, count],
   );
   // Tarayıcı sekmesi kapanırken de uyarılır.
   useEffect(() => {
@@ -723,6 +736,7 @@ export function TabloSekmesi({
               satirlar={shownRows}
               toplamSatir={complete(sayfa) ? shownRows.length : null}
               onSonaYaklasti={loadMore}
+              onSecimOzeti={setSecim}
               onKolonTikla={(c) => sortBy(sayfa, sayfa.kolonlar[c]!)}
               siralama={siralama}
               onDuzenle={editing ? editCellAt : undefined}
