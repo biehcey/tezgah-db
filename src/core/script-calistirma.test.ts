@@ -5,6 +5,7 @@ import {
   ROW_LIMIT_MESSAGE,
   applyEvent,
   autocommitSummary,
+  bildirimGeldi,
   canFetchMore,
   requestMore,
   formatSummary,
@@ -368,5 +369,16 @@ describe('noticeEvent', () => {
     ['seviyesiz, mesajsız', {}, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: '' }],
   ])('%s', (_, raw, expected) => {
     expect(noticeEvent(raw, 1)).toEqual(expected);
+  });
+});
+
+describe('bildirimGeldi: Sunucu bildirimi sınırı (sunucu ve arayüz aynı sayar)', () => {
+  it.each([
+    ['ilk bildirim gösterilir', { gosterilen: 0, fazla: 0 }, { goster: true, sayac: { gosterilen: 1, fazla: 0 } }],
+    ['sınırdan bir önceki gösterilir', { gosterilen: 999, fazla: 0 }, { goster: true, sayac: { gosterilen: 1000, fazla: 0 } }],
+    ['sınır dolunca fazlaya sayılır', { gosterilen: 1000, fazla: 0 }, { goster: false, sayac: { gosterilen: 1000, fazla: 1 } }],
+    ['fazla birikir', { gosterilen: 1000, fazla: 4 }, { goster: false, sayac: { gosterilen: 1000, fazla: 5 } }],
+  ])('%s', (_, sayac, expected) => {
+    expect(bildirimGeldi(sayac)).toEqual(expected);
   });
 });

@@ -37,8 +37,9 @@ import { PAGE_ROWS, ROW_LIMIT } from '../core/grid/sabitler';
 import { splitStatements, type Statement } from '../core/ifade-bolme';
 import { TUNNEL_CLOSED } from '../core/ssh-tuneli';
 import {
-  BILDIRIM_SINIRI,
   MORE_CLOSED_FAILED,
+  bildirimGeldi,
+  type BildirimSayaci,
   MORE_CLOSED_FINISHED,
   PREVIEW_ROWS,
   ROW_COUNT_ERROR,
@@ -326,20 +327,19 @@ export function createScriptRunner({ store, pools, catalogs, clock, history, log
       void recorder.started.then((ok) => ok || recordFailed());
       let finished = false;
       // Sunucu bildirimleri: ilk `BILDIRIM_SINIRI` tanesi geldikçe gider, gerisi sayılır.
-      let notices = 0;
-      let overflow = 0;
+      let notices: BildirimSayaci = { gosterilen: 0, fazla: 0 };
       const onNotice = (notice: Parameters<typeof noticeEvent>[0]) => {
         if (finished) return;
-        if (notices >= BILDIRIM_SINIRI) return void overflow++;
-        notices++;
-        send(noticeEvent(notice, current.calisan ?? null));
+        const { goster, sayac } = bildirimGeldi(notices);
+        notices = sayac;
+        if (goster) send(noticeEvent(notice, current.calisan ?? null));
       };
       const ddl = changesCatalog(splitStatements(script));
       /** Katalogu tazelenecek çalıştırmanın `bitti`'si: oturum client'ı bırakıldıktan sonra gider. */
       let afterRefresh: Omit<Finished, 'type'> | null = null;
       const finish: Finish = async (sonucOlayi, sonuc) => {
         finished = true;
-        const event = overflow > 0 ? { ...sonucOlayi, bildirimFazlasi: overflow } : sonucOlayi;
+        const event = notices.fazla > 0 ? { ...sonucOlayi, bildirimFazlasi: notices.fazla } : sonucOlayi;
         if (!(await recorder.finish({ sonuc, mesaj: event.mesaj, ifadeler: current.ifadeler }))) recordFailed();
         // Kalıcı olan DDL: commit edildi ya da autocommit'te en az bir ifade uygulandı. Yalnızca
         // kullanıcının istediği (önbellekte ya da okunmakta olan) katalog tazelenir.

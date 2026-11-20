@@ -125,6 +125,19 @@ const SEVIYELER: readonly BildirimSeviyesi[] = ['DEBUG', 'LOG', 'INFO', 'NOTICE'
 /** Sunucunun çalıştırma başına gönderdiği (ve arayüzün gösterdiği) en fazla Sunucu bildirimi. */
 export const BILDIRIM_SINIRI = 1000;
 
+/** Çalıştırmada gösterilen (gönderilen) ve sınırdan sonra yalnızca sayılan Sunucu bildirimleri. */
+export interface BildirimSayaci {
+  gosterilen: number;
+  fazla: number;
+}
+
+/** Yeni Sunucu bildirimi geldi: sınır dolmadıysa gösterilir, dolduysa fazlaya sayılır. */
+export function bildirimGeldi(s: BildirimSayaci): { goster: boolean; sayac: BildirimSayaci } {
+  return s.gosterilen < BILDIRIM_SINIRI
+    ? { goster: true, sayac: { gosterilen: s.gosterilen + 1, fazla: s.fazla } }
+    : { goster: false, sayac: { gosterilen: s.gosterilen, fazla: s.fazla + 1 } };
+}
+
 type Bildirim = Extract<ServerEvent, { type: 'bildirim' }>;
 
 /**
@@ -421,7 +434,8 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
     case 'bekletilenler':
       return { ...view, bekletilenler: event.oturumlar };
     case 'bildirim': {
-      if (view.bildirimler.length >= BILDIRIM_SINIRI) return { ...view, bildirimFazlasi: (view.bildirimFazlasi ?? 0) + 1 };
+      const { goster, sayac } = bildirimGeldi({ gosterilen: view.bildirimler.length, fazla: view.bildirimFazlasi ?? 0 });
+      if (!goster) return { ...view, bildirimFazlasi: sayac.fazla };
       const { type: _t, ...bildirim } = event;
       // Satır ifadenin satırıdır; o da Çalışacak aralıktan editöre taşınmıştır.
       const satir = event.i === null ? null : (view.ifadeler[event.i]?.satir ?? null);
