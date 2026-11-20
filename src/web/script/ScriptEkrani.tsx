@@ -439,7 +439,7 @@ export function ScriptEkrani({
   });
 
   /** Sonuç sekmesi başına grid seçiminin özeti; yeni çalıştırmada silinir. */
-  const [secimler, setSecimler] = useState<Readonly<Record<number, SecimOzeti>>>({});
+  const [secimler, setSecimler] = useState<Readonly<Record<number, SecimOzeti | null>>>({});
   const shown = gosterilenSekme(sekmeSecimi, run);
   const shownResult = sonucSekmeleri(run).find((t) => t.anahtar === shown)?.i;
   const gridSecimi = shownResult === undefined || sonucDaraltilmis ? null : (secimler[shownResult] ?? null);
@@ -814,7 +814,7 @@ function SonucAlani({
   /** `i`. sonucun grid'i yüklü satırların sonuna yaklaştı. */
   onMore: (i: number) => void;
   /** `i`. sonucun grid'inde seçim değişti. */
-  onSecim: (i: number, ozet: SecimOzeti) => void;
+  onSecim: (i: number, ozet: SecimOzeti | null) => void;
   /** Katalogdan OID → tip adı ("INSERT olarak kopyala"). */
   tipAdlari?: ReadonlyMap<number, string>;
   /** Log sekmesinin içeriği. */

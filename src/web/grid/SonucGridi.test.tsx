@@ -68,6 +68,19 @@ describe('Sonuç grid’i: çizim', () => {
     expect(cell(2, 1)).toHaveAttribute('aria-colindex', '2');
   });
 
+  it('satırlar boşalınca (ör. filtre sonucu boş sayfa) seçim özeti kalkar', () => {
+    const onSecimOzeti = vi.fn();
+    const grid = (satirlar: (string | null)[][]) => (
+      <GridOlcumu.Provider value={JSDOM_OLCUMU}>
+        <SonucGridi etiket="Sonuç 1" kolonlar={KOLONLAR} satirlar={satirlar} toplamSatir={satirlar.length} onSecimOzeti={onSecimOzeti} />
+      </GridOlcumu.Provider>
+    );
+    const { rerender } = render(grid(rows(3)));
+    expect(onSecimOzeti).toHaveBeenLastCalledWith(expect.objectContaining({ hucre: 1 }));
+    rerender(grid([]));
+    expect(onSecimOzeti).toHaveBeenLastCalledWith(null);
+  });
+
   it('toplam biliniyorsa aria-rowcount yüklenenlerden fazla olsa da başlık dahil toplam satırdır', () => {
     setup({ satirlar: rows(5), toplam: 750 });
     expect(grid()).toHaveAttribute('aria-rowcount', '751');

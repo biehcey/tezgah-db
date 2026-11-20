@@ -106,8 +106,8 @@ interface Props {
   onSatirGorunumu?: (acik: boolean) => void;
   /** Aktif hücrenin satırı değişti (ilk çizimde de bildirilir); satır görünümü onu gösterir. */
   onAktifSatir?: (satir: number) => void;
-  /** Seçim ya da satırlar değişti (ilk çizimde de bildirilir); Durum çubuğu özeti gösterir. */
-  onSecimOzeti?: (ozet: SecimOzeti) => void;
+  /** Seçim ya da satırlar değişti (ilk çizimde de bildirilir); Durum çubuğu özeti gösterir. Satır yoksa `null`. */
+  onSecimOzeti?: (ozet: SecimOzeti | null) => void;
 }
 
 const DURUM_ETIKETI = { eklendi: 'eklendi', silinecek: 'silinecek' } as const;
@@ -298,7 +298,9 @@ export function SonucGridi({
   const onSecimOzetiRef = useRef(onSecimOzeti);
   onSecimOzetiRef.current = onSecimOzeti;
   useEffect(() => {
-    if (!onSecimOzetiRef.current || satirlar.length === 0) return;
+    if (!onSecimOzetiRef.current) return;
+    // Boş sayfada (ör. filtre hiçbir satır döndürmedi) seçilecek hücre yok: özet kalkar.
+    if (satirlar.length === 0) return onSecimOzetiRef.current(null);
     const r = selectionRange(sel);
     onSecimOzetiRef.current(secimOzeti(selectedValues(satirlar, sel), kolonlar.slice(r.sol, r.sag + 1).map((_, c) => tipler?.[r.sol + c])));
   }, [sel, satirlar, kolonlar, tipler]);
