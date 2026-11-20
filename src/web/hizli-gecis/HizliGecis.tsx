@@ -11,6 +11,7 @@ import {
   type TargetItem,
 } from '../../core/hizli-gecis';
 import type { Target } from '../../core/veritabani-secimi';
+import { kisayol } from '../ortak/pencere';
 import { OrtamRozeti, Rozet } from '../ortak/Rozet';
 
 /** Paletten çalıştırılan komut; henüz olmayanlar `disabled` ile pasif görünür. */
@@ -21,6 +22,8 @@ export interface PaletteCommand {
   hint?: string;
   /** Seçeneklerden biri olan komut (ör. tema): 	rue etkin olanı işaretler. */
   checked?: boolean;
+  /** Komutun kısayol metni (katalogdan); sağda yazar. */
+  shortcut?: string;
   run: () => void;
 }
 
@@ -61,6 +64,7 @@ interface Entry {
   locked?: boolean;
   hint?: string;
   checked?: boolean;
+  shortcut?: string;
   item?: TargetItem;
   prod?: boolean;
   run: () => void;
@@ -150,7 +154,15 @@ export function HizliGecis({
         title: 'Komutlar',
         entries: commands
           .filter((c) => fuzzyScore(query, c.label) !== null)
-          .map((c) => ({ key: `komut/${c.label}`, label: c.label, disabled: c.disabled, hint: c.hint, checked: c.checked, run: c.run })),
+          .map((c) => ({
+            key: `komut/${c.label}`,
+            label: c.label,
+            disabled: c.disabled,
+            hint: c.hint,
+            checked: c.checked,
+            shortcut: c.shortcut,
+            run: c.run,
+          })),
       },
     );
   }
@@ -247,13 +259,16 @@ export function HizliGecis({
                     </Rozet>
                   )}
                   {entry.hint && <span className="soluk kucuk">{entry.hint}</span>}
+                  {entry.shortcut && <kbd className="kisayol-ipucu">{entry.shortcut}</kbd>}
                 </div>
               ))}
             </div>
           ))}
           {shown.length === 0 && !urlError && <p className="soluk kucuk palet-bos">Sonuç yok.</p>}
         </div>
-        <footer className="palet-alt soluk kucuk">↵ hedef yap · Alt+↵ listede göster · Esc kapat</footer>
+        <footer className="palet-alt soluk kucuk">
+          {kisayol('paletSec')} hedef yap · {kisayol('paletGoster')} listede göster · {kisayol('paletKapat')} kapat
+        </footer>
       </div>
     </div>
   );

@@ -169,13 +169,23 @@ describe('Cmd/Ctrl+K paleti: komutlar', () => {
     const { user } = await setup();
     await user.keyboard('{Control>}k{/Control}');
     expect(options('Komutlar')).toEqual([
+      'Çalıştırhedef seçilmediCtrl+Enter',
+      'Tümünü çalıştırhedef seçilmediCtrl+Alt+Enter',
+      'Denehedef seçilmediCtrl+Shift+Enter',
+      'Tümünü denehedef seçilmediCtrl+Alt+Shift+Enter',
+      'Yazma modunu açhedef seçilmedi',
+      'Yeni konsol',
+      'Sorgu geçmişiCtrl+Alt+E',
+      'Gezgini gizleCtrl+B',
+      'Sonuç alanını daralt',
+      'Tema: Sistemetkin',
+      'Tema: Açık',
+      'Tema: Koyu',
+      'Kısayollar?',
       'Yeni bağlantı',
       'Yeni klasör',
       'İçe aktar',
       'Çalıştırma kayıtları klasörünü aç',
-      'Tema: Sistemetkin',
-      'Tema: Açık',
-      'Tema: Koyu',
     ]);
 
     await user.type(search(), 'yeni bag');

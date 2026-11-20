@@ -16,6 +16,7 @@ import { Dugme } from '../ortak/Dugme';
 import { OnayKutusu, Radyo, TarihAlani } from '../ortak/FormKontrolleri';
 import { Rozet, type RozetTuru } from '../ortak/Rozet';
 import { Yukleniyor } from '../ortak/Yukleniyor';
+import { kisayol } from '../ortak/pencere';
 
 interface Props {
   connections: readonly Connection[];
@@ -112,7 +113,7 @@ export function GecmisPaneli({ connections, activeTarget, onOpen, onClose }: Pro
     <aside className="gecmis-paneli" aria-label="Sorgu geçmişi">
       <header className="gecmis-basligi">
         <h2>Sorgu geçmişi</h2>
-        <Dugme tur="sade" ikon aria-label="Geçmişi kapat" title="Kapat (Ctrl/Cmd+Alt+E)" onClick={onClose}>
+        <Dugme tur="sade" ikon aria-label="Geçmişi kapat" title={`Kapat (${kisayol('gecmis')})`} onClick={onClose}>
           <X aria-hidden="true" />
         </Dugme>
       </header>
