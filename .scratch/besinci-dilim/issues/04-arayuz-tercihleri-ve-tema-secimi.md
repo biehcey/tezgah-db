@@ -6,7 +6,7 @@ Spec: [Arayüz tercihleri (hikâyeler)](../spec.md#arayüz-tercihleri), [Arayüz
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (7ea1ac2)
 
 - [x] core `normalizeArayuzTercihleri(ham, pencere)`: şema `{ surum: 1, gezgin: { acik, genislik }, sonucOrani, sonucDaraltilmis, tema }`; bilinmeyen alanlar atılır, eksikler varsayılanla dolar, sayılar sınırlanır (genişlik 200..pencere/2, oran 0.15..0.85); bozuk girdi varsayılan döner.
 - [x] server: tercih dosyası `tezgah.json`'dan ayrı, aynı uygulama veri dizininde; oku/yaz uç noktaları erişim anahtarıyla doğrulanır; dosya yoksa ya da bozuksa varsayılan döner; hiçbir veritabanına bağlanmaz.
