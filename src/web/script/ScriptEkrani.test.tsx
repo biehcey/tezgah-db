@@ -1293,7 +1293,8 @@ describe('Script ekranı: Sonuç alanı', () => {
     expect(writePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ sonucDaraltilmis: true }));
     await user.click(toggle());
     expect(cards()).toHaveLength(1);
-    expect(writePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ sonucDaraltilmis: false }));
+    // Tercih en fazla saniyede bir yazılır: ikinci değişiklik aralık dolunca gider.
+    await waitFor(() => expect(writePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ sonucDaraltilmis: false })), { timeout: 2000 });
     void run;
   });
 
@@ -1318,5 +1319,10 @@ describe('Script ekranı: Sonuç alanı', () => {
     // Sonuç alanı büyür: oran 0.4'ten artar.
     expect(writePreferences).toHaveBeenCalledTimes(1);
     expect(writePreferences.mock.calls[0]![0].sonucOrani).toBeGreaterThan(0.4);
+    // Ok tuşu basılı tutulunca her tekrar bir PUT olmaz: aralık dolunca son oran tek seferde yazılır.
+    await user.keyboard('{ArrowUp>4/}');
+    expect(writePreferences).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(writePreferences).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    expect(writePreferences.mock.calls[1]![0].sonucOrani).toBeGreaterThan(writePreferences.mock.calls[0]![0].sonucOrani);
   });
 });
