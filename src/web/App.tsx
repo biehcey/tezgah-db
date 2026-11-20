@@ -54,7 +54,10 @@ import {
 } from '../core/veritabani-secimi';
 import type { ConnectionSession } from './veritabanlari/hedef';
 import { navigatorShortcut, shortcutKey } from '../core/kisayollar';
-import { APPLE, modalOpen } from './ortak/pencere';
+import { APPLE, modalOpen, useWindowWidth } from './ortak/pencere';
+import { Bolucu } from './ortak/Bolucu';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari } from '../core/arayuz-tercihleri';
+import { bolucuDegeri } from '../core/bolucu';
 import { themeCommands, usePreferences, useTheme } from './ortak/tercihler';
 
 type Status = { kind: 'loading' } | { kind: 'ok'; version: string } | { kind: 'error'; message: string };
@@ -141,8 +144,17 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
-  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); diske yazılmaz. */
-  const [navigatorOpen, setNavigatorOpen] = useState(true);
+  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); Arayüz tercihlerinde saklanır. */
+  const navigatorOpen = preferences.gezgin.acik;
+  const setNavigatorOpen = useCallback(
+    (open: boolean | ((current: boolean) => boolean)) =>
+      updatePreferences((p) => ({ gezgin: { ...p.gezgin, acik: typeof open === 'function' ? open(p.gezgin.acik) : open } })),
+    [updatePreferences],
+  );
+  /** Gezgin genişliği: sürüklerken yerel, bırakınca tercihe yazılır; pencereye göre sınırlanır. */
+  const [draggedWidth, setDraggedWidth] = useState<number | null>(null);
+  const navigatorBounds = gezginSinirlari({ genislik: useWindowWidth() });
+  const navigatorWidth = bolucuDegeri(draggedWidth ?? preferences.gezgin.genislik, navigatorBounds.min, navigatorBounds.max);
   /** Bu oturumda listeden açılan Tablo sekmeleri; ilk sayfaları hemen çekilir. */
   const [autoLoadTabs, setAutoLoadTabs] = useState<ReadonlySet<string>>(new Set());
   /** Sekme başına hedef kilidi: script çalışırken ve karar beklenirken hedef değiştirilemez; neden. */
@@ -176,7 +188,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [setNavigatorOpen]);
 
   useEffect(() => {
     let active = true;
@@ -723,7 +735,21 @@ export function App() {
         </button>
       )}
       {/* Gizlenince kapanmaz: açık düğümler, yüklü şemalar ve arama korunur. */}
-      <aside className="kenar" hidden={!navigatorOpen}>
+      <aside className="kenar" hidden={!navigatorOpen} style={{ width: navigatorWidth }}>
+        <Bolucu
+          yon="dikey"
+          deger={navigatorWidth}
+          min={navigatorBounds.min}
+          max={navigatorBounds.max}
+          adim={16}
+          varsayilan={ARAYUZ_TERCIHLERI_VARSAYILAN.gezgin.genislik}
+          onDegis={setDraggedWidth}
+          onBitir={(genislik) => {
+            setDraggedWidth(null);
+            updatePreferences((p) => ({ gezgin: { ...p.gezgin, genislik } }));
+          }}
+          aria-label="Gezgin genişliği"
+        />
         <header className="kenar-baslik">
           <h1>Tezgah</h1>
           <button
