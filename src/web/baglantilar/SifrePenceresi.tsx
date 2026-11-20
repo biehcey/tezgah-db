@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { connectionAddress, type Connection, type SessionSecret } from '../../core/baglanti';
 import { Diyalog } from '../ortak/Diyalog';
+import { Dugme } from '../ortak/Dugme';
 
 interface Props {
   connection: Connection;
@@ -51,12 +52,10 @@ export function SifrePenceresi({ connection, secret = 'veritabani', rejection, o
       dugmeler={
         <>
           <span className="bosluk" />
-          <button type="button" onClick={onCancel}>
-            İptal
-          </button>
-          <button type="submit" className="birincil" disabled={busy}>
+          <Dugme onClick={onCancel}>İptal</Dugme>
+          <Dugme type="submit" tur="birincil" disabled={busy}>
             Bağlan
-          </button>
+          </Dugme>
         </>
       }
     >

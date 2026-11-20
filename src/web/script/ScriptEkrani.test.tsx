@@ -37,7 +37,7 @@ function setup({ withTarget = true, openRunHistoryFolder = vi.fn(() => Promise.r
   return { user, fake, view, openRunHistoryFolder };
 }
 
-/** Tüm script'i çalıştıran düğme; "▶ Çalıştır" Çalışacak aralığı çalıştırır. */
+/** Tüm script'i çalıştıran düğme; "Çalıştır" Çalışacak aralığı çalıştırır. */
 const runButton = () => screen.getByRole('button', { name: 'Tümünü çalıştır' });
 const column = () => screen.getByRole('complementary', { name: 'Çalıştırma' });
 const decision = () => screen.getByRole('region', { name: 'Karar' });
@@ -79,8 +79,8 @@ describe('Script ekranı: çalıştırma başlatma', () => {
       expect.stringContaining('satır 3'),
     ]);
     // Çalışırken düzenleme ve ikinci çalıştırma yok; İptal var.
-    expect(screen.queryByRole('button', { name: '▶ Çalıştır' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '■ İptal' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Çalıştır' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'İptal' })).toBeInTheDocument();
   });
 
   it('editörde Ctrl/Cmd+Enter çalıştırır; editöre satır eklenmez', async () => {
@@ -113,7 +113,7 @@ describe('Script ekranı: çalıştırma başlatma', () => {
 
 describe('Script ekranı: Çalışacak aralık', () => {
   const KARISIK = 'INSERT INTO t VALUES (1);\nVACUUM t;\nSELECT nope\n  FROM t;';
-  const rangeButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+  const rangeButton = () => screen.getByRole('button', { name: 'Çalıştır' });
 
   it('Ctrl/Cmd+Enter yalnızca imlecin ifadesini gönderir; Ctrl/Cmd+Alt+Enter tüm script’i', async () => {
     const { user, fake } = setup();
@@ -263,7 +263,7 @@ describe('Script ekranı: canlı olaylar', () => {
 
   it('İptal sunucuya iptal gönderir', async () => {
     const { user, run } = await startRun();
-    await user.click(screen.getByRole('button', { name: '■ İptal' }));
+    await user.click(screen.getByRole('button', { name: 'İptal' }));
     expect(run.sent).toEqual(['iptal']);
     run.emit(
       { type: 'error', i: 0, ms: 5, sqlstate: '57014', mesaj: 'canceling statement due to user request', satir: 1, sutun: 1, bas: 0, bit: 24 },
@@ -278,7 +278,7 @@ describe('Script ekranı: karar kartı', () => {
   it('script bitince Commit ve Rollback sunulur; commit sonucu gösterilir', async () => {
     const { user, run } = await startRun('SELECT 1');
     run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT' }, { type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: 30 * DK });
-    expect(screen.queryByRole('button', { name: '■ İptal' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'İptal' })).not.toBeInTheDocument();
     await user.click(within(decision()).getByRole('button', { name: 'Commit' }));
     expect(run.sent).toEqual(['commit']);
     run.emit({ type: 'bitti', sonuc: 'commit' });
@@ -342,7 +342,7 @@ describe('Script ekranı: bekletme göstergesi', () => {
     expect(indicator()).not.toBeInTheDocument();
 
     run.emit(blocked);
-    expect(within(decision()).getByRole('button', { name: /oturumu bekletiyorsun/ })).toHaveTextContent('⚠ 2 oturumu bekletiyorsun');
+    expect(within(decision()).getByRole('button', { name: /oturumu bekletiyorsun/ })).toHaveTextContent('2 oturumu bekletiyorsun');
     expect(list()).not.toBeInTheDocument();
 
     await user.hover(indicator()!);
@@ -369,7 +369,7 @@ describe('Script ekranı: bekletme göstergesi', () => {
     const { run } = await startRun('SELECT 1');
     run.emit({ type: 'analiz', mod: 'okuma', transactionDisi: [], reddedilenler: [] }, { type: 'okumaAcik', kalanMs: 30 * DK }, blocked);
     const status = screen.getByRole('status', { name: 'Okuma durumu' });
-    expect(within(status).getByRole('button', { name: /oturumu bekletiyorsun/ })).toHaveTextContent('⚠ 2 oturumu bekletiyorsun');
+    expect(within(status).getByRole('button', { name: /oturumu bekletiyorsun/ })).toHaveTextContent('2 oturumu bekletiyorsun');
   });
 });
 
@@ -647,7 +647,7 @@ describe('Script ekranı: prod yazma kilidi', () => {
 
   it('prod hedef 🔒 Salt okunur açılır ve çalıştırma salt okunur gider', async () => {
     const { user, fake } = setupProd();
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
     expect(lockButton()).toHaveAttribute('aria-pressed', 'false');
     setEditorScript('SELECT 1');
     await user.click(runButton());
@@ -662,7 +662,7 @@ describe('Script ekranı: prod yazma kilidi', () => {
     expect(fake.last()).toMatchObject({ script: 'INSERT INTO t VALUES (1);', yazmaModu: false });
     fake.last().emit({ type: 'bitti', sonuc: 'rollback' });
     setEditorCursor('VACUUM');
-    const rangeButton = screen.getByRole('button', { name: '▶ Çalıştır' });
+    const rangeButton = screen.getByRole('button', { name: 'Çalıştır' });
     expect(rangeButton).toBeDisabled();
     expect(rangeButton).toHaveAccessibleDescription(expect.stringContaining("Salt okunur prod'da Autocommit"));
   });
@@ -670,15 +670,15 @@ describe('Script ekranı: prod yazma kilidi', () => {
   it('hedef başlığında ortam etiketinin yanında kilit rozeti durumu gösterir', async () => {
     const { user } = setupProd();
     const header = screen.getByRole('region', { name: 'Hedef' });
-    expect(within(header).getByTitle('Yazma kilidi')).toHaveTextContent('🔒 Salt okunur');
+    expect(within(header).getByTitle('Yazma kilidi')).toHaveTextContent('Salt okunur');
     await user.click(lockButton());
-    expect(within(header).getByTitle('Yazma kilidi')).toHaveTextContent('🔓 Yazma açık');
+    expect(within(header).getByTitle('Yazma kilidi')).toHaveTextContent('Yazma açık');
   });
 
   it('düğme yazma modunu tek tıkla açar ve kapatır; çalıştırma onaysız yazma moduyla gider', async () => {
     const { user, fake } = setupProd();
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('Yazma açık');
     expect(lockButton()).toHaveAttribute('aria-pressed', 'true');
     setEditorScript('INSERT INTO t VALUES (1)');
     await user.click(runButton());
@@ -689,7 +689,7 @@ describe('Script ekranı: prod yazma kilidi', () => {
 
     fake.last().emit({ type: 'bitti', sonuc: 'iptal' });
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
     await user.click(runButton());
     expect(fake.last().yazmaModu).toBe(false);
   });
@@ -725,6 +725,30 @@ describe('Script ekranı: prod yazma kilidi', () => {
   });
 });
 
+describe('Script ekranı: ortam rozeti', () => {
+  const rozet = (envTag: 'dev' | 'staging', color: string | null) => {
+    renderWithApi(
+      <Ekran target={{ connection: connection({ id: 'b1', name: 'Uzak', envTag, color }), database: 'app' }} onChangeTarget={() => {}} />,
+      createFakeApi(),
+    );
+    const { style } = within(screen.getByRole('region', { name: 'Hedef' })).getByText(envTag);
+    // jsdom'un varsayılan yazı rengi zaten siyah; rozetin kendi verdiği renkler okunur.
+    return { zemin: style.backgroundColor, yazi: style.color };
+  };
+
+  it('dev rozeti varsayılan yeşilde siyah yazar', () => {
+    expect(rozet('dev', '#16a34a')).toEqual({ zemin: 'rgb(22, 163, 74)', yazi: 'rgb(0, 0, 0)' });
+  });
+
+  it('staging rozeti kullanıcının seçtiği koyu renkte beyaz yazar', () => {
+    expect(rozet('staging', '#1e3a8a')).toEqual({ zemin: 'rgb(30, 58, 138)', yazi: 'rgb(255, 255, 255)' });
+  });
+
+  it('renk verilmemişse etiketin varsayılan rengi kullanılır', () => {
+    expect(rozet('staging', null)).toEqual({ zemin: 'rgb(217, 119, 6)', yazi: 'rgb(0, 0, 0)' });
+  });
+});
+
 describe('Script ekranı: prod’da deneme', () => {
   const strip = () => screen.queryByRole('note', { name: 'Deneme yan etki uyarısı' });
 
@@ -745,7 +769,7 @@ describe('Script ekranı: prod’da deneme', () => {
     const { user, fake } = setupTarget('prod');
     setEditorScript('UPDATE t SET a = 1');
     expect(strip()).toBeNull();
-    await user.click(screen.getByRole('button', { name: '⟲ Dene' }));
+    await user.click(screen.getByRole('button', { name: 'Dene' }));
     expect(fake.last()).toMatchObject({ deneme: true, yazmaModu: false });
     expect(strip()).toHaveTextContent(
       "Deneme prod'da çalışır: satır kilitleri alır, sequence'ler ilerler (nextval geri alınmaz), tetikleyici/FDW/dblink dış etkileri geri alınmaz.",
@@ -763,7 +787,7 @@ describe('Script ekranı: prod’da deneme', () => {
   it('prod dışında şerit yok; hedef sonradan prod’a değişse de o deneme için çıkmaz', async () => {
     const { user, fake, showTarget } = setupTarget('staging');
     setEditorScript('UPDATE t SET a = 1');
-    await user.click(screen.getByRole('button', { name: '⟲ Dene' }));
+    await user.click(screen.getByRole('button', { name: 'Dene' }));
     expect(strip()).toBeNull();
     fake.last().emit({ type: 'bitti', sonuc: 'deneme' });
     await screen.findByText(/Deneme geri alındı/);
@@ -1054,7 +1078,7 @@ describe('Script ekranı: sonuç sekmeleri', () => {
     const { user, run } = await startRun('SELECT 1');
     run.emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'SELECT', onizleme: { kolonlar: ['a'], tipler: [25], satirlar: [["it's"]], dahaVar: false } });
     fireEvent.contextMenu(within(results()).getByRole('gridcell'));
-    await user.click(screen.getByRole('menuitem', { name: 'Kopyala ▸' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
     await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
     expect(await navigator.clipboard.readText()).toBe(`INSERT INTO "tablo" ("a") VALUES ('it''s'::text);`);
   });

@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 import { DML_VERBS, FALLBACK_NOTES } from '../../core/deneme';
 import { mergeChanges, type DiffRow, type SchemaLine, type TableDiff } from '../../core/deneme-farki';
@@ -9,7 +10,7 @@ import { PREVIEW_ROWS, type RunView, type StatementView } from '../../core/scrip
 export function DenemeProdUyarisi() {
   return (
     <div role="note" aria-label="Deneme yan etki uyarısı" className="uyari-seridi deneme-prod">
-      ⚠ Deneme prod'da çalışır: satır kilitleri alır, sequence'ler ilerler (<code>nextval</code> geri alınmaz),
+      <TriangleAlert aria-hidden="true" /> Deneme prod'da çalışır: satır kilitleri alır, sequence'ler ilerler (<code>nextval</code> geri alınmaz),
       tetikleyici/FDW/dblink dış etkileri geri alınmaz.
     </div>
   );

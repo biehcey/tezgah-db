@@ -4,6 +4,8 @@ import { useApi } from '../api/client';
 
 const currentWindow = () => ({ genislik: window.innerWidth });
 
+type PreferenceChange = Partial<Omit<ArayuzTercihleri, 'surum'>>;
+
 /**
  * Arayüz tercihleri: açılışta bir kez okunur (gelene kadar varsayılanlar, yani sistem teması),
  * pencereye göre normalleştirilir. `update` durumu hemen değiştirir ve dosyaya yazar; sürüklemede
@@ -31,10 +33,12 @@ export function usePreferences() {
     };
   }, [api]);
 
+  /** Değişiklik ya da güncel tercihten değişikliği üreten fonksiyon (art arda kısayollar eski durumu görmesin). */
   const update = useCallback(
-    (change: Partial<Omit<ArayuzTercihleri, 'surum'>>) => {
+    (change: PreferenceChange | ((current: ArayuzTercihleri) => PreferenceChange)) => {
       touched.current = true;
-      latest.current = normalizeArayuzTercihleri({ ...latest.current, ...change }, currentWindow());
+      const delta = typeof change === 'function' ? change(latest.current) : change;
+      latest.current = normalizeArayuzTercihleri({ ...latest.current, ...delta }, currentWindow());
       setPreferences(latest.current);
       api.writePreferences(latest.current).catch((err: unknown) => console.error('Arayüz tercihleri yazılamadı', err));
     },

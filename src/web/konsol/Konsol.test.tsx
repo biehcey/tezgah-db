@@ -37,7 +37,7 @@ const tabs = () => within(strip()).getAllByRole('tab');
 const tabNamed = (name: RegExp) => within(strip()).getByRole('tab', { name });
 const header = () => screen.getByRole('region', { name: 'Hedef' });
 const lockButton = () => screen.getByRole('button', { name: /Salt okunur|Yazma açık/ });
-const runButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+const runButton = () => screen.getByRole('button', { name: 'Çalıştır' });
 const frame = (view: { container: HTMLElement }) => view.container.querySelector('.tezgah')!;
 
 /** Paletten hedef seçer (ilk eşleşen hedef). */
@@ -58,7 +58,7 @@ describe('Konsol sekmeleri: açılış', () => {
 
   it('geri gelen prod sekmesi her zaman 🔒 açılır ve hiçbir sunucuya istek gitmez', async () => {
     const { fake, runs } = await setup(saved([prodTab('s1', 'DELETE FROM t')]));
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
     expect(fake.databaseRequests).toEqual([]);
     expect(runs.runs).toEqual([]);
   });
@@ -221,13 +221,13 @@ describe('Konsol sekmeleri: Yazma kilidi', () => {
   it('bir prod sekmesinde 🔓 başka prod sekmesini etkilemez', async () => {
     const { user, runs } = await setup(saved([prodTab('s1', 'SELECT 1'), prodTab('s2', 'SELECT 2')]));
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('Yazma açık');
     await user.click(tabs()[1]!);
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
     await user.click(runButton());
     expect(runs.last().yazmaModu).toBe(false);
     await user.click(tabs()[0]!);
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('Yazma açık');
   });
 
   it('sekmenin hedefi değişince kilit kapanır', async () => {
@@ -235,7 +235,7 @@ describe('Konsol sekmeleri: Yazma kilidi', () => {
     await user.click(lockButton());
     await pickTarget(user, 'Yerel');
     await pickTarget(user, 'Canlı');
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
   });
 });
 

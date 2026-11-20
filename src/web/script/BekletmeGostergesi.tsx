@@ -1,8 +1,9 @@
+import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { formatWait, orHidden, type BlockedSession } from '../../core/bekletme';
 
 /**
- * "⚠ N oturumu bekletiyorsun": açık transaction'ın kilitle beklettiği oturumlar. Üzerine gelince
+ * "N oturumu bekletiyorsun": açık transaction'ın kilitle beklettiği oturumlar. Üzerine gelince
  * (ya da odaklanınca) liste açılır; yetkiden gelmeyen alanlar "görünmüyor" yazar. Liste boşsa yok.
  */
 export function BekletmeGostergesi({ oturumlar }: { oturumlar: readonly BlockedSession[] | undefined }) {
@@ -11,7 +12,7 @@ export function BekletmeGostergesi({ oturumlar }: { oturumlar: readonly BlockedS
   return (
     <span className="bekletme" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button type="button" className="bekletme-sayisi" aria-expanded={open} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>
-        ⚠ {oturumlar.length} oturumu bekletiyorsun
+        <TriangleAlert aria-hidden="true" /> {oturumlar.length} oturumu bekletiyorsun
       </button>
       {open && (
         <table aria-label="Bekletilen oturumlar" className="bekletme-listesi kucuk">

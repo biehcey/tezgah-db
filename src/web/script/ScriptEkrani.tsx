@@ -26,7 +26,11 @@ import type { ServerEvent } from '../../core/script-calistirma';
 import type { SessionTab } from '../../core/konsol-sekmeleri';
 import type { Target } from '../../core/veritabani-secimi';
 import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
-import { STATUS_LABELS, STATUS_SYMBOLS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
+import { ChevronDown, FlaskConical, Play, RefreshCw, Square, TriangleAlert } from 'lucide-react';
+import { STATUS_LABELS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
+import { DurumIkonu, KilitIkonu } from './ikonlar';
+import { Dugme } from '../ortak/Dugme';
+import { OrtamRozeti, Rozet, type RozetTuru } from '../ortak/Rozet';
 import { ScriptEditoru, type EditorMarks, type EditorSecimi, type ScriptEditoruHandle } from './ScriptEditoru';
 import { resultSummary, resultTotal } from '../../core/grid/ozet';
 import { SonucGovdesi } from '../grid/SonucGovdesi';
@@ -36,7 +40,7 @@ import { catalogUse, type CatalogEntry, type CatalogReason } from '../katalog/ka
 interface Props {
   /** Hedefin bağlantısı ve veritabanı; hedef seçilmediyse `null`. */
   target: { connection: Connection; database: string } | null;
-  /** "hedefi değiştir ▾": hızlı geçiş paletini açar. */
+  /** "hedefi değiştir": hızlı geçiş paletini açar. */
   onChangeTarget: () => void;
   /** Hedef kilidinin nedeni değişti (`null`: hedef değiştirilebilir); ekran kapanınca `null`. */
   onTargetLockChange?: (reason: string | null) => void;
@@ -45,7 +49,7 @@ interface Props {
   onScriptChange: (script: string) => void;
   /** Bu sekmenin Yazma kilidi açık mı (sekme ve hedef başına; sahibi konsoldur). */
   writeMode: boolean;
-  /** 🔒/🔓 düğmesi: sekmenin yazma modunu tek tıkla açar ya da kapatır. */
+  /** Kilit düğmesi: sekmenin yazma modunu tek tıkla açar ya da kapatır. */
   onToggleWriteMode: () => void;
   /** Aynı hedefte açık oturumu olan diğer sekmeler; `havuzDolu` mesajı bunlarla kurulur. */
   sessionTabs?: readonly SessionTab[];
@@ -80,6 +84,7 @@ const NO_RANGE_MESSAGE = 'İmleçte çalışacak ifade yok';
 const ANALYSIS_DELAY_MS = 200;
 
 const MODE_LABELS: Record<RunMode, string> = { transaction: 'Transaction', autocommit: 'Autocommit', okuma: 'Okuma', karisik: 'Karışık' };
+const MODE_ROZETLERI: Record<RunMode, RozetTuru> = { transaction: 'notr', autocommit: 'dikkat', okuma: 'basari', karisik: 'tehlike' };
 
 type Tab = 'degisiklikler' | 'log';
 const TAB_LABELS: Record<Tab, string> = { degisiklikler: 'Değişiklikler', log: 'Log' };
@@ -354,15 +359,12 @@ export function ScriptEkrani({
             <h2 className="hedef-adi">
               {target.connection.name} <span className="soluk">/</span> {target.database}
             </h2>
-            {target.connection.envTag && (
-              <span className="ortam-rozeti" style={{ backgroundColor: target.connection.color ?? undefined }}>
-                {target.connection.envTag}
-              </span>
-            )}
+            {target.connection.envTag && <OrtamRozeti etiket={target.connection.envTag} renk={target.connection.color} />}
             {lock && (
-              <span title="Yazma kilidi" className={`kilit-rozeti ${lock}`}>
+              <Rozet tur={lock === 'yazma-acik' ? 'tehlike' : 'notr'} title="Yazma kilidi" className="kilit-rozeti">
+                <KilitIkonu durum={lock} />
                 {WRITE_LOCK_LABELS[lock].rozet}
-              </span>
+              </Rozet>
             )}
           </>
         ) : (
@@ -372,12 +374,12 @@ export function ScriptEkrani({
           </>
         )}
         {target && <KatalogDugmesi catalog={catalog} onRefresh={() => onCatalog?.('yenile')} />}
-        <button type="button" className="hedef-degistir" onClick={onChangeTarget}>
-          hedefi değiştir ▾
-        </button>
-        <button type="button" className="kayit-klasoru" onClick={openHistoryFolder}>
+        <Dugme tur="sade" boyut="kucuk" className="hedef-degistir" onClick={onChangeTarget}>
+          hedefi değiştir <ChevronDown aria-hidden="true" />
+        </Dugme>
+        <Dugme tur="sade" boyut="kucuk" className="kayit-klasoru" onClick={openHistoryFolder}>
           Çalıştırma kayıtları klasörünü aç
-        </button>
+        </Dugme>
         {folderError && (
           <span role="alert" className="uyari kucuk">
             {folderError}
@@ -386,7 +388,7 @@ export function ScriptEkrani({
       </section>
       {analysis.mod === 'autocommit' && (
         <div role="note" aria-label="Autocommit uyarısı" className="uyari-seridi autocommit">
-          ⚠ {analysis.transactionDisi.length} ifade anında kalıcı uygulanır, geri alınamaz
+          <TriangleAlert aria-hidden="true" /> {analysis.transactionDisi.length} ifade anında kalıcı uygulanır, geri alınamaz
         </div>
       )}
       {runOnProd && run?.deneme && <DenemeProdUyarisi />}
@@ -397,26 +399,28 @@ export function ScriptEkrani({
           </section>
           {!busy && blocked && <BlockReasons reasons={reasons} />}
           <div className="script-cubugu">
-            <span title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
+            <Rozet tur={MODE_ROZETLERI[analysis.mod]} title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
               {MODE_LABELS[analysis.mod]}
-            </span>
+            </Rozet>
             {lock && (
               // Tek tık; onay, şerit ya da tema değişimi yok. Açık transaction'ın kilidi değişmez.
-              <button
-                type="button"
-                className={`kilit-dugmesi ${lock}`}
+              <Dugme
+                tur={lock === 'yazma-acik' ? 'tehlikeli' : 'ikincil'}
+                boyut="kucuk"
+                className="kilit-dugmesi"
                 aria-pressed={lock === 'yazma-acik'}
                 title={WRITE_LOCK_LABELS[lock].eylem}
                 onClick={onToggleWriteMode}
                 disabled={busy}
               >
+                <KilitIkonu durum={lock} />
                 {WRITE_LOCK_LABELS[lock].rozet}
-              </button>
+              </Dugme>
             )}
             {running ? (
-              <button type="button" className="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
-                ■ İptal
-              </button>
+              <Dugme tur="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
+                <Square aria-hidden="true" /> İptal
+              </Dugme>
             ) : (
               <>
                 {notice && (
@@ -424,8 +428,7 @@ export function ScriptEkrani({
                     {notice}
                   </span>
                 )}
-                <button
-                  type="button"
+                <Dugme
                   title={
                     tryBlocked ? tryReasons.map(formatReason).join('\n') : `Tüm script'i çalıştır ve her zaman geri al (${kisayol('tumunuDene')})`
                   }
@@ -434,9 +437,8 @@ export function ScriptEkrani({
                   disabled={!target || busy || !hasStatements || tryBlocked}
                 >
                   Tümünü dene
-                </button>
-                <button
-                  type="button"
+                </Dugme>
+                <Dugme
                   title={
                     !aralik
                       ? NO_RANGE_MESSAGE
@@ -448,20 +450,18 @@ export function ScriptEkrani({
                   onClick={() => runRange(true)}
                   disabled={!target || busy || !aralik || rangeTryReasons.length > 0}
                 >
-                  ⟲ Dene
-                </button>
-                <button
-                  type="button"
+                  <FlaskConical aria-hidden="true" /> Dene
+                </Dugme>
+                <Dugme
                   title={blocked ? reasons.map(formatReason).join('\n') : `Tüm script'i çalıştır (${kisayol('tumunuCalistir')})`}
                   aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
                   onClick={() => runAll(false)}
                   disabled={!target || busy || !hasStatements || blocked}
                 >
                   Tümünü çalıştır
-                </button>
-                <button
-                  type="button"
-                  className="birincil"
+                </Dugme>
+                <Dugme
+                  tur="birincil"
                   title={
                     !aralik
                       ? NO_RANGE_MESSAGE
@@ -473,8 +473,8 @@ export function ScriptEkrani({
                   onClick={() => runRange(false)}
                   disabled={!target || busy || !aralik || rangeRunReasons.length > 0}
                 >
-                  ▶ Çalıştır
-                </button>
+                  <Play aria-hidden="true" /> Çalıştır
+                </Dugme>
               </>
             )}
           </div>
@@ -536,7 +536,7 @@ export function ScriptEkrani({
   );
 }
 
-/** "↻": hedefin katalogunu yeniden okutur; durum düğmenin açıklamasında. */
+/** Yenile ikonu: hedefin katalogunu yeniden okutur; durum düğmenin açıklamasında. */
 function KatalogDugmesi({ catalog, onRefresh }: { catalog: CatalogEntry | undefined; onRefresh: () => void }) {
   const loading = catalog?.durum === 'yukleniyor';
   const title = !catalog
@@ -547,16 +547,17 @@ function KatalogDugmesi({ catalog, onRefresh }: { catalog: CatalogEntry | undefi
         ? `Katalog okunamadı: ${catalog.hata}`
         : `Katalog: ${catalog.katalog.iliskiler.length} ilişki · yenile`;
   return (
-    <button
-      type="button"
-      className={`ikon-dugme katalog-yenile${catalog?.durum === 'hata' ? ' hata' : ''}`}
+    <Dugme
+      tur="sade"
+      ikon
+      className={`katalog-yenile${catalog?.durum === 'hata' ? ' hata' : ''}`}
       aria-label="Katalogu yenile"
       title={title}
       disabled={loading}
       onClick={onRefresh}
     >
-      <span aria-hidden="true">↻</span>
-    </button>
+      <RefreshCw aria-hidden="true" />
+    </Dugme>
   );
 }
 
@@ -601,7 +602,11 @@ function OkumaDurumu({ run, deadline }: { run: RunView; deadline: DecisionTimer 
       )}
       <BekletmeGostergesi oturumlar={run.bekletilenler} />
       {run.uyari && <span className="uyari">{run.uyari}</span>}
-      {run.kayitUyarisi && <span className="uyari">⚠ {run.kayitUyarisi}</span>}
+      {run.kayitUyarisi && (
+        <span className="uyari">
+          <TriangleAlert aria-hidden="true" /> {run.kayitUyarisi}
+        </span>
+      )}
     </section>
   );
 }
@@ -621,7 +626,7 @@ function IfadeKarti({
     <li className={`ifade-karti ${s.durum}`}>
       <button type="button" className="ifade-karti-basligi" onClick={() => onGoTo(s.satir)}>
         <span className={`ifade-isareti ${s.durum}`} aria-hidden="true">
-          {STATUS_SYMBOLS[s.durum]}
+          <DurumIkonu durum={s.durum} />
         </span>
         <span className="komut-etiketi">{s.komut}</span>
         <span className="soluk">satır {s.satir}</span>
@@ -648,9 +653,9 @@ function StatementDetail({ statement: s, onForceTransaction }: { statement: Stat
           {s.hata?.transactionOnerisi && (
             <p className="ifade-ipucu kucuk">
               Okuma sanılan ifade yazmaya çalıştı.{' '}
-              <button type="button" onClick={onForceTransaction} disabled={!onForceTransaction}>
+              <Dugme boyut="kucuk" onClick={onForceTransaction} disabled={!onForceTransaction}>
                 Transaction modunda çalıştır
-              </button>
+              </Dugme>
             </p>
           )}
         </>

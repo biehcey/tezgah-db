@@ -1,5 +1,8 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import type { Folder } from '../../core/ayarlar';
+import { ArrowLeftRight, KeyRound, Plus, TriangleAlert } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
+import { Rozet } from '../ortak/Rozet';
 import {
   DEFAULT_ENV_COLORS,
   ENV_TAGS,
@@ -164,7 +167,7 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
           <span className="ortam-noktasi" style={{ backgroundColor: c.color ?? 'transparent' }} aria-hidden="true" />
           <span className="agac-adi">{c.name}</span>
           <span className="baglanti-adresi">{connectionAddress(c)}</span>
-          <span className="agac-rozeti">mevcut</span>
+          <Rozet className="agac-rozeti">mevcut</Rozet>
         </div>
       );
     }
@@ -191,20 +194,23 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
         </button>
         {c.ssh && (
           <span role="img" aria-label="SSH tüneli" title={sshSummary(c.ssh)}>
-            ⇄
+            <ArrowLeftRight aria-hidden="true" />
           </span>
         )}
         {c.password && (
           <span role="img" aria-label="şifre .pgpass’tan" title={c.password.label}>
-            🔑
+            <KeyRound aria-hidden="true" />
           </span>
         )}
         {warnings.length > 0 && (
           <span className="agac-uyari" title={warnings.join('\n')}>
-            ⚠{warnings.length}
+            <TriangleAlert aria-hidden="true" />
+            {warnings.length}
           </span>
         )}
-        <span className="agac-rozeti">{choice.selected ? 'yeni' : 'atlanacak'}</span>
+        <Rozet tur={choice.selected ? 'basari' : 'notr'} className="agac-rozeti">
+          {choice.selected ? 'yeni' : 'atlanacak'}
+        </Rozet>
       </div>
     );
   };
@@ -221,12 +227,10 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
           </label>
           <span className="bosluk" />
           <span className="soluk">{selections.length} yeni bağlantı</span>
-          <button type="button" onClick={onCancel}>
-            İptal
-          </button>
-          <button type="button" className="birincil" disabled={busy || selections.length === 0} onClick={() => void submit()}>
+          <Dugme onClick={onCancel}>İptal</Dugme>
+          <Dugme tur="birincil" disabled={busy || selections.length === 0} onClick={() => void submit()}>
             İçe aktar
-          </button>
+          </Dugme>
         </>
       }
     >
@@ -234,9 +238,9 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
         <div role="group" aria-label="Kaynaklar" className="kaynak-cipleri">
           {preview?.sources.map((s) =>
             s.status === 'error' ? (
-              <span key={s.id} className="cip hatali" title={`${s.path}: ${s.error}`}>
-                ⚠ {s.label}
-              </span>
+              <Rozet key={s.id} tur="tehlike" className="kaynak-hatasi" title={`${s.path}: ${s.error}`}>
+                <TriangleAlert aria-hidden="true" /> {s.label}
+              </Rozet>
             ) : (
               <button
                 key={s.id}
@@ -251,7 +255,7 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
             ),
           )}
           <button type="button" className="cip" aria-expanded={pathOpen === 'proje'} onClick={() => setPathOpen((o) => (o === 'proje' ? null : 'proje'))}>
-            ＋ Proje klasörü…
+            <Plus aria-hidden="true" /> Proje klasörü…
           </button>
           <button type="button" className="cip" aria-expanded={pathOpen === 'pgpass'} onClick={() => setPathOpen((o) => (o === 'pgpass' ? null : 'pgpass'))}>
             .pgpass yolu…
@@ -266,7 +270,7 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
               autoFocus
               onChange={(e) => setProjectText(e.target.value)}
             />
-            <button type="submit">Tara</button>
+            <Dugme type="submit">Tara</Dugme>
           </form>
         )}
         {pathOpen === 'pgpass' && (
@@ -277,7 +281,7 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
               value={pathText}
               onChange={(e) => setPathText(e.target.value)}
             />
-            <button type="submit">Tara</button>
+            <Dugme type="submit">Tara</Dugme>
           </form>
         )}
       </div>
@@ -300,7 +304,7 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
               <div key={s.key} role="group" aria-label={s.name} className="agac-bolumu">
                 <div className="agac-basligi">
                   <span>{s.name}</span>
-                  {s.isNew && <span className="rozet">yeni klasör</span>}
+                  {s.isNew && <Rozet tur="basari">yeni klasör</Rozet>}
                 </div>
                 {s.rows.map(row)}
               </div>
@@ -395,9 +399,14 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
               <dd>{connectionAddress(current)}</dd>
               <dt>Şifre</dt>
               <dd>
-                {current.password
-                  ? `🔑 ${current.password.label}${current.password.wildcard ? ' (joker)' : ''}`
-                  : 'yok, ilk bağlanmada sorulur'}
+                {current.password ? (
+                  <>
+                    <KeyRound aria-hidden="true" /> {current.password.label}
+                    {current.password.wildcard ? ' (joker)' : ''}
+                  </>
+                ) : (
+                  'yok, ilk bağlanmada sorulur'
+                )}
               </dd>
               <dt>SSL</dt>
               <dd>{sslSummary(current)}</dd>
@@ -408,7 +417,7 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
                 <ul className="duz-liste">
                   {current.databases.map((d) => (
                     <li key={d}>
-                      {d} {d === current.database && <span className="rozet">başlangıç</span>}
+                      {d} {d === current.database && <Rozet tur="vurgu">başlangıç</Rozet>}
                     </li>
                   ))}
                 </ul>
@@ -428,7 +437,9 @@ export function IceAktarma({ connections, folders, onImported, onCancel }: Props
                   <dd>
                     <ul className="duz-liste uyari-listesi">
                       {warningsOf(current).map((w) => (
-                        <li key={w}>⚠ {w}</li>
+                        <li key={w}>
+                          <TriangleAlert aria-hidden="true" /> {w}
+                        </li>
                       ))}
                     </ul>
                   </dd>

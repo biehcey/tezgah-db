@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { Diyalog } from './Diyalog';
+import { Dugme } from './Dugme';
 
 interface Props {
   title: string;
@@ -23,12 +24,11 @@ export function Onay({ title, description, confirmLabel, onConfirm, onCancel }: 
       dugmeler={
         <>
           <span className="bosluk" />
-          <button type="button" data-autofocus onClick={onCancel}>
+          <Dugme data-autofocus onClick={onCancel}>
             Vazgeç
-          </button>
-          <button
-            type="button"
-            className="tehlikeli"
+          </Dugme>
+          <Dugme
+            tur="tehlikeli"
             disabled={busy}
             onClick={() => {
               setBusy(true);
@@ -36,7 +36,7 @@ export function Onay({ title, description, confirmLabel, onConfirm, onCancel }: 
             }}
           >
             {confirmLabel}
-          </button>
+          </Dugme>
         </>
       }
     >

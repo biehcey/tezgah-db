@@ -60,7 +60,7 @@ function editorCompletion(): TamamlamaGirdisi | null {
 const schemaNames = () => [...(editorCompletion()?.gorunurSemalar ?? [])];
 const tableNames = (schema: string) => editorCompletion()!.katalog!.iliskiler.filter((r) => r.sema === schema).map((r) => r.ad);
 
-const runButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+const runButton = () => screen.getByRole('button', { name: 'Çalıştır' });
 const refreshButton = () => screen.getByRole('button', { name: 'Katalogu yenile' });
 
 /** Bağlantıyı seçip panelden bağlanır ve `postgres`'in şema çiplerini açar. */
@@ -191,7 +191,7 @@ describe('Katalog: INSERT olarak kopyala', () => {
     const cell = within(screen.getByRole('grid')).getAllByRole('gridcell')[0]!;
     await user.click(cell);
     fireEvent.contextMenu(cell);
-    await user.click(screen.getByRole('menuitem', { name: 'Kopyala ▸' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
     await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
     expect(await navigator.clipboard.readText()).toBe(`INSERT INTO "tablo" ("durum") VALUES ('acik'::durum);`);
   });

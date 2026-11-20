@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';import type { RowField, RowView } from '../../core/grid/satir-gorunumu';
 import { NULL_LABEL } from '../../core/grid/gosterim';
+import { Undo2, X } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
+import { Rozet } from '../ortak/Rozet';
 
 /** Alan kutusunun en fazla satır yüksekliği; uzun değer kutuda kayar. */
 const FIELD_MAX_LINES = 8;
@@ -17,7 +20,7 @@ export interface RowEdits {
 interface Props {
   /** Gösterilen satır; seçili satır yoksa `null`. */
   satir: RowView | null;
-  /** Verilirse yazılabilir alanlar düzenlenir ve "Sil" / "↶ Geri al" görünür. */
+  /** Verilirse yazılabilir alanlar düzenlenir ve "Sil" / "Geri al" görünür. */
   duzenleme?: RowEdits;
   /** Verilirse "Değişiklikler (n)" sekmesi: çekmecedeki bekleyen listesinin aynısı. */
   degisiklikler?: { sayi: number; icerik: ReactNode };
@@ -56,9 +59,9 @@ export function SatirGorunumu({ satir, duzenleme, degisiklikler, onKapat, panelR
             </button>
           )}
         </div>
-        <button type="button" className="ikon-dugme" aria-label="Satır görünümünü kapat" title="Kapat (grid’de Shift+Enter / Esc)" onClick={onKapat}>
-          ×
-        </button>
+        <Dugme tur="sade" ikon aria-label="Satır görünümünü kapat" title="Kapat (grid’de Shift+Enter / Esc)" onClick={onKapat}>
+          <X aria-hidden="true" />
+        </Dugme>
       </div>
       <div role="tabpanel" className="satir-gorunumu-govde">
         {shown === 'degisiklikler' ? (
@@ -77,13 +80,13 @@ export function SatirGorunumu({ satir, duzenleme, degisiklikler, onKapat, panelR
               <span className="bosluk" />
               {duzenleme &&
                 (satir.silinecek ? (
-                  <button type="button" onClick={duzenleme.geriAl}>
-                    ↶ Geri al
-                  </button>
+                  <Dugme boyut="kucuk" onClick={duzenleme.geriAl}>
+                    <Undo2 aria-hidden="true" /> Geri al
+                  </Dugme>
                 ) : (
-                  <button type="button" className="tehlikeli" onClick={duzenleme.sil}>
+                  <Dugme tur="tehlikeli" boyut="kucuk" onClick={duzenleme.sil}>
                     Sil
-                  </button>
+                  </Dugme>
                 ))}
             </div>
             {neden && (
@@ -156,9 +159,9 @@ function Alan({ alan, aciklama, onDuzenle }: { alan: RowField; aciklama?: string
       <div className="satir-alani-etiketi kucuk">
         <b>{alan.ad}</b>
         {alan.pk && (
-          <span className="rozet pk-rozeti" title="Birincil anahtar">
+          <Rozet tur="vurgu" title="Birincil anahtar">
             PK
-          </span>
+          </Rozet>
         )}
         {alan.tip && <span className="soluk">{alan.tip}</span>}
         <span className="bosluk" />

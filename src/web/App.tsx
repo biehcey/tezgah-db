@@ -42,6 +42,8 @@ import { SifrePenceresi } from './baglantilar/SifrePenceresi';
 import { SilmeOnayi } from './baglantilar/SilmeOnayi';
 import { MENU_SEPARATOR, Menu, type MenuEntry, type MenuItem, type MenuPosition } from './ortak/Menu';
 import { Onay } from './ortak/Onay';
+import { Dugme } from './ortak/Dugme';
+import { FolderPlus, Import, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
 import { Diyalog } from './ortak/Diyalog';
 import { useBildirimler } from './ortak/Bildirimler';
 import { Konsol } from './konsol/Konsol';
@@ -59,7 +61,10 @@ import { historyShortcut, navigatorShortcut, shortcutKey, shortcutsPageShortcut 
 import { paletteCommands as paletteCommandList, type PaletteCommandId } from '../core/palet-komutlari';
 import { KisayolSayfasi } from './ortak/KisayolSayfasi';
 import { sendScriptCommand } from './script/komut';
-import { kisayol, modalOpen, typingTarget } from './ortak/pencere';
+import { kisayol, modalOpen, typingTarget, useWindowWidth } from './ortak/pencere';
+import { Bolucu } from './ortak/Bolucu';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari } from '../core/arayuz-tercihleri';
+import { bolucuDegeri } from '../core/bolucu';
 import { usePreferences, useTheme } from './ortak/tercihler';
 
 type Status = { kind: 'loading' } | { kind: 'ok'; version: string } | { kind: 'error'; message: string };
@@ -144,8 +149,17 @@ export function App() {
   /** Kısayol sayfası: `?`, paletteki "Kısayollar" ya da `openShortcuts` (durum çubuğu düğmesi). */
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
-  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); diske yazılmaz. */
-  const [navigatorOpen, setNavigatorOpen] = useState(true);
+  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); Arayüz tercihlerinde saklanır. */
+  const navigatorOpen = preferences.gezgin.acik;
+  const setNavigatorOpen = useCallback(
+    (open: boolean | ((current: boolean) => boolean)) =>
+      updatePreferences((p) => ({ gezgin: { ...p.gezgin, acik: typeof open === 'function' ? open(p.gezgin.acik) : open } })),
+    [updatePreferences],
+  );
+  /** Gezgin genişliği: sürüklerken yerel, bırakınca tercihe yazılır; pencereye göre sınırlanır. */
+  const [draggedWidth, setDraggedWidth] = useState<number | null>(null);
+  const navigatorBounds = gezginSinirlari({ genislik: useWindowWidth() });
+  const navigatorWidth = bolucuDegeri(draggedWidth ?? preferences.gezgin.genislik, navigatorBounds.min, navigatorBounds.max);
   /** Bu oturumda listeden açılan Tablo sekmeleri; ilk sayfaları hemen çekilir. */
   const [autoLoadTabs, setAutoLoadTabs] = useState<ReadonlySet<string>>(new Set());
   /** Sekme başına hedef kilidi: script çalışırken ve karar beklenirken hedef değiştirilemez; neden. */
@@ -185,7 +199,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [setNavigatorOpen]);
 
   useEffect(() => {
     let active = true;
@@ -678,7 +692,7 @@ export function App() {
       },
       { label: 'Düzenle', onSelect: () => edit(connection.id) },
       { label: 'Kopyala', onSelect: () => void copy(connection) },
-      { label: 'Klasöre taşı ▸', submenu: targets, disabled: folders.length === 0 },
+      { label: 'Klasöre taşı', submenu: targets, disabled: folders.length === 0 },
       { label: 'URL’yi kopyala (şifresiz)', onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
       MENU_SEPARATOR,
       { label: 'Bağlantıyı kes', disabled: session === undefined, onSelect: () => void disconnect(connection) },
@@ -759,58 +773,55 @@ export function App() {
           title={`Gezgini aç (${kisayol('gezgin')})`}
           onClick={() => setNavigatorOpen(true)}
         >
-          » Gezgin
+          <PanelLeftOpen aria-hidden="true" /> Gezgin
         </button>
       )}
       {/* Gizlenince kapanmaz: açık düğümler, yüklü şemalar ve arama korunur. */}
-      <aside className="kenar" hidden={!navigatorOpen}>
+      <aside className="kenar" hidden={!navigatorOpen} style={{ width: navigatorWidth }}>
+        <Bolucu
+          yon="dikey"
+          deger={navigatorWidth}
+          min={navigatorBounds.min}
+          max={navigatorBounds.max}
+          adim={16}
+          varsayilan={ARAYUZ_TERCIHLERI_VARSAYILAN.gezgin.genislik}
+          onDegis={setDraggedWidth}
+          onBitir={(genislik) => {
+            setDraggedWidth(null);
+            updatePreferences((p) => ({ gezgin: { ...p.gezgin, genislik } }));
+          }}
+          aria-label="Gezgin genişliği"
+        />
         <header className="kenar-baslik">
           <h1>Tezgah</h1>
-          <button
-            type="button"
-            className="ikon-dugme kisayol-dugmesi"
+          <Dugme
+            tur="sade"
+            boyut="kucuk"
+            className="kisayol-dugmesi"
             aria-label="Hızlı geçiş"
             title={`Hızlı geçiş (${kisayol('palet')})`}
             onClick={() => setPaletteOpen(true)}
           >
             {kisayol('palet')}
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="İçe aktar"
-            title="İçe aktar (.pgpass)"
-            onClick={() => setImportOpen(true)}
-          >
-            <span aria-hidden="true">⇩</span>
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="Yeni klasör"
-            title="Yeni klasör"
-            onClick={() => setFolderDialog({ kind: 'yeni' })}
-          >
-            <span aria-hidden="true">⊞</span>
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="Yeni bağlantı"
-            title="Yeni bağlantı"
-            onClick={() => open({ kind: 'yeni' })}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="İçe aktar" title="İçe aktar (.pgpass)" onClick={() => setImportOpen(true)}>
+            <Import aria-hidden="true" />
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="Yeni klasör" title="Yeni klasör" onClick={() => setFolderDialog({ kind: 'yeni' })}>
+            <FolderPlus aria-hidden="true" />
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="Yeni bağlantı" title="Yeni bağlantı" onClick={() => open({ kind: 'yeni' })}>
+            <Plus aria-hidden="true" />
+          </Dugme>
+          <Dugme
+            tur="sade"
+            ikon
             aria-label="Gezgini gizle"
             title={`Gezgini gizle (${kisayol('gezgin')})`}
             onClick={() => setNavigatorOpen(false)}
           >
-            «
-          </button>
+            <PanelLeftClose aria-hidden="true" />
+          </Dugme>
         </header>
         <nav aria-label="Bağlantılar" className="baglantilar">
           {connections && (

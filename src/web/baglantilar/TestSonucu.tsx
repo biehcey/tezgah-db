@@ -1,4 +1,6 @@
+import { Check, Minus, TriangleAlert, X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Dugme } from '../ortak/Dugme';
 import {
   STEP_LABELS,
   STEP_SECTION,
@@ -32,7 +34,12 @@ export const FIX_LABELS: Record<FixId, string> = {
   agentYolunuDuzelt: 'Agent yolunu düzelt',
 };
 
-const ICONS = { basarili: '✓', uyari: '⚠', hata: '✗', calistirilmadi: '·' } as const;
+const IKONLAR = { basarili: Check, uyari: TriangleAlert, hata: X, calistirilmadi: Minus } as const;
+
+function AdimIkonu({ sonuc }: { sonuc: keyof typeof IKONLAR }) {
+  const Ikon = IKONLAR[sonuc];
+  return <Ikon aria-hidden="true" />;
+}
 
 /** Formun tepesindeki tek satırlık özet. */
 export function TestOzeti({ state }: { state: TestState }) {
@@ -50,14 +57,14 @@ export function TestOzeti({ state }: { state: TestState }) {
       ? ` · PostgreSQL ${state.yanit.sunucu.surum} · ${state.yanit.sunucu.veritabaniSayisi} veritabanı`
       : '';
     tone = summary.sonuc;
-    if (summary.sonuc === 'hata') text = `${ICONS.hata} ${STEP_LABELS[summary.adim!]} adımında başarısız`;
+    if (summary.sonuc === 'hata') text = `${STEP_LABELS[summary.adim!]} adımında başarısız`;
     else if (summary.sonuc === 'uyari') {
-      text = `${ICONS.uyari} Bağlantı başarılı, uyarıyla (${STEP_LABELS[summary.adim!]})${server}`;
-    } else text = `${ICONS.basarili} Bağlantı başarılı${server}`;
+      text = `Bağlantı başarılı, uyarıyla (${STEP_LABELS[summary.adim!]})${server}`;
+    } else text = `Bağlantı başarılı${server}`;
   }
   return (
     <p role="status" aria-label="Test sonucu" className={`test-ozeti ${tone}`}>
-      {text}
+      {tone !== 'calisiyor' && <AdimIkonu sonuc={tone} />} {text}
     </p>
   );
 }
@@ -85,7 +92,7 @@ export function TestAdimlari({
       {steps.map((s) => (
         <li key={s.id} data-adim={s.id} data-sonuc={s.sonuc} className={`test-adimi ${s.sonuc}`}>
           <span className="test-ikonu" aria-hidden="true">
-            {ICONS[s.sonuc]}
+            <AdimIkonu sonuc={s.sonuc} />
           </span>
           <span>
             <strong>{STEP_LABELS[s.id]}</strong>
@@ -101,9 +108,9 @@ export function TestAdimlari({
           {s.oneriler.some(canFix) && (
             <span className="test-duzeltmeleri">
               {s.oneriler.filter(canFix).map((fix) => (
-                <button key={fix} type="button" className="kucuk" onClick={() => onFix(fix)}>
+                <Dugme key={fix} boyut="kucuk" onClick={() => onFix(fix)}>
                   {FIX_LABELS[fix]}
-                </button>
+                </Dugme>
               ))}
             </span>
           )}
@@ -119,7 +126,12 @@ export function AdimDurumu({ state, step }: { state: TestState | null; step: 'tl
   if (state?.durum !== 'bitti') return null;
   const found = state.yanit.adimlar.find((s) => s.id === step);
   if (!found || found.sonuc === 'calistirilmadi') return null;
-  return <span className={`test-ikonu ${found.sonuc}`}> {ICONS[found.sonuc]}</span>;
+  return (
+    <span className={`test-ikonu ${found.sonuc}`}>
+      {' '}
+      <AdimIkonu sonuc={found.sonuc} />
+    </span>
+  );
 }
 
 export function TlsDurumu({ state }: { state: TestState | null }) {

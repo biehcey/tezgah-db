@@ -11,6 +11,10 @@ import {
 } from '../../core/gecmis-filtresi';
 import type { Target } from '../../core/veritabani-secimi';
 import { useApi } from '../api/client';
+import { X } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
+import { OnayKutusu, Radyo, TarihAlani } from '../ortak/FormKontrolleri';
+import { Rozet, type RozetTuru } from '../ortak/Rozet';
 import { Yukleniyor } from '../ortak/Yukleniyor';
 import { kisayol } from '../ortak/pencere';
 
@@ -109,34 +113,31 @@ export function GecmisPaneli({ connections, activeTarget, onOpen, onClose }: Pro
     <aside className="gecmis-paneli" aria-label="Sorgu geçmişi">
       <header className="gecmis-basligi">
         <h2>Sorgu geçmişi</h2>
-        <button type="button" className="ikon-dugme" aria-label="Geçmişi kapat" title={`Kapat (${kisayol('gecmis')})`} onClick={onClose}>
-          ×
-        </button>
+        <Dugme tur="sade" ikon aria-label="Geçmişi kapat" title={`Kapat (${kisayol('gecmis')})`} onClick={onClose}>
+          <X aria-hidden="true" />
+        </Dugme>
       </header>
       <div className="gecmis-filtresi">
         <div role="radiogroup" aria-label="Hedef" className="gecmis-satiri">
-          <label>
-            <input type="radio" name="gecmis-hedef" checked={scopeTarget !== null} disabled={!activeTarget} onChange={() => setAllTargets(false)} />
+          <Radyo name="gecmis-hedef" checked={scopeTarget !== null} disabled={!activeTarget} onChange={() => setAllTargets(false)}>
             Bu hedef
-          </label>
-          <label>
-            <input type="radio" name="gecmis-hedef" checked={scopeTarget === null} onChange={() => setAllTargets(true)} />
+          </Radyo>
+          <Radyo name="gecmis-hedef" checked={scopeTarget === null} onChange={() => setAllTargets(true)}>
             Tüm hedefler
-          </label>
+          </Radyo>
         </div>
         <input type="search" aria-label="Script’te ara" placeholder="Script’te ara" value={text} onChange={(e) => setText(e.target.value)} />
         <div role="group" aria-label="Sonuç" className="gecmis-satiri">
           {ALL_RESULT_GROUPS.map((group) => (
-            <label key={group}>
-              <input type="checkbox" checked={groups.includes(group)} onChange={() => toggleGroup(group)} />
+            <OnayKutusu key={group} checked={groups.includes(group)} onChange={() => toggleGroup(group)}>
               {GROUP_LABELS[group]}
-            </label>
+            </OnayKutusu>
           ))}
         </div>
         <div className="gecmis-satiri">
-          <input type="date" aria-label="Başlangıç tarihi" value={fromDay} onChange={(e) => setFromDay(e.target.value)} />
+          <TarihAlani aria-label="Başlangıç tarihi" value={fromDay} onChange={(e) => setFromDay(e.target.value)} />
           <span aria-hidden="true">–</span>
-          <input type="date" aria-label="Bitiş tarihi" value={toDay} onChange={(e) => setToDay(e.target.value)} />
+          <TarihAlani aria-label="Bitiş tarihi" value={toDay} onChange={(e) => setToDay(e.target.value)} />
         </div>
       </div>
       {listing.error && (
@@ -152,14 +153,22 @@ export function GecmisPaneli({ connections, activeTarget, onOpen, onClose }: Pro
       {listing.loading && <p className="soluk kucuk gecmis-durumu"><Yukleniyor /></p>}
       {/* Liste paneli doldurmuyorsa kaydırma olayı gelmez; sonraki sayfa düğmeyle de istenir. */}
       {!listing.loading && listing.next !== null && (
-        <button type="button" className="gecmis-durumu" onClick={() => load(listing.next)}>
+        <Dugme tur="sade" boyut="kucuk" className="gecmis-durumu" onClick={() => load(listing.next)}>
           Daha eski kayıtlar
-        </button>
+        </Dugme>
       )}
       {!listing.loading && !listing.error && listing.entries.length === 0 && <p className="soluk kucuk gecmis-durumu">Kayıt yok.</p>}
     </aside>
   );
 }
+
+const SONUC_ROZETLERI: Record<ResultGroup | 'bilinmiyor', RozetTuru> = {
+  basarili: 'basari',
+  hata: 'tehlike',
+  deneme: 'dikkat',
+  rollback: 'dikkat',
+  bilinmiyor: 'notr',
+};
 
 /** Kaydın sonucu; Autocommit başarısı `commit` olarak yazılır, mod ayırır. */
 function resultLabel(entry: HistoryEntry): string {
@@ -201,7 +210,9 @@ function GecmisKaydi({ entry, connections, onOpen }: { entry: HistoryEntry; conn
     >
       <div className="gecmis-ust">
         <time dateTime={entry.zaman}>{new Date(entry.zaman).toLocaleString('tr-TR')}</time>
-        <span className={`gecmis-sonucu ${group}`}>{resultLabel(entry)}</span>
+        <Rozet tur={SONUC_ROZETLERI[group]} className="gecmis-sonucu">
+          {resultLabel(entry)}
+        </Rozet>
       </div>
       <div className="gecmis-hedefi">
         <span className="sekme-rengi" data-testid="gecmis-rengi" style={{ backgroundColor: color ?? 'transparent' }} aria-hidden="true" />
