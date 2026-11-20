@@ -6,13 +6,17 @@ Spec: [Editör temelleri](../spec.md#editör-temelleri), [Editör eklentileri](.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `@codemirror/search` bağımlılığı; arama paneli, `searchKeymap`, `highlightSelectionMatches`.
-- [ ] Panel metinleri `EditorState.phrases` ile Türkçe.
-- [ ] `bracketMatching`, `closeBrackets` + `closeBracketsKeymap`, `highlightActiveLine`.
-- [ ] Tamamlama motorunun Enter/Tab davranışı ve mevcut tamamlama testleri `closeBrackets` ile bozulmaz; fonksiyon eklemede imlecin parantez içine konması korunur.
-- [ ] Panel ve vurgular token renklerini kullanır (ticket 01 bitmemişse mevcut renk değişkenleriyle; 01 sonrası token'a bağlanır).
-- [ ] Testler (arayüz): Ctrl/Cmd+F paneli açar ve Türkçe etiketlidir; değiştir editör metnini değiştirir; salt okunurken değiştir pasiftir; `(` yazınca `()` oluşur ve `)` yazınca çiftlenmez.
+- [x] `@codemirror/search` bağımlılığı; arama paneli, `searchKeymap`, `highlightSelectionMatches`.
+- [x] Panel metinleri `EditorState.phrases` ile Türkçe.
+- [x] `bracketMatching`, `closeBrackets` + `closeBracketsKeymap`, `highlightActiveLine`.
+- [x] Tamamlama motorunun Enter/Tab davranışı ve mevcut tamamlama testleri `closeBrackets` ile bozulmaz; fonksiyon eklemede imlecin parantez içine konması korunur.
+- [x] Panel ve vurgular token renklerini kullanır (ticket 01 bitmemişse mevcut renk değişkenleriyle; 01 sonrası token'a bağlanır).
+- [x] Testler (arayüz): Ctrl/Cmd+F paneli açar ve Türkçe etiketlidir; değiştir editör metnini değiştirir; salt okunurken değiştir pasiftir; `(` yazınca `()` oluşur ve `)` yazınca çiftlenmez.
 
 ## Comments
+
+- Eklentiler `src/web/script/editor-temelleri.ts`'te. Salt okunurken panelde değiştirme satırı hiç kurulmaz; panel açıkken salt okunurluk değişirse panel aynı sorguyla yeniden kurulur (değiştirme kalkar/geri gelir).
+- Renkler 01 bitmeden yazıldı: `styles.css`'te mevcut `--vurgu`, `--dikkat`, `--uyari`, `--cizgi`, `--kenar-zemin` değişkenleri. 01 birleşince bu kurallar token adlarına taşınmalı.
+- `closeBrackets` yalnızca `(`, `[`, `'`, `"` için; `{` kapanmaz.

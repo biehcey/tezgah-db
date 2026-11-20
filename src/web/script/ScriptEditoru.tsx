@@ -4,6 +4,7 @@ import { Compartment, EditorState, RangeSet, StateEffect, StateField, type Exten
 import { Decoration, EditorView, GutterMarker, gutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { StatementStatus } from '../../core/script-calistirma';
+import { editorTemelleri } from './editor-temelleri';
 import { ANALYSIS_MARKS, STATUS_LABELS, STATUS_SYMBOLS, isAnalysisMark, type AnalysisMark } from './durum';
 import { sqlDili, tamamlamaTemeli, type TamamlamaGirdisi } from './tamamlama';
 
@@ -115,6 +116,7 @@ const baseExtensions: Extension[] = [
   lineNumbers(),
   history(),
   tamamlamaTemeli,
+  editorTemelleri,
   keymap.of([...defaultKeymap, ...historyKeymap]),
   syntaxHighlighting(defaultHighlightStyle),
   marksField,
