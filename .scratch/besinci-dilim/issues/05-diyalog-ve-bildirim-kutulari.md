@@ -6,7 +6,7 @@ Spec: [Tasarım token'ları ve bileşenler](../spec.md#tasarım-tokenları-ve-bi
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (aa88c6f)
 
 - [x] `Diyalog` bileşeni yerel `<dialog>` + `showModal()` üzerine; başlık, gövde, düğme alanı; odak tuzağı, Esc, odağı geri verme.
 - [x] Mevcut `Onay` ve ad-hoc diyaloglar (klasör adı, şifre penceresi, host anahtarı, silme onayı, içe aktarma) `Diyalog`'a taşınır; davranışları ve mevcut testleri korunur.
