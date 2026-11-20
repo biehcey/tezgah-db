@@ -63,3 +63,13 @@ const BUILTIN: ReadonlyMap<number, string> = new Map([
 export function typeName(oid: number, katalog?: ReadonlyMap<number, string>): string | null {
   return BUILTIN.get(oid) ?? katalog?.get(oid) ?? null;
 }
+
+/** Sayısal tipler: int2, int4, int8, numeric, float4, float8, money, oid. */
+const NUMERIC_OIDS: ReadonlySet<number> = new Set([21, 23, 20, 1700, 700, 701, 790, 26]);
+
+export type ColumnAlignment = 'sag' | 'sol';
+
+/** Kolonun (başlığıyla birlikte) hizası: sayısal tipler sağa, diğerleri (diziler, bilinmeyen tip) sola. */
+export function columnAlignment(oid: number | undefined): ColumnAlignment {
+  return oid !== undefined && NUMERIC_OIDS.has(oid) ? 'sag' : 'sol';
+}

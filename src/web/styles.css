@@ -644,6 +644,11 @@ button.tehlikeli {
   color: var(--prod);
 }
 
+.menu-ayirici {
+  margin: var(--bosluk-4) 0;
+  border-top: 1px solid var(--cizgi);
+}
+
 .bilgi {
   margin: 0;
   color: var(--soluk);
@@ -1878,6 +1883,37 @@ button.grid-kose:hover,
 .grid-hucresi.null {
   color: var(--soluk);
   font-style: italic;
+}
+
+/* Sayısal kolonlar (core `columnAlignment`): sağa yaslı, rakamlar sabit genişlikte; başlık da. */
+.grid-hucresi.sag {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-kolon-basligi.sag .grid-kolon-adi,
+.grid-kolon-basligi.sag .grid-siralama {
+  text-align: right;
+}
+
+/* Üzerine gelinen satır; seçili ve değişen hücrenin yarı saydam rengi bunun üstüne biner. */
+.grid-veri-satiri:hover {
+  background: var(--kenar-zemin);
+}
+
+/* Kopyalama bilgisi (ticket 05'in Bildirimler'i gelene kadar). */
+.grid-kopyalama-bilgisi {
+  position: fixed;
+  right: var(--bosluk-16);
+  bottom: var(--bosluk-16);
+  z-index: 10;
+  margin: 0;
+  padding: var(--bosluk-6) var(--bosluk-12);
+  border: 1px solid var(--cizgi);
+  border-radius: var(--yaricap-orta);
+  background: var(--zemin);
+  box-shadow: var(--golge-acilir);
+  font-family: var(--font-ui);
 }
 
 .grid-hucresi.secili {

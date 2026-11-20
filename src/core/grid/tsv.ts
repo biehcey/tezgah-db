@@ -6,6 +6,11 @@ export function toTsv(rows: readonly (readonly (string | null)[])[]): string {
   return rows.map((row) => row.map(tsvCell).join('\t')).join('\n');
 }
 
+/** Başlıklı TSV (Ctrl/Cmd+Shift+C): ilk satır kolon adları, gerisi `toTsv` kurallarıyla. */
+export function toTsvWithHeader(kolonlar: readonly string[], rows: readonly (readonly (string | null)[])[]): string {
+  return toTsv([kolonlar, ...rows]);
+}
+
 function tsvCell(value: string | null): string {
   if (value === null) return '';
   return /[\t\n\r"]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;

@@ -4,10 +4,15 @@ export interface MenuItem {
   label: string;
   onSelect?: () => void;
   /** Seçilince menü bu öğelerle yer değiştirir (ör. "Klasöre taşı ▸"). */
-  submenu?: MenuItem[];
+  submenu?: MenuEntry[];
   disabled?: boolean;
   danger?: boolean;
 }
+
+/** Öğe grupları arasındaki çizgi. */
+export const MENU_SEPARATOR = { ayirici: true } as const;
+
+export type MenuEntry = MenuItem | typeof MENU_SEPARATOR;
 
 export interface MenuPosition {
   x: number;
@@ -21,7 +26,7 @@ export function menuBelow(e: ReactMouseEvent<HTMLElement>): MenuPosition {
 }
 
 interface Props extends MenuPosition {
-  items: MenuItem[];
+  items: MenuEntry[];
   label: string;
   onClose: () => void;
 }
@@ -78,19 +83,23 @@ export function Menu({ x, y, items: initial, label, onClose }: Props) {
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {items.map((item) => (
-        <button
-          key={item.label}
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          className={item.danger ? 'tehlikeli' : undefined}
-          disabled={item.disabled}
-          onClick={() => choose(item)}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((item, i) =>
+        'ayirici' in item ? (
+          <div key={`ayirici-${i}`} role="separator" className="menu-ayirici" />
+        ) : (
+          <button
+            key={item.label}
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className={item.danger ? 'tehlikeli' : undefined}
+            disabled={item.disabled}
+            onClick={() => choose(item)}
+          >
+            {item.label}
+          </button>
+        ),
+      )}
     </div>
   );
 }
