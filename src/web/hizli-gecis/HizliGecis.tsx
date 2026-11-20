@@ -19,6 +19,8 @@ export interface PaletteCommand {
   disabled?: boolean;
   /** Pasif komutun yanındaki kısa not (ör. "yakında"). */
   hint?: string;
+  /** Seçeneklerden biri olan komut (ör. tema): 	rue etkin olanı işaretler. */
+  checked?: boolean;
   run: () => void;
 }
 
@@ -58,6 +60,7 @@ interface Entry {
   /** Hedef kilitli: gezinilir ve Alt+Enter ile gösterilir ama Enter/tıklama hedef yapmaz. */
   locked?: boolean;
   hint?: string;
+  checked?: boolean;
   item?: TargetItem;
   prod?: boolean;
   run: () => void;
@@ -147,7 +150,7 @@ export function HizliGecis({
         title: 'Komutlar',
         entries: commands
           .filter((c) => fuzzyScore(query, c.label) !== null)
-          .map((c) => ({ key: `komut/${c.label}`, label: c.label, disabled: c.disabled, hint: c.hint, run: c.run })),
+          .map((c) => ({ key: `komut/${c.label}`, label: c.label, disabled: c.disabled, hint: c.hint, checked: c.checked, run: c.run })),
       },
     );
   }
@@ -225,6 +228,7 @@ export function HizliGecis({
                   role="option"
                   aria-selected={entry === current}
                   aria-disabled={entry.disabled || entry.locked ? true : undefined}
+                  aria-checked={entry.checked}
                   className={`palet-secenegi${entry.prod ? ' prod' : ''}`}
                   onMouseMove={() => !entry.disabled && entry !== current && setActive(enabled.indexOf(entry))}
                   onMouseDown={(e) => e.preventDefault()}
@@ -235,6 +239,11 @@ export function HizliGecis({
                   {entry.item?.current && (
                     <Rozet tur="vurgu" className="hedef-isareti">
                       hedef
+                    </Rozet>
+                  )}
+                  {entry.checked && (
+                    <Rozet tur="vurgu" className="hedef-isareti">
+                      etkin
                     </Rozet>
                   )}
                   {entry.hint && <span className="soluk kucuk">{entry.hint}</span>}

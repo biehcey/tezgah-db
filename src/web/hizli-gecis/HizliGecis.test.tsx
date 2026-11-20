@@ -173,6 +173,9 @@ describe('Cmd/Ctrl+K paleti: komutlar', () => {
       'Yeni klasör',
       'İçe aktar',
       'Çalıştırma kayıtları klasörünü aç',
+      'Tema: Sistemetkin',
+      'Tema: Açık',
+      'Tema: Koyu',
     ]);
 
     await user.type(search(), 'yeni bag');

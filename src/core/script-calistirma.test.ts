@@ -126,6 +126,32 @@ describe('çalıştırma görünümü', () => {
   });
 });
 
+describe('çalıştırma görünümü: Çalışacak aralık', () => {
+  // Editörde üçüncü satırdaki iki ifade çalışır; sunucu aralığı tek başına bir script olarak görür.
+  const EDITOR = 'SELECT 0;\n-- not\nSELECT 1;\n  SELECT nope\n  FROM t;\nSELECT 9;';
+  const bas = EDITOR.indexOf('SELECT 1');
+  const ARALIK = EDITOR.slice(bas, EDITOR.indexOf('SELECT 9') - 1);
+  const view = () => startRunView(ARALIK, { aralik: { bas, editorMetni: EDITOR } });
+
+  it('ifadelerin satırı editördeki satırdır; görünüm aralığın yerini ve editör metnini taşır', () => {
+    expect(view()).toMatchObject({ script: ARALIK, bas, editorMetni: EDITOR });
+    expect(view().ifadeler.map((s) => s.satir)).toEqual([3, 4]);
+  });
+
+  it('hata konumu (offset, satır, sütun) editör metnine taşınır', () => {
+    // Sunucunun konumu aralığa göredir: `nope` aralığın 2. satırının 10. sütunu.
+    const yerel = ARALIK.indexOf('nope');
+    const hatali = applyEvent(view(), { type: 'error', i: 1, ms: 1, sqlstate: '42703', mesaj: 'yok', satir: 2, sutun: 10, bas: yerel, bit: yerel + 4 });
+    expect(hatali.ifadeler[1]!.hata).toMatchObject({ satir: 4, sutun: 10, bas: EDITOR.indexOf('nope'), bit: EDITOR.indexOf('nope') + 4 });
+  });
+
+  it('tüm script ofset 0’lı aralıktır: aralık verilmezse görünüm script’in kendisidir', () => {
+    expect(startRunView(SCRIPT)).toMatchObject({ bas: 0, editorMetni: SCRIPT });
+    const hatali = applyEvent(startRunView(SCRIPT), { type: 'error', i: 1, ms: 1, sqlstate: null, mesaj: 'x', satir: 3, sutun: 1, bas: 27, bit: 35 });
+    expect(hatali.ifadeler[1]!.hata).toMatchObject({ satir: 3, sutun: 1, bas: 27, bit: 35 });
+  });
+});
+
 describe('çalıştırma görünümü: Çalıştırma modu', () => {
   it('analiz modu ve reddedilenleri yazar', () => {
     const view = play({ type: 'analiz', mod: 'autocommit', transactionDisi: [0, 1, 2], reddedilenler: [] });

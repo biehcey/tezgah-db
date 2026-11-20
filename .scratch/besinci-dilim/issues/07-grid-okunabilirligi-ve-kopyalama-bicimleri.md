@@ -6,14 +6,20 @@ Spec: [Grid okunabilirliği ve kopyalama](../spec.md#grid-okunabilirliği-ve-kop
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (a168647)
 
-- [ ] core kolon hizası: `int2`, `int4`, `int8`, `numeric`, `float4`, `float8`, `money`, `oid` → sağ; diğerleri sol. Sağ kolonlarda `tabular-nums`.
+- [x] core kolon hizası: `int2`, `int4`, `int8`, `numeric`, `float4`, `float8`, `money`, `oid` → sağ; diğerleri sol. Sağ kolonlarda `tabular-nums`.
 - [ ] Satır hover vurgusu; seçim ve düzenlenmiş hücre renkleri token'lara bağlı; tip etiketi en az 11 px.
-- [ ] core kopyalama modülü: `toCsv` (RFC 4180, başlıklı, NULL boş alan, boş metin `""`), `toMarkdown` (başlık + ayırıcı, `|` ve satır sonu kaçışı, sayısal kolonlar `---:`), `toJson` (nesne dizisi; NULL `null`, `bool` true/false, `int2`/`int4`/`float` sayı, `int8`/`numeric` metin, `json`/`jsonb` iç içe; yinelenen adlar `ad`, `ad_2`), başlıklı `toTsv`. Tam (kesilmemiş) değerlerle çalışır.
-- [ ] `Menu` alt menü ve ayırıcı destekler; grid menüsünde "Kopyala ▸" grubu.
-- [ ] Ctrl/Cmd+Shift+C başlıklı TSV.
-- [ ] Kopyalama geri bildirimi (ticket 05 bittiyse toast, bitmediyse mevcut mesaj yolu).
-- [ ] Testler: core (kolon hizası; her biçim için NULL, boş metin, tırnak, `|`, satır sonu, yinelenen kolon, `int8`/`numeric`, `jsonb`); arayüz (Kopyala alt menüsünden her biçim panoya beklenen metni yazar; Ctrl/Cmd+Shift+C başlıklı TSV). Hizalama jsdom'da görünür davranış olarak sınanamaz; core'daki kolon hizası testi yeterlidir, görünüm ticket 14'teki görsel turda doğrulanır.
+- [x] core kopyalama modülü: `toCsv` (RFC 4180, başlıklı, NULL boş alan, boş metin `""`), `toMarkdown` (başlık + ayırıcı, `|` ve satır sonu kaçışı, sayısal kolonlar `---:`), `toJson` (nesne dizisi; NULL `null`, `bool` true/false, `int2`/`int4`/`float` sayı, `int8`/`numeric` metin, `json`/`jsonb` iç içe; yinelenen adlar `ad`, `ad_2`), başlıklı `toTsv`. Tam (kesilmemiş) değerlerle çalışır.
+- [x] `Menu` alt menü ve ayırıcı destekler; grid menüsünde "Kopyala ▸" grubu.
+- [x] Ctrl/Cmd+Shift+C başlıklı TSV.
+- [x] Kopyalama geri bildirimi (ticket 05 bittiyse toast, bitmediyse mevcut mesaj yolu).
+- [x] Testler: core (kolon hizası; her biçim için NULL, boş metin, tırnak, `|`, satır sonu, yinelenen kolon, `int8`/`numeric`, `jsonb`); arayüz (Kopyala alt menüsünden her biçim panoya beklenen metni yazar; Ctrl/Cmd+Shift+C başlıklı TSV). Hizalama jsdom'da görünür davranış olarak sınanamaz; core'daki kolon hizası testi yeterlidir, görünüm ticket 14'teki görsel turda doğrulanır.
 
 ## Comments
+
+- Hover/token/11 px maddesi kodda yapıldı (`.grid-veri-satiri:hover` `--kenar-zemin`; seçim `--vurgu`, düzenlenen hücre `--dikkat` karışımı; `.grid-kolon-tipi` `--yazi-11`), ama görünüm jsdom'da sınanamaz; ticket 14'teki görsel turda açık ve koyu temada bakılınca işaretlenecek. Sağa yaslı kolonların görünümü de orada doğrulanır.
+- Geri bildirim: ticket 05 (Bildirimler) henüz birleşmediği için grid kendi `role="status"` kısa bilgisini (`.grid-kopyalama-bilgisi`, 3 sn) gösteriyor; uygulamanın mevcut bilgi satırı App'te olduğu için grid'den erişilemiyor. Ticket 05 bunu toast'a taşıyınca `SonucGridi`'deki `feedback` durumu ve CSS sınıfı kaldırılmalı. Bildirim Ctrl/Cmd+C, # ve satır numarası kopyalamalarında da görünür; pano reddederse "Panoya kopyalanamadı".
+- "INSERT olarak kopyala" artık "Kopyala ▸" alt menüsünde "INSERT" adıyla; Katalog ve ScriptEkrani testleri buna göre güncellendi.
+- Görsel turda bakılacak: Chrome'da Ctrl+Shift+C DevTools'un öğe seçicisini açabilir; sayfa tuşu yakalayabiliyor mu, gerçek tarayıcıda denenmeli.
+- Spec'teki Grid maddesi, kodun netleştirdiği kurallarla yeniden yazıldı (kolonlar seçili aralıktan; Markdown NULL `NULL`, satır sonu `<br>`; JSON'da `NaN`/`Infinity` metin, anahtar sırası korunur).

@@ -177,6 +177,79 @@ describe('Sonuç grid’i: gezinme ve seçim', () => {
     await user.keyboard('{Meta>}c{/Meta}');
     expect(await navigator.clipboard.readText()).toBe('ad 2');
   });
+
+  it('Ctrl/Cmd+Shift+C seçili aralığı seçili kolonların başlığıyla TSV olarak kopyalar', async () => {
+    const { user } = setup();
+    await user.click(cell(0, 1));
+    await user.keyboard('{Shift>}{ArrowDown}{ArrowRight}{/Shift}');
+    await user.keyboard('{Control>}{Shift>}C{/Shift}{/Control}');
+    expect(await navigator.clipboard.readText()).toBe('ad\tnot\nad 1\t\nad 2\t');
+    expect(await screen.findByRole('status')).toHaveTextContent('2 satır başlıklı TSV olarak kopyalandı');
+    await user.click(cell(3, 0));
+    await user.keyboard('{Meta>}{Shift>}C{/Shift}{/Meta}');
+    expect(await navigator.clipboard.readText()).toBe('id\n4');
+  });
+});
+
+describe('Sonuç grid’i: Kopyala alt menüsü', () => {
+  const INT4 = 23;
+  const TEXT = 25;
+  const SATIRLAR = [
+    ['1', 'a|b', null],
+    ['2', '', 'x'],
+  ];
+
+  async function copyAs(bicim: string) {
+    const { user } = setup({ satirlar: SATIRLAR, tipler: [INT4, TEXT, TEXT] });
+    await user.click(cell(0, 0));
+    await user.keyboard('{Shift>}{ArrowDown}{End}{/Shift}');
+    fireEvent.contextMenu(cell(1, 1));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: bicim }));
+    return navigator.clipboard.readText();
+  }
+
+  it('alt menü biçimleri sunar; INSERT ayırıcıyla ayrılır', async () => {
+    const { user } = setup();
+    fireEvent.contextMenu(cell(0, 0));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['TSV', 'Başlıklı TSV', 'CSV', 'Markdown', 'JSON', 'INSERT']);
+    expect(within(menu).getByRole('separator')).toBeInTheDocument();
+  });
+
+  it('TSV başlıksız', async () => {
+    expect(await copyAs('TSV')).toBe('1\ta|b\t\n2\t\tx');
+  });
+
+  it('Başlıklı TSV', async () => {
+    expect(await copyAs('Başlıklı TSV')).toBe('id\tad\tnot\n1\ta|b\t\n2\t\tx');
+  });
+
+  it('CSV; ardından kısa geri bildirim', async () => {
+    expect(await copyAs('CSV')).toBe('id,ad,not\r\n1,a|b,\r\n2,"",x');
+    expect(await screen.findByRole('status')).toHaveTextContent('2 satır CSV olarak kopyalandı');
+  });
+
+  it('Markdown', async () => {
+    expect(await copyAs('Markdown')).toBe(['| id | ad | not |', '| ---: | --- | --- |', '| 1 | a\\|b | NULL |', '| 2 |  | x |'].join('\n'));
+  });
+
+  it('JSON', async () => {
+    expect(JSON.parse(await copyAs('JSON'))).toEqual([
+      { id: 1, ad: 'a|b', not: null },
+      { id: 2, ad: '', not: 'x' },
+    ]);
+  });
+
+  it('tam (kesilmemiş) değer kopyalanır', async () => {
+    const uzun = 'x'.repeat(1500);
+    const { user } = setup({ satirlar: [['1', uzun, null]] });
+    fireEvent.contextMenu(cell(0, 1));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'CSV' }));
+    expect(await navigator.clipboard.readText()).toBe(`ad\r\n${uzun}`);
+  });
 });
 
 describe('Sonuç grid’i: satır numarası ve köşe', () => {
@@ -210,7 +283,7 @@ describe('Sonuç grid’i: satır numarası ve köşe', () => {
   });
 });
 
-describe('Sonuç grid’i: INSERT olarak kopyala', () => {
+describe('Sonuç grid’i: INSERT olarak kopyala ve sağ tık menüsü', () => {
   const INT4 = 23;
   const TEXT = 25;
 
@@ -219,7 +292,8 @@ describe('Sonuç grid’i: INSERT olarak kopyala', () => {
     await user.click(cell(0, 1));
     await user.keyboard('{Shift>}{ArrowDown}{/Shift}');
     fireEvent.contextMenu(cell(1, 1));
-    await user.click(screen.getByRole('menuitem', { name: 'INSERT olarak kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
     expect(await navigator.clipboard.readText()).toBe(
       [
         `INSERT INTO "tablo" ("id", "ad", "not") VALUES ('1'::integer, 'O''Brien'::text, NULL);`,
@@ -236,7 +310,8 @@ describe('Sonuç grid’i: INSERT olarak kopyala', () => {
     fireEvent.contextMenu(cell(1, 2));
     expect(cell(1, 2)).toHaveClass('aktif');
     expect(cell(0, 0)).not.toHaveClass('secili');
-    await user.click(screen.getByRole('menuitem', { name: 'INSERT olarak kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
     expect(await navigator.clipboard.readText()).toBe(`INSERT INTO "tablo" ("id", "ad", "not") VALUES ('2', 'b', 'q');`);
   });
 

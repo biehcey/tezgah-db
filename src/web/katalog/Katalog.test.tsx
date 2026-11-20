@@ -191,7 +191,8 @@ describe('Katalog: INSERT olarak kopyala', () => {
     const cell = within(screen.getByRole('grid')).getAllByRole('gridcell')[0]!;
     await user.click(cell);
     fireEvent.contextMenu(cell);
-    await user.click(screen.getByRole('menuitem', { name: 'INSERT olarak kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+    await user.click(screen.getByRole('menuitem', { name: 'INSERT' }));
     expect(await navigator.clipboard.readText()).toBe(`INSERT INTO "tablo" ("durum") VALUES ('acik'::durum);`);
   });
 });

@@ -64,6 +64,10 @@ _Avoid_: Kapsam, scope, context
 Postgres'in bir transaction bloğu içinde çalıştırmayı reddettiği komut (ör. `VACUUM`, `CREATE INDEX CONCURRENTLY`). Etkisi anında kalıcıdır, geri alınamaz.
 _Avoid_: Özel komut, non-tx
 
+**Çalışacak aralık**:
+Konsol sekmesinde Ctrl/Cmd+Enter'ın çalıştırdığı metin: seçim varsa seçim, yoksa imlecin bulunduğu (ya da imleçten önceki en yakın) ifade. Sunucuya tek başına bir script olarak gider; Çalıştırma modu yalnızca onun içeriğinden çıkar. Tüm script, editör metninin tamamı olan aralıktır.
+_Avoid_: Seçili sorgu, current statement
+
 **Çalıştırma modu**:
 Bir script'in içeriğinden çıkarılan, nasıl çalışacağını belirleyen mod: *Transaction* (tüm ifadeler tek transaction'da, sonda commit veya rollback) *Autocommit* (script yalnızca transaction dışı komutlardan oluşur; her ifade anında kalıcı) ya da *Okuma* (tüm ifadeler okuma ifadesi; `BEGIN READ ONLY` ile çalışır, commit/rollback sorulmaz, transaction yalnızca sonuçtan daha fazla satır çekilebilsin diye açık kalır). Transaction dışı komutla diğer türleri karıştıran script çalıştırılamaz. Deneme modu bir çalıştırma modu değildir; Transaction modunun sonu her zaman rollback olan biçimidir.
 _Avoid_: Transaction modu anahtarı, execution mode
@@ -107,3 +111,9 @@ _Avoid_: Geçmiş, log, audit log, denetim kaydı
 **Sorgu geçmişi**:
 Konsolda Ctrl/Cmd+Alt+E ile açılıp kapanan, Çalıştırma kayıtlarını yeniden eskiye listeleyen yan panel. Bir kayda çift tıklamak metnini yeni bir Sekmede, kaydın hedefiyle açar. Panelin adıdır; içindeki her öğe bir Çalıştırma kaydıdır.
 _Avoid_: Geçmiş kaydı, log
+
+## Arayüz
+
+**Arayüz tercihleri**:
+Gezgin görünürlüğü ve genişliği, editör/sonuç oranı, Sonuç alanının daraltılmışlığı ve temanın bağlantı ayarlarından ayrı dosyada (`arayuz.json`) saklanan değerleri. Bozuk ya da eksikse varsayılanlarla açılır; okunup yazılması hiçbir veritabanına bağlanmaz.
+_Avoid_: Ayarlar (tek başına), config

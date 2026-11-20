@@ -27,11 +27,15 @@ export function tableShortcut(e: ShortcutKey): TableShortcut | null {
   return e.shift ? 'dene' : 'uygula';
 }
 
-export type ScriptShortcut = 'calistir' | 'dene';
+export type ScriptShortcut = 'calistir' | 'dene' | 'tumunuCalistir' | 'tumunuDene';
 
-/** Script editörü: Ctrl/Cmd+Enter Çalıştır, +Shift Dene; Alt'lı ve diğerleri `null`. */
+/**
+ * Script editörü: Ctrl/Cmd+Enter Çalışacak aralığı çalıştırır, +Shift dener; +Alt tüm script'i
+ * çalıştırır, +Alt+Shift dener. Windows'un Ctrl+Alt'a verdiği AltGraph da Alt sayılır.
+ */
 export function scriptShortcut(e: ShortcutKey): ScriptShortcut | null {
-  if (e.key !== 'Enter' || !(e.ctrl || e.meta) || e.alt || e.altGraph) return null;
+  if (e.key !== 'Enter' || !(e.ctrl || e.meta)) return null;
+  if (e.alt || e.altGraph) return e.shift ? 'tumunuDene' : 'tumunuCalistir';
   return e.shift ? 'dene' : 'calistir';
 }
 

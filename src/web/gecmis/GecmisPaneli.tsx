@@ -15,6 +15,7 @@ import { X } from 'lucide-react';
 import { Dugme } from '../ortak/Dugme';
 import { OnayKutusu, Radyo, TarihAlani } from '../ortak/FormKontrolleri';
 import { Rozet, type RozetTuru } from '../ortak/Rozet';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 
 interface Props {
   connections: readonly Connection[];
@@ -148,7 +149,7 @@ export function GecmisPaneli({ connections, activeTarget, onOpen, onClose }: Pro
           <GecmisKaydi key={entry.runId} entry={entry} connections={connections} onOpen={onOpen} />
         ))}
       </ul>
-      {listing.loading && <p className="soluk kucuk gecmis-durumu">Yükleniyor…</p>}
+      {listing.loading && <p className="soluk kucuk gecmis-durumu"><Yukleniyor /></p>}
       {/* Liste paneli doldurmuyorsa kaydırma olayı gelmez; sonraki sayfa düğmeyle de istenir. */}
       {!listing.loading && listing.next !== null && (
         <Dugme tur="sade" boyut="kucuk" className="gecmis-durumu" onClick={() => load(listing.next)}>
