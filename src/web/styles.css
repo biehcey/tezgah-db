@@ -1844,6 +1844,45 @@ dialog.diyalog::backdrop {
   color: var(--uyari);
 }
 
+.ifade-karti-satiri {
+  display: flex;
+  gap: var(--bosluk-8);
+  align-items: baseline;
+}
+
+.ifade-karti-satiri .ifade-karti-basligi {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Bildirimler sekmesi: düz metin, seçilip kopyalanabilir. */
+.bildirim-listesi {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bildirim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bosluk-6);
+  align-items: baseline;
+  padding: var(--bosluk-4) 0;
+  border-bottom: 1px solid var(--cizgi);
+  user-select: text;
+}
+
+.bildirim-mesaji {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bildirim-eki {
+  flex-basis: 100%;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 /* Deneme modunun Değişiklikler sekmesi. */
 .deneme-hatasi {
   margin: 0 0 var(--bosluk-8);

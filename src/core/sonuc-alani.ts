@@ -6,7 +6,7 @@ import type { RunView, StatementView } from './script-calistirma';
  * sekmenin açılacağı ve daraltılmış alanın ne zaman kendiliğinden açılacağı buradan türetilir.
  */
 
-export type SonucSekmesiAnahtari = 'log' | 'degisiklikler' | `sonuc-${number}`;
+export type SonucSekmesiAnahtari = 'log' | 'degisiklikler' | 'bildirimler' | `sonuc-${number}`;
 
 export interface SonucAlaniSekmesi {
   anahtar: SonucSekmesiAnahtari;
@@ -25,12 +25,24 @@ function sonuclar(run: RunView | null): StatementView[] {
 
 export const sonucAnahtari = (i: number): SonucSekmesiAnahtari => `sonuc-${i}`;
 
-/** Şeritteki sekmeler sırasıyla: ifade başına Sonuç sekmeleri, Log, (Deneme'de) Değişiklikler. */
+/**
+ * Şeritteki sekmeler sırasıyla: ifade başına Sonuç sekmeleri, Log, (Deneme'de) Değişiklikler,
+ * (bildirim geldiyse) Bildirimler. Bildirim sayısı gösterilmeyenleri de sayar.
+ */
 export function sonucSekmeleri(run: RunView | null): SonucAlaniSekmesi[] {
   const tabs: SonucAlaniSekmesi[] = sonuclar(run).map((s) => ({ anahtar: sonucAnahtari(s.i), etiket: `${s.komut} · satır ${s.satir}`, i: s.i }));
   tabs.push(LOG);
   if (run?.deneme) tabs.push(DEGISIKLIKLER);
+  const bildirim = (run?.bildirimler.length ?? 0) + (run?.bildirimFazlasi ?? 0);
+  if (bildirim > 0) tabs.push({ anahtar: 'bildirimler', etiket: `Bildirimler (${bildirim})` });
   return tabs;
+}
+
+/** Log'daki sayaç: ifade indeksi → o ifade çalışırken gelen (gösterilen) bildirim sayısı. */
+export function bildirimSayilari(run: RunView | null): Map<number, number> {
+  const sayilar = new Map<number, number>();
+  for (const { i } of run?.bildirimler ?? []) if (i !== null) sayilar.set(i, (sayilar.get(i) ?? 0) + 1);
+  return sayilar;
 }
 
 /**
