@@ -6,7 +6,7 @@ Spec: [Grid okunabilirliği ve kopyalama](../spec.md#grid-okunabilirliği-ve-kop
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (a168647)
 
 - [x] core kolon hizası: `int2`, `int4`, `int8`, `numeric`, `float4`, `float8`, `money`, `oid` → sağ; diğerleri sol. Sağ kolonlarda `tabular-nums`.
 - [ ] Satır hover vurgusu; seçim ve düzenlenmiş hücre renkleri token'lara bağlı; tip etiketi en az 11 px.
