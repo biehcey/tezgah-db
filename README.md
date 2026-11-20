@@ -12,6 +12,19 @@ npx tezgah-db --no-open  # yalnızca adresi terminale yazar
 
 Sunucu yalnızca `127.0.0.1`'de dinler. Her açılışta rastgele bir erişim anahtarı üretilir; tarayıcı terminalde yazan `http://127.0.0.1:<port>/?t=<anahtar>` adresiyle açılır. Tezgah yeniden başlatıldığında eski sekme geçersiz olur; terminaldeki yeni adresi açın.
 
+## Script çalıştırma kısayolları
+
+Konsol sekmesinde **Ctrl/Cmd+Enter** artık tüm script'i değil, *Çalışacak aralığı* çalıştırır: metin seçiliyse seçimi, değilse imlecin bulunduğu ifadeyi (imleç ifadeler arasındaysa imleçten önceki en yakın ifadeyi). Editör odaktayken ve seçim yokken çalışacak ifade hafif bir zeminle gösterilir. Aralık sunucuya tek başına bir script olarak gider: Çalıştırma modu, Yazma kilidi, karar kartı ve Deneme modu aralık için de aynen işler; hata ve satır işaretleri editördeki gerçek satırlara düşer.
+
+| Kısayol | Eylem |
+| --- | --- |
+| Ctrl/Cmd+Enter | Çalışacak aralığı çalıştır (▶ Çalıştır) |
+| Ctrl/Cmd+Shift+Enter | Çalışacak aralığı dene (⟲ Dene) |
+| Ctrl/Cmd+Alt+Enter | Tüm script'i çalıştır (Tümünü çalıştır) |
+| Ctrl/Cmd+Alt+Shift+Enter | Tüm script'i dene (Tümünü dene) |
+
+Windows'ta AltGr, Ctrl+Alt sayılır ve karakter yazmaz. Tablo sekmesinde kısayollar değişmez: Ctrl/Cmd+Enter Uygula, +Shift Dene, +Alt SQL çekmecesi.
+
 ## prod salt okunurluğu
 
 `prod` etiketli bir hedef salt okunur açılır: bağlantılar `default_transaction_read_only=on` ile kurulur, script'ler `BEGIN READ ONLY` ile başlar ve yazma girişimlerini Postgres reddeder. Salt okunurken transaction dışı (Autocommit) script'ler sunucuya hiç gönderilmez. Araç çubuğundaki 🔒 Salt okunur / 🔓 Yazma açık düğmesi yazma modunu tek tıkla açar ve kapatır; kilit sekme ve hedef başınadır: bir sekmede yazmayı açmak başka bir sekmeyi etkilemez, sekmenin hedefi değişince ya da Tezgah yeniden açılınca kilit kapanır. Çalıştırmadan önce ayrıca onay istenmez.
