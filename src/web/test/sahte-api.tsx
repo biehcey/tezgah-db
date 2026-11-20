@@ -15,6 +15,7 @@ import {
 } from '../../core/baglanti';
 import type { HostKeyProblem } from '../../core/ssh-tuneli';
 import { emptyTabs, type SavedTabs } from '../../core/konsol-sekmeleri';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, type ArayuzTercihleri } from '../../core/arayuz-tercihleri';
 import type { HistoryEntry, HistoryQuery } from '../../core/gecmis-filtresi';
 import type { Catalog } from '../../core/katalog';
 import type { Volatility } from '../../core/kolon-ekle';
@@ -57,6 +58,8 @@ export function createFakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
     // Sekmeler yalnızca dosyadır; App'i kuran her test bunları ister.
     readTabs: async () => emptyTabs(),
     writeTabs: async (tabs) => tabs,
+    readPreferences: async () => structuredClone(ARAYUZ_TERCIHLERI_VARSAYILAN),
+    writePreferences: async (preferences) => preferences,
     runScript: () => {
       throw new Error('Sahte API: runScript tanımlı değil');
     },
@@ -165,6 +168,10 @@ export interface FakeConnections {
   savedTabs: SavedTabs;
   /** Arayüzün yazdığı sekme listeleri, sırasıyla. */
   tabWrites: SavedTabs[];
+  /** Diskteki Arayüz tercihleri (açılışta okunur). */
+  preferences: ArayuzTercihleri;
+  /** Arayüzün yazdığı tercihler, sırasıyla. */
+  preferenceWrites: ArayuzTercihleri[];
   /**
    * Çalıştırma kayıtları, yeniden eskiye. Sahte uç yalnızca hedef filtresini uygular (filtrenin
    * kendisi core'da ve sunucuda sınanır); imleç bir sonraki kaydın sırasıdır.
@@ -236,6 +243,8 @@ export function createFakeConnections(
     unknownHostKey: null,
     savedTabs: emptyTabs(),
     tabWrites: [],
+    preferences: structuredClone(ARAYUZ_TERCIHLERI_VARSAYILAN),
+    preferenceWrites: [],
     history: [],
     historyRequests: [],
     catalogs: new Map(),
@@ -463,6 +472,12 @@ export function createFakeConnections(
       state.tabWrites.push(structuredClone(tabs));
       state.savedTabs = structuredClone(tabs);
       return structuredClone(tabs);
+    },
+    readPreferences: async () => structuredClone(state.preferences),
+    async writePreferences(preferences) {
+      state.preferenceWrites.push(structuredClone(preferences));
+      state.preferences = structuredClone(preferences);
+      return structuredClone(preferences);
     },
     async passwordStatus(id) {
       find(id);

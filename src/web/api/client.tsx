@@ -17,6 +17,7 @@ import type { Catalog } from '../../core/katalog';
 import type { VolatilityResponse } from '../../core/kolon-ekle';
 import { historySearchParams, type HistoryPage, type HistoryQuery } from '../../core/gecmis-filtresi';
 import type { SavedTabs } from '../../core/konsol-sekmeleri';
+import type { ArayuzTercihleri } from '../../core/arayuz-tercihleri';
 import type { TablePageError, TablePageRequest, TablePageResponse } from '../../core/tablo-sayfasi';
 import type { ImportApplyRequest, ImportApplyResponse, ImportPreviewRequest, ImportPreviewResponse } from '../../core/ice-aktarma/sozlesme';
 import type { HostKeyForgetRequest, HostKeyForgetResponse, HostKeyTrustRequest, HostKeyTrustResponse } from '../../core/ssh-tuneli';
@@ -91,6 +92,10 @@ export interface ApiClient {
    * sayfa kapanırken de gitsin (tarayıcı sınırı nedeniyle yalnızca küçük gövdelerde uygulanır).
    */
   writeTabs(tabs: SavedTabs, options?: { keepalive?: boolean }): Promise<SavedTabs>;
+  /** Arayüz tercihleri; dosya yoksa ya da bozuksa varsayılanlar. Hiçbir sunucuya bağlanılmaz. */
+  readPreferences(): Promise<ArayuzTercihleri>;
+  /** Arayüz tercihlerini yazar; sunucu normalleştirip yazılanı döndürür. */
+  writePreferences(preferences: ArayuzTercihleri): Promise<ArayuzTercihleri>;
 }
 
 /** Çalıştırmanın hedefi, script'i ve (prod'da) yazma kilidi durumu. */
@@ -210,6 +215,8 @@ export function createHttpApiClient(): ApiClient {
         keepalive: keepalive && body.length < KEEPALIVE_MAX_CHARS,
       });
     },
+    readPreferences: () => request<ArayuzTercihleri>('/api/arayuz-tercihleri'),
+    writePreferences: (preferences) => send('PUT', '/api/arayuz-tercihleri', preferences),
   };
 }
 

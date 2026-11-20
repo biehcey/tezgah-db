@@ -107,3 +107,9 @@ _Avoid_: Geçmiş, log, audit log, denetim kaydı
 **Sorgu geçmişi**:
 Konsolda Ctrl/Cmd+Alt+E ile açılıp kapanan, Çalıştırma kayıtlarını yeniden eskiye listeleyen yan panel. Bir kayda çift tıklamak metnini yeni bir Sekmede, kaydın hedefiyle açar. Panelin adıdır; içindeki her öğe bir Çalıştırma kaydıdır.
 _Avoid_: Geçmiş kaydı, log
+
+## Arayüz
+
+**Arayüz tercihleri**:
+Gezgin görünürlüğü ve genişliği, editör/sonuç oranı, Sonuç alanının daraltılmışlığı ve temanın bağlantı ayarlarından ayrı dosyada (`arayuz.json`) saklanan değerleri. Bozuk ya da eksikse varsayılanlarla açılır; okunup yazılması hiçbir veritabanına bağlanmaz.
+_Avoid_: Ayarlar (tek başına), config
