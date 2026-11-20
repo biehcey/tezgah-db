@@ -214,7 +214,9 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 - Yeni sunucu olayı (`ServerEvent`'e eklenir): `{ type: 'bildirim'; i: number | null; seviye: 'DEBUG' | 'LOG' | 'INFO' | 'NOTICE' | 'WARNING'; mesaj: string; detay?: string; ipucu?: string }`. `i`, bildirim geldiğinde çalışan ifadenin indeksidir; çalışan ifade yoksa `null`.
 - Script çalıştırıcı çalıştırma süresince kullandığı client'ın `notice` olayını dinler, çalıştırma bitince dinleyiciyi kaldırır (havuza dönen client'ta dinleyici kalmaz). Katalog okuma, tablo sayfası ve iptal sorguları bildirim yaymaz.
 - Sunucu çalıştırma başına en fazla 1000 bildirim gönderir; aşan bildirimler sayılır ve `bitti` olayında `bildirimFazlasi?: number` olarak bildirilir.
-- `RunView` bildirimleri ve fazlalık sayısını tutar; `applyEvent` saf kalır. Bildirimler Çalıştırma kaydına yazılmaz (kayıt çalıştırmanın verisini içermez kuralı).
+- Seviye sürücünün `severity` alanından gelir (core `noticeEvent`); yerelleştirilmiş ya da tanınmayan seviye `NOTICE` sayılır.
+- `RunView` bildirimleri (`bildirimler`, her biri geldiği ifadenin editördeki `satir`'ıyla; ifade dışında `null`) ve fazlalık sayısını (`bildirimFazlasi`) tutar; `applyEvent` saf kalır ve kendisi de 1000'den sonrasını gösterilmeyen olarak sayar. Bildirimler Çalıştırma kaydına yazılmaz (kayıt çalıştırmanın verisini içermez kuralı).
+- "Bildirimler (N)" sekmesi şeridin sonundadır (Log ve Değişiklikler'den sonra); N gösterilmeyenleri de sayar. Log'daki sayaç ("N bildirim") yalnızca gösterilen bildirimleri sayar.
 - Tablo sekmesinin Bekleyen değişiklik script'leri bildirim olaylarını yok sayar (bu dilimde gösterilmez).
 
 ### Yerleşim (web)

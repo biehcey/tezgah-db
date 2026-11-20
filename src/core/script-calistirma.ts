@@ -118,6 +118,27 @@ export function formatSummary({ uygulandi, hatali, calistirilmadi }: AutocommitS
   return parts.join(' · ');
 }
 
+/** Sunucu bildiriminin seviyesi; Postgres DEBUG1..5'i `DEBUG` olarak gönderir. */
+export type BildirimSeviyesi = 'DEBUG' | 'LOG' | 'INFO' | 'NOTICE' | 'WARNING';
+const SEVIYELER: readonly BildirimSeviyesi[] = ['DEBUG', 'LOG', 'INFO', 'NOTICE', 'WARNING'];
+
+/** Sunucunun çalıştırma başına gönderdiği (ve arayüzün gösterdiği) en fazla Sunucu bildirimi. */
+export const BILDIRIM_SINIRI = 1000;
+
+type Bildirim = Extract<ServerEvent, { type: 'bildirim' }>;
+
+/**
+ * Sürücünün `notice` mesajından `bildirim` olayı. `i`: o an çalışan ifade. Seviye yerelleştirilmiş
+ * gelebilir (`lc_messages`); tanınmayan seviye `NOTICE` sayılır.
+ */
+export function noticeEvent(
+  { severity, message, detail, hint }: { severity?: string; message?: string; detail?: string; hint?: string },
+  i: number | null,
+): Bildirim {
+  const seviye = SEVIYELER.find((s) => s === severity) ?? 'NOTICE';
+  return { type: 'bildirim', i, seviye, mesaj: message ?? '', ...(detail && { detay: detail }), ...(hint && { ipucu: hint }) };
+}
+
 export type ServerEvent =
   /** Sunucunun script analizi; her çalıştırmanın ilk olayı. */
   | ({ type: 'analiz' } & ScriptAnalysis)
@@ -166,10 +187,16 @@ export type ServerEvent =
   /** "Uzat" sunucuda işlendi; Karar süresi baştan başladı. */
   | { type: 'uzatildi'; kalanMs: number }
   /**
+   * Sunucu bildirimi (`RAISE NOTICE` vb.), geldiği anda. `i`: o an çalışan ifade; ifade dışında
+   * (ör. `BEGIN`) gelen bildirimde `null`. Çalıştırma başına en fazla `BILDIRIM_SINIRI` tane gelir.
+   */
+  | { type: 'bildirim'; i: number | null; seviye: BildirimSeviyesi; mesaj: string; detay?: string; ipucu?: string }
+  /**
    * `ozet` yalnızca Autocommit'te. `kod: 'havuzDolu'`: hedefte `oturum` açık oturumla sınır doldu,
    * hiçbir şey çalışmadı; arayüz mesajı kendi bildiği açık sekmelerle kurar (`mesaj` yedektir).
    * `katalogYenilendi`: DDL'li script commit ya da autocommit ile bitti, sunucu hedefin Katalog
-   * önbelleğini tazeledi; arayüz katalogu yeniden çeker.
+   * önbelleğini tazeledi; arayüz katalogu yeniden çeker. `bildirimFazlasi`: sınırdan sonra gelip
+   * gönderilmeyen Sunucu bildirimi sayısı.
    */
   | {
       type: 'bitti';
@@ -179,6 +206,7 @@ export type ServerEvent =
       mesaj?: string;
       ozet?: AutocommitSummary;
       katalogYenilendi?: true;
+      bildirimFazlasi?: number;
     }
   /**
    * İstek reddedildi ya da Çalıştırma kaydı yazılamadı; çalıştırma sürüyor. `dahaFazla`: `i`.
@@ -273,6 +301,15 @@ export interface RunView {
   uyari?: string;
   /** Çalıştırma kaydı yazılamadı; çalıştırma sürer, uyarı kalıcıdır. */
   kayitUyarisi?: string;
+  /** Gelen Sunucu bildirimleri (en fazla `BILDIRIM_SINIRI`); Çalıştırma kaydına yazılmaz. */
+  bildirimler: SunucuBildirimi[];
+  /** Sınırdan sonra gelen, gösterilmeyen bildirim sayısı. */
+  bildirimFazlasi?: number;
+}
+
+/** Görünümdeki Sunucu bildirimi; `satir`: geldiği ifadenin editördeki 1 tabanlı satırı. */
+export interface SunucuBildirimi extends Omit<Bildirim, 'type'> {
+  satir: number | null;
 }
 
 /** `aralik`: `script` editör metninin bir parçasıysa onun yeri; yoksa script editör metninin tamamıdır. */
@@ -288,6 +325,7 @@ export function startRunView(
     evre: 'calisiyor',
     commitEdilebilir: false,
     bekleyenIstek: null,
+    bildirimler: [],
   };
 }
 
@@ -382,6 +420,13 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
       return { ...view, bekleyenIstek: null, kararSuresi: nextTimer(view, event.kalanMs) };
     case 'bekletilenler':
       return { ...view, bekletilenler: event.oturumlar };
+    case 'bildirim': {
+      if (view.bildirimler.length >= BILDIRIM_SINIRI) return { ...view, bildirimFazlasi: (view.bildirimFazlasi ?? 0) + 1 };
+      const { type: _t, ...bildirim } = event;
+      // Satır ifadenin satırıdır; o da Çalışacak aralıktan editöre taşınmıştır.
+      const satir = event.i === null ? null : (view.ifadeler[event.i]?.satir ?? null);
+      return { ...view, bildirimler: [...view.bildirimler, { ...bildirim, satir }] };
+    }
     case 'bitti': {
       const { bekletilenler: _b, ...rest } = view;
       return {
@@ -393,6 +438,7 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
         oturum: event.oturum,
         mesaj: event.mesaj,
         ozet: event.ozet,
+        bildirimFazlasi: event.bildirimFazlasi ?? view.bildirimFazlasi,
         ifadeler: closeMore(view.ifadeler, MORE_CLOSED_FINISHED).map((s) =>
           s.durum === 'sirada' || s.durum === 'calisiyor' ? { ...s, durum: 'calistirilmadi' } : s,
         ),

@@ -108,6 +108,10 @@ _Avoid_: Sonuç penceresi, sekme (tek başına)
 Bir ifadenin döndürdüğü satırları gösteren salt okunur tablo. İlk sayfa 500 satırdır; transaction açıkken (karar beklenirken ya da Okuma'da) sona kaydırdıkça ifadenin imlecinden 500'er satır daha yüklenir. Transaction kapanınca yüklenenler kalır, devamı çekilemez ve bu sonuçta yazar. En fazla 100.000 satır yüklenir ("Sınıra ulaşıldı, filtrele"). Hücre seçilir, aralık kopyalanır (başlıksız TSV; sağ tıkla seçili satırlar INSERT olarak), tam değer F2 ile açılır; değer düzenlenmez. NULL boş metinden ayrı gösterilir.
 _Avoid_: Sonuç tablosu, result set, veri grid'i
 
+**Sunucu bildirimi**:
+Bir çalıştırma sırasında Postgres'in gönderdiği `NOTICE`/`WARNING`/`INFO`/`LOG`/`DEBUG` mesajı; geldiği ifadeyle birlikte Sonuç alanında gösterilir, Çalıştırma kaydına yazılmaz.
+_Avoid_: Log, uyarı (tek başına), mesaj
+
 **Çalıştırma kaydı**:
 Bir script çalıştırmasının sonradan değiştirilmeyen kaydı: ne çalıştırıldı, hangi hedefte, nasıl sonuçlandı. Deneme modu ve hatalı çalıştırmalar da kaydedilir; çalıştırmanın döndürdüğü veriyi içermez.
 _Avoid_: Geçmiş, log, audit log, denetim kaydı

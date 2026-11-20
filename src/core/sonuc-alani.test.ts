@@ -3,6 +3,7 @@ import { applyEvent, startRunView, type RunView, type ServerEvent } from './scri
 import {
   acilisSekmesi,
   baslangicSecimi,
+  bildirimSayilari,
   calismaIlerledi,
   editorBoyu,
   gosterilenSekme,
@@ -36,6 +37,24 @@ describe('Sonuç alanı: sekme şeridi', () => {
       { anahtar: 'log', etiket: 'Log' },
     ]);
     expect(sonucSekmeleri(view(SCRIPT, events, true)).map((s) => s.anahtar)).toEqual(['sonuc-0', 'sonuc-2', 'log', 'degisiklikler']);
+  });
+
+  it('Bildirimler sekmesi yalnızca bildirim geldiyse, Log’dan sonra; sayı gösterilmeyenleri de sayar', () => {
+    const notice: ServerEvent = { type: 'bildirim', i: 0, seviye: 'NOTICE', mesaj: 'x' };
+    expect(sonucSekmeleri(view(SCRIPT, [selectDone(0, 'a')])).map((s) => s.anahtar)).not.toContain('bildirimler');
+    expect(sonucSekmeleri(view(SCRIPT, [notice, notice], true)).slice(-2)).toEqual([
+      { anahtar: 'degisiklikler', etiket: 'Değişiklikler' },
+      { anahtar: 'bildirimler', etiket: 'Bildirimler (2)' },
+    ]);
+    expect(sonucSekmeleri(view(SCRIPT, [notice, { type: 'bitti', sonuc: 'commit', bildirimFazlasi: 5 }])).at(-1)).toEqual({
+      anahtar: 'bildirimler',
+      etiket: 'Bildirimler (6)',
+    });
+  });
+
+  it('ifade başına bildirim sayısı (Log’daki sayaç)', () => {
+    const notice = (i: number | null): ServerEvent => ({ type: 'bildirim', i, seviye: 'NOTICE', mesaj: 'x' });
+    expect(bildirimSayilari(view(SCRIPT, [notice(0), notice(2), notice(0), notice(null)]))).toEqual(new Map([[0, 2], [2, 1]]));
   });
 
   it('kolonsuz önizleme (ör. boş SELECT listesi) sekme açmaz', () => {
