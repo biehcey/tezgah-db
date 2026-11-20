@@ -23,3 +23,4 @@ Spec: [Grid okunabilirliği ve kopyalama](../spec.md#grid-okunabilirliği-ve-kop
 - "INSERT olarak kopyala" artık "Kopyala ▸" alt menüsünde "INSERT" adıyla; Katalog ve ScriptEkrani testleri buna göre güncellendi.
 - Görsel turda bakılacak: Chrome'da Ctrl+Shift+C DevTools'un öğe seçicisini açabilir; sayfa tuşu yakalayabiliyor mu, gerçek tarayıcıda denenmeli.
 - Spec'teki Grid maddesi, kodun netleştirdiği kurallarla yeniden yazıldı (kolonlar seçili aralıktan; Markdown NULL `NULL`, satır sonu `<br>`; JSON'da `NaN`/`Infinity` metin, anahtar sırası korunur).
+- Ticket 14: görsel tur bu oturumda yapılamadı (tarayıcı eklentisi bağlı değildi); bu kutu açık kaldı ve [ticket 15](15-tarayicida-gorsel-tur.md)'e taşındı.

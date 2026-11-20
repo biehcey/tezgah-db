@@ -1,6 +1,6 @@
 # Spec: Beşinci dilim (editör ergonomisi, yerleşim ve görsel dil)
 
-Status: ready-for-agent
+Status: done (0.5.0; tarayıcıda görsel tur ticket 15'te açık)
 
 Kaynak: [reports/Tezgah IntelliJ farkları ve arayüz.md](../../reports/Tezgah%20IntelliJ%20farkları%20ve%20arayüz.md), yol haritasının 1–12. maddeleri. Kararlar (2026-11-20): kapsam 1–12; Ctrl/Cmd+Enter DataGrip gibi Çalışacak aralığı çalıştırır; test sınırları mevcut üç katman (core birim, sahte-api'li arayüz, embedded-postgres'li sunucu). Terimler [GLOSSARY.md](../../GLOSSARY.md)'deki anlamlarıyla kullanılır: Hedef, Sekme, Tablo sekmesi, Çalıştırma modu, Deneme modu, Yazma kilidi, Karar süresi, Sonuç sekmesi, Sonuç grid'i, Çalıştırma kaydı, Sorgu geçmişi, Ortam etiketi. İlgili ADR'ler: [ADR-0003](../../docs/adr/0003-konsol-sekmeli-script-editoru.md) (ayrı autocommit konsolu yok; her çalıştırma aynı script çalıştırıcısından geçer), [ADR-0004](../../docs/adr/0004-okuma-modu.md). Önceki dilimlerin spec'leri ve CLAUDE.md'deki değişmez kurallar değişmeden geçerlidir.
 

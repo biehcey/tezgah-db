@@ -19,3 +19,4 @@ Spec: [Prod sinyali (hikâyeler)](../spec.md#prod-sinyali) (hikâye 92–95), [P
 - Görünümler `--env-prod` ve `--metin-zit` token'larıyla yazıldı; etiket `nowrap` ve başlık sarılıyor, ama 900×700 pencerede kesilmediği gözle doğrulanmadı (görsel kontrol), bu yüzden ikinci kutu açık.
 - Tablo sekmesinde de tek kontrol tablo başlığına taşındı (önceden bekleyenler ve kolon formu çubuklarındaydı). Başlık dolu kırmızı değil, kırmızımsı + kırmızı alt çizgi: WHERE/ORDER BY kutuları okunur kalsın. Spec güncellendi.
 - Çerçeve içe aktarma sonucu penceresi açıkken de çizilmez.
+- Ticket 14: görsel tur bu oturumda yapılamadı (tarayıcı eklentisi bağlı değildi); bu kutu açık kaldı ve [ticket 15](15-tarayicida-gorsel-tur.md)'e taşındı.

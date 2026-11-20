@@ -25,9 +25,30 @@ Konsol sekmesinde **Ctrl/Cmd+Enter** artık tüm script'i değil, *Çalışacak 
 
 Windows'ta AltGr, Ctrl+Alt sayılır ve karakter yazmaz. Tablo sekmesinde kısayollar değişmez: Ctrl/Cmd+Enter Uygula, +Shift Dene, +Alt SQL çekmecesi.
 
+## Diğer kısayollar
+
+| Kısayol | Eylem |
+| --- | --- |
+| Ctrl/Cmd+F | Editörde ara / değiştir (F3 ya da Ctrl/Cmd+G sonraki, +Shift önceki eşleşme) |
+| Ctrl/Cmd+C | Grid seçimini TSV olarak kopyala |
+| Ctrl/Cmd+Shift+C | Grid seçimini başlıklı TSV olarak kopyala |
+| Ctrl/Cmd+K | Hızlı geçiş ve komut paleti |
+| Ctrl/Cmd+B | Gezgini göster/gizle |
+| `?` | Kısayol sayfası (bir metin alanı odakta değilken; Durum çubuğundaki **?** düğmesi de açar) |
+
+Grid'de sağ tık → **Kopyala** alt menüsü seçimi TSV, başlıklı TSV, CSV, Markdown, JSON ya da INSERT olarak kopyalar. Tüm kısayolların listesi kısayol sayfasında ve paletteki "Kısayollar" komutundadır.
+
+## Tema ve arayüz tercihleri
+
+Tema Ctrl/Cmd+K paletindeki **Tema: Sistem / Açık / Koyu** komutlarıyla seçilir; Sistem işletim sisteminin açık/koyu ayarını izler. Tema, gezginin görünürlüğü ve genişliği, editör/sonuç oranı ve Sonuç alanının daraltılmışlığı bağlantı ayarlarından ayrı olarak yapılandırma dizinindeki `arayuz.json` dosyasında saklanır.
+
+## Sunucu bildirimleri
+
+Çalıştırma sırasında Postgres'in gönderdiği `NOTICE`, `WARNING`, `INFO`, `LOG` ve `DEBUG` mesajları (ör. PL/pgSQL'deki `RAISE NOTICE`) Sonuç alanındaki **Bildirimler (N)** sekmesinde, geldikleri ifadenin satırıyla, seviyesiyle ve varsa `DETAIL`/`HINT` ile gösterilir; sekme yalnızca bildirim geldiyse görünür. Bildirimler geldikçe görünür; Deneme modunda ve Autocommit'te de gösterilir. Bir çalıştırmada ilk 1000 bildirim gösterilir, gerisi sayılır. Bildirimler Çalıştırma kaydına yazılmaz; Tablo sekmesinde gösterilmez.
+
 ## prod salt okunurluğu
 
-`prod` etiketli bir hedef salt okunur açılır: bağlantılar `default_transaction_read_only=on` ile kurulur, script'ler `BEGIN READ ONLY` ile başlar ve yazma girişimlerini Postgres reddeder. Salt okunurken transaction dışı (Autocommit) script'ler sunucuya hiç gönderilmez. Araç çubuğundaki 🔒 Salt okunur / 🔓 Yazma açık düğmesi yazma modunu tek tıkla açar ve kapatır; kilit sekme ve hedef başınadır: bir sekmede yazmayı açmak başka bir sekmeyi etkilemez, sekmenin hedefi değişince ya da Tezgah yeniden açılınca kilit kapanır. Çalıştırmadan önce ayrıca onay istenmez.
+`prod` etiketli bir hedef salt okunur açılır: bağlantılar `default_transaction_read_only=on` ile kurulur, script'ler `BEGIN READ ONLY` ile başlar ve yazma girişimlerini Postgres reddeder. Salt okunurken transaction dışı (Autocommit) script'ler sunucuya hiç gönderilmez. Hedef başlığındaki kilit düğmesi (Salt okunur / YAZMA AÇIK; Tablo sekmesinde tablo başlığında) yazma modunu tek tıkla açar ve kapatır, Ctrl/Cmd+K paletindeki "Yazma modunu aç/kapat" komutu da aynı işi yapar; kilit sekme ve hedef başınadır: bir sekmede yazmayı açmak başka bir sekmeyi etkilemez, sekmenin hedefi değişince ya da Tezgah yeniden açılınca kilit kapanır. Çalıştırmadan önce ayrıca onay istenmez.
 
 **prod salt okunurluğu bir kaza önleyicidir, güvenlik sınırı değildir.** Yanlış sekmede yanlışlıkla yazmayı önler; veritabanı kullanıcısının yetkilerini kısıtlamaz. prod'u gerçekten korumak için salt okunur yetkili bir rol kullanın.
 
