@@ -18,6 +18,8 @@ export interface PaletteState {
   calisma: string | null;
   tema: Tema;
   gezginAcik: boolean;
+  /** Konsol sekmelerinin Sonuç alanı daraltılmış (Arayüz tercihi). */
+  sonucDaraltilmis: boolean;
   /** Konsol gizli (bağlantı formu açık). */
   konsolGizli: boolean;
 }
@@ -31,6 +33,7 @@ export type PaletteCommandId =
   | 'yeniKonsol'
   | 'gecmis'
   | 'gezgin'
+  | 'sonucAlani'
   | `tema:${Tema}`
   | 'kisayollar'
   | 'yeniBaglanti'
@@ -68,10 +71,15 @@ function writeModeBlock(s: PaletteState): string | undefined {
   return s.calisma ?? undefined;
 }
 
-/**
- * Paletin komutları, sırasıyla: konsol komutları, görünüm ve tema, kısayollar, bağlantı yönetimi.
- * Henüz olmayan yerleşim özelliklerine (Sonuç alanı daraltma) bağlı komut listede yoktur.
- */
+/** Sonuç alanı yalnızca konsol sekmesinde var; çalışma sürerken de daraltılıp açılır. */
+function resultAreaBlock(s: PaletteState): string | undefined {
+  if (s.konsolGizli) return 'bağlantı formu açık';
+  if (s.sekme === null) return 'açık sekme yok';
+  if (s.sekme !== 'konsol') return 'konsol sekmesi değil';
+  return undefined;
+}
+
+/** Paletin komutları, sırasıyla: konsol komutları, görünüm ve tema, kısayollar, bağlantı yönetimi. */
 export function paletteCommands(s: PaletteState): PaletteCommandItem[] {
   const run = runBlock(s);
   const item = (id: PaletteCommandId, etiket: string, extra: Omit<PaletteCommandItem, 'id' | 'etiket'> = {}): PaletteCommandItem => ({
@@ -88,6 +96,7 @@ export function paletteCommands(s: PaletteState): PaletteCommandItem[] {
     item('yeniKonsol', 'Yeni konsol'),
     item('gecmis', 'Sorgu geçmişi', { kisayol: 'gecmis', pasif: s.konsolGizli ? 'bağlantı formu açık' : undefined }),
     item('gezgin', s.gezginAcik ? 'Gezgini gizle' : 'Gezgini göster', { kisayol: 'gezgin' }),
+    item('sonucAlani', s.sonucDaraltilmis ? 'Sonuç alanını aç' : 'Sonuç alanını daralt', { pasif: resultAreaBlock(s) }),
     ...TEMALAR.map((tema) => item(`tema:${tema}`, `Tema: ${THEME_LABELS[tema]}`, { secili: tema === s.tema })),
     item('kisayollar', 'Kısayollar', { kisayol: 'kisayollar' }),
     item('yeniBaglanti', 'Yeni bağlantı'),

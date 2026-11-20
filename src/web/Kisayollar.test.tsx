@@ -60,6 +60,18 @@ describe('Cmd/Ctrl+K paleti: konsol komutları', () => {
   });
 });
 
+describe('Cmd/Ctrl+K paleti: Sonuç alanı', () => {
+  it('"Sonuç alanını daralt" alanı daraltır, ardından "Sonuç alanını aç" açar', async () => {
+    const { user, command } = await setup();
+    const toggle = () => within(screen.getByRole('region', { name: 'Sonuç alanı' })).getByRole('button', { name: /^Sonuç alanını/ });
+    expect(toggle()).toHaveAccessibleName('Sonuç alanını daralt');
+    await user.click(await command('Sonuç alanını daralt'));
+    expect(toggle()).toHaveAccessibleName('Sonuç alanını aç');
+    await user.click(await command('Sonuç alanını aç'));
+    expect(toggle()).toHaveAccessibleName('Sonuç alanını daralt');
+  });
+});
+
 describe('Kısayol sayfası', () => {
   it('paletteki "Kısayollar" sayfayı gruplu açar; Esc kapatır', async () => {
     const { user, command } = await setup();

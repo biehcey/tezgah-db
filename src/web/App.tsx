@@ -43,7 +43,24 @@ import { SilmeOnayi } from './baglantilar/SilmeOnayi';
 import { MENU_SEPARATOR, Menu, type MenuEntry, type MenuItem, type MenuPosition } from './ortak/Menu';
 import { Onay } from './ortak/Onay';
 import { Dugme } from './ortak/Dugme';
-import { FolderPlus, Import, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
+import {
+  Copy,
+  Crosshair,
+  FolderInput,
+  FolderPlus,
+  Import,
+  Link,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  Plug,
+  Plus,
+  RefreshCw,
+  SquareTerminal,
+  Table2,
+  Trash2,
+  Unplug,
+} from 'lucide-react';
 import { Diyalog } from './ortak/Diyalog';
 import { useBildirimler } from './ortak/Bildirimler';
 import { Konsol } from './konsol/Konsol';
@@ -502,6 +519,7 @@ export function App() {
     yeniKonsol: () => setKonsol((k) => openConsoleTab(k, newTabId(), activeTab?.hedef ?? null)),
     gecmis: () => setHistoryOpen((o) => !o),
     gezgin: () => setNavigatorOpen((o) => !o),
+    sonucAlani: () => updatePreferences((p) => ({ sonucDaraltilmis: !p.sonucDaraltilmis })),
     'tema:sistem': () => updatePreferences({ tema: 'sistem' }),
     'tema:acik': () => updatePreferences({ tema: 'acik' }),
     'tema:koyu': () => updatePreferences({ tema: 'koyu' }),
@@ -519,6 +537,7 @@ export function App() {
     calisma: targetLock,
     tema: preferences.tema,
     gezginAcik: navigatorOpen,
+    sonucDaraltilmis: preferences.sonucDaraltilmis,
     konsolGizli: formOpen,
   }).map((c) => ({
     label: c.etiket,
@@ -670,6 +689,7 @@ export function App() {
     showMenu(`${connection.name} menüsü`, at, [
       {
         label: 'Yeni konsol',
+        icon: <SquareTerminal />,
         disabled: targetDatabase === null,
         onSelect: () => {
           setSelectedId(connection.id);
@@ -678,6 +698,7 @@ export function App() {
       },
       {
         label: 'Hedef yap',
+        icon: <Crosshair />,
         disabled: targetDatabase === null || targetLock !== null,
         onSelect: () => {
           setSelectedId(connection.id);
@@ -687,16 +708,17 @@ export function App() {
       MENU_SEPARATOR,
       {
         label: session?.durum === 'bagli' ? 'Yenile' : 'Bağlan',
+        icon: session?.durum === 'bagli' ? <RefreshCw /> : <Plug />,
         disabled: session?.durum === 'baglaniyor',
         onSelect: () => void connect(connection),
       },
-      { label: 'Düzenle', onSelect: () => edit(connection.id) },
-      { label: 'Kopyala', onSelect: () => void copy(connection) },
-      { label: 'Klasöre taşı', submenu: targets, disabled: folders.length === 0 },
-      { label: 'URL’yi kopyala (şifresiz)', onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
+      { label: 'Düzenle', icon: <Pencil />, onSelect: () => edit(connection.id) },
+      { label: 'Kopyala', icon: <Copy />, onSelect: () => void copy(connection) },
+      { label: 'Klasöre taşı', icon: <FolderInput />, submenu: targets, disabled: folders.length === 0 },
+      { label: 'URL’yi kopyala (şifresiz)', icon: <Link />, onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
       MENU_SEPARATOR,
-      { label: 'Bağlantıyı kes', disabled: session === undefined, onSelect: () => void disconnect(connection) },
-      { label: 'Sil', danger: true, onSelect: () => setDeleting(connection) },
+      { label: 'Bağlantıyı kes', icon: <Unplug />, disabled: session === undefined, onSelect: () => void disconnect(connection) },
+      { label: 'Sil', icon: <Trash2 />, danger: true, onSelect: () => setDeleting(connection) },
     ]);
   }
 
@@ -709,28 +731,32 @@ export function App() {
   function databaseMenu(connection: Connection, database: string, at: MenuPosition) {
     const target = { connectionId: connection.id, database };
     showMenu(`${database} menüsü`, at, [
-      { label: 'Yeni konsol', onSelect: () => newConsole(target) },
-      { label: 'Hedef yap', disabled: targetLock !== null, onSelect: () => selectTarget(connection, database) },
+      { label: 'Yeni konsol', icon: <SquareTerminal />, onSelect: () => newConsole(target) },
+      { label: 'Hedef yap', icon: <Crosshair />, disabled: targetLock !== null, onSelect: () => selectTarget(connection, database) },
       MENU_SEPARATOR,
-      { label: 'Adı kopyala', onSelect: () => void copyToClipboard(database, 'Ad') },
+      { label: 'Adı kopyala', icon: <Copy />, onSelect: () => void copyToClipboard(database, 'Ad') },
     ]);
   }
 
   function tableMenu(connection: Connection, database: string, schema: string, table: string, at: MenuPosition) {
     const name = `${identSql(schema)}.${identSql(table)}`;
     showMenu(`${schema}.${table} menüsü`, at, [
-      { label: 'Aç', onSelect: () => openTable(connection, database, schema, table) },
-      { label: 'Yeni konsolda SELECT', onSelect: () => newConsole({ connectionId: connection.id, database }, `SELECT * FROM ${name};`) },
+      { label: 'Aç', icon: <Table2 />, onSelect: () => openTable(connection, database, schema, table) },
+      {
+        label: 'Yeni konsolda SELECT',
+        icon: <SquareTerminal />,
+        onSelect: () => newConsole({ connectionId: connection.id, database }, `SELECT * FROM ${name};`),
+      },
       MENU_SEPARATOR,
-      { label: 'Adı kopyala', onSelect: () => void copyToClipboard(name, 'Ad') },
+      { label: 'Adı kopyala', icon: <Copy />, onSelect: () => void copyToClipboard(name, 'Ad') },
     ]);
   }
 
   function folderMenu(folder: Folder, at: MenuPosition) {
     showMenu(`${folder.name} klasör menüsü`, at, [
-      { label: 'Yeniden adlandır', onSelect: () => setFolderDialog({ kind: 'yeniden-adlandir', folder }) },
+      { label: 'Yeniden adlandır', icon: <Pencil />, onSelect: () => setFolderDialog({ kind: 'yeniden-adlandir', folder }) },
       MENU_SEPARATOR,
-      { label: 'Sil', danger: true, onSelect: () => setFolderDialog({ kind: 'sil', folder }) },
+      { label: 'Sil', icon: <Trash2 />, danger: true, onSelect: () => setFolderDialog({ kind: 'sil', folder }) },
     ]);
   }
 

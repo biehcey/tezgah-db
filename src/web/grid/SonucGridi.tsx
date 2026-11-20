@@ -26,7 +26,7 @@ import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, sele
 import { columnAlignment, typeName } from '../../core/grid/tipler';
 import { COPY_FORMATS, copyAs, copyFeedback, type CopyFormat } from '../../core/grid/kopyalama';
 import { MENU_SEPARATOR, Menu, menuBelow, type MenuEntry, type MenuPosition } from '../ortak/Menu';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, CircleSlash, Copy, Plus, Trash2, Undo2 } from 'lucide-react';
 import { GridOlcumu, canvasTextWidth } from './olcum';
 
 /** "Kopyala ▸" biçimlerinden kısayolu olanlar (katalogdaki). */
@@ -524,10 +524,12 @@ export function SonucGridi({
     if (onDuzenle) {
       const rows = selectedRows(s);
       const deleted = rows.filter((r) => satirIsareti?.(r)?.durum === 'silinecek');
-      items.push({ label: 'NULL yap', shortcut: 'nullYap', onSelect: () => setNull(s) });
-      if (onSatirEkle) items.push({ label: 'Satır ekle', onSelect: onSatirEkle });
-      if (onSatirSil && deleted.length < rows.length) items.push({ label: 'Satırları sil', danger: true, onSelect: () => onSatirSil(rows.filter((r) => !deleted.includes(r))) });
-      if (onSilmeyiGeriAl && deleted.length > 0) items.push({ label: 'Silmeyi geri al', onSelect: () => onSilmeyiGeriAl(deleted) });
+      items.push({ label: 'NULL yap', icon: <CircleSlash />, shortcut: 'nullYap', onSelect: () => setNull(s) });
+      if (onSatirEkle) items.push({ label: 'Satır ekle', icon: <Plus />, onSelect: onSatirEkle });
+      if (onSatirSil && deleted.length < rows.length) {
+        items.push({ label: 'Satırları sil', icon: <Trash2 />, danger: true, onSelect: () => onSatirSil(rows.filter((r) => !deleted.includes(r))) });
+      }
+      if (onSilmeyiGeriAl && deleted.length > 0) items.push({ label: 'Silmeyi geri al', icon: <Undo2 />, onSelect: () => onSilmeyiGeriAl(deleted) });
     }
     if (items.length > 0) items.push(MENU_SEPARATOR);
     const formats: MenuEntry[] = COPY_FORMATS.map(({ bicim, etiket }) => ({
@@ -537,7 +539,7 @@ export function SonucGridi({
     }));
     // INSERT, metin biçimlerinden ayrı bir grup.
     formats.splice(-1, 0, MENU_SEPARATOR);
-    items.push({ label: 'Kopyala', submenu: formats });
+    items.push({ label: 'Kopyala', icon: <Copy />, submenu: formats });
     return items;
   }
 

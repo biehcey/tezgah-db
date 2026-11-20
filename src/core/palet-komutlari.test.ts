@@ -9,6 +9,7 @@ const state = (s: Partial<PaletteState> = {}): PaletteState => ({
   calisma: null,
   tema: 'sistem',
   gezginAcik: true,
+  sonucDaraltilmis: false,
   konsolGizli: false,
   ...s,
 });
@@ -16,7 +17,14 @@ const state = (s: Partial<PaletteState> = {}): PaletteState => ({
 const find = (list: PaletteCommandItem[], id: PaletteCommandItem['id']) => list.find((c) => c.id === id)!;
 
 describe('paletteCommands: Cmd/Ctrl+K komut listesi', () => {
-  it('konsol komutları önce, kısayollarıyla; Sonuç alanı komutu henüz yok', () => {
+  it('Sonuç alanı komutu duruma göre daraltır ya da açar; konsol sekmesi dışında pasif', () => {
+    expect(find(paletteCommands(state()), 'sonucAlani')).toMatchObject({ etiket: 'Sonuç alanını daralt' });
+    expect(find(paletteCommands(state({ sonucDaraltilmis: true })), 'sonucAlani').etiket).toBe('Sonuç alanını aç');
+    expect(find(paletteCommands(state({ sekme: 'tablo' })), 'sonucAlani').pasif).toBe('konsol sekmesi değil');
+    expect(find(paletteCommands(state({ calisma: 'Script çalışıyor' })), 'sonucAlani').pasif).toBeUndefined();
+  });
+
+  it('konsol komutları önce, kısayollarıyla', () => {
     const list = paletteCommands(state());
     expect(list.map((c) => [c.etiket, c.kisayol ?? null])).toEqual([
       ['Çalıştır', 'calistir'],
@@ -27,6 +35,7 @@ describe('paletteCommands: Cmd/Ctrl+K komut listesi', () => {
       ['Yeni konsol', null],
       ['Sorgu geçmişi', 'gecmis'],
       ['Gezgini gizle', 'gezgin'],
+      ['Sonuç alanını daralt', null],
       ['Tema: Sistem', null],
       ['Tema: Açık', null],
       ['Tema: Koyu', null],

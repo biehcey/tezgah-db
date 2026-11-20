@@ -177,6 +177,7 @@ describe('Cmd/Ctrl+K paleti: komutlar', () => {
       'Yeni konsol',
       'Sorgu geçmişiCtrl+Alt+E',
       'Gezgini gizleCtrl+B',
+      'Sonuç alanını daralt',
       'Tema: Sistemetkin',
       'Tema: Açık',
       'Tema: Koyu',
