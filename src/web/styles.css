@@ -1399,6 +1399,29 @@ dialog.diyalog::backdrop {
   background: color-mix(in srgb, var(--prod) 14%, var(--zemin));
 }
 
+/*
+ * Yazma açık: başlık dolu kırmızı. Metin token'ları başlık içinde zıt renge döner (sade düğmeler,
+ * soluk metin); kilit düğmesi ters çevrilir, prod rozeti zeminden ayrılsın diye halka alır.
+ */
+.hedef-basligi.yazma-acik {
+  --metin: var(--metin-zit);
+  --soluk: color-mix(in srgb, var(--metin-zit) 80%, var(--env-prod));
+  --secili: color-mix(in srgb, var(--metin-zit) 18%, var(--env-prod));
+  border-bottom-color: var(--env-prod);
+  background: var(--env-prod);
+  color: var(--metin);
+}
+
+.hedef-basligi.yazma-acik .kilit-dugmesi.acik {
+  border-color: var(--metin-zit);
+  background: var(--metin-zit);
+  color: var(--env-prod);
+}
+
+.hedef-basligi.yazma-acik .rozet-ortam {
+  box-shadow: 0 0 0 1px var(--metin-zit);
+}
+
 .hedef-noktasi {
   width: 12px;
   height: 12px;
@@ -1609,15 +1632,25 @@ dialog.diyalog::backdrop {
   margin-right: auto;
 }
 
-/* prod yazma kilidi: rozet gibi yuvarlak tek tık düğmesi. */
+/*
+ * prod yazma kilidinin tek kontrolü (başlıkta): salt okunurken sakin, yazma açıkken dolu kırmızı.
+ * Etiket kesilmez (`.dugme` nowrap; başlık sarılır).
+ */
 .kilit-dugmesi {
+  flex: none;
   align-self: center;
   border-radius: var(--yaricap-tam);
 }
 
-/* Başlıkta ortam etiketinin yanındaki durum rozeti; değiştirmek araç çubuğundaki düğmeyle. */
-.kilit-rozeti {
-  align-self: center;
+.kilit-dugmesi.acik {
+  border-color: var(--env-prod);
+  background: var(--env-prod);
+  color: var(--metin-zit);
+  font-weight: 600;
+}
+
+.kilit-dugmesi.acik:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--env-prod) 85%, var(--gri-12));
 }
 
 .uyari-seridi {
@@ -2722,6 +2755,12 @@ button.grid-kose:hover,
 
 .tablo-basligi > * {
   flex: none;
+}
+
+/* Yazma açık: WHERE/ORDER BY kutuları okunur kalsın diye zemin dolu değil, kırmızımsı; düğme dolu. */
+.tablo-basligi.yazma-acik {
+  border-bottom: 2px solid var(--env-prod);
+  background: color-mix(in srgb, var(--env-prod) 14%, var(--zemin));
 }
 
 .tablo-basligi h2,

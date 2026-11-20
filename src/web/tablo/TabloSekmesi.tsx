@@ -26,8 +26,7 @@ import { ROW_LIMIT_MESSAGE, applyEvent, startRunView, targetLock, type RunView }
 import { writeLockState } from '../../core/yazma-kilidi';
 import { Degisiklikler, DenemeProdUyarisi } from '../script/Degisiklikler';
 import { KararKarti } from '../script/KararKarti';
-import { WRITE_LOCK_LABELS } from '../script/durum';
-import { KilitIkonu } from '../script/ikonlar';
+import { KilitDugmesi } from '../script/KilitDugmesi';
 import { ChevronDown, ChevronUp, FlaskConical, PanelRight, Plus, RefreshCw, Undo2 } from 'lucide-react';
 import { Dugme } from '../ortak/Dugme';
 import { Rozet } from '../ortak/Rozet';
@@ -526,21 +525,6 @@ export function TabloSekmesi({
     const pending = tur === 'bekleyen';
     return (
       <div className="script-cubugu">
-        {lock && (
-          // Tek tık; onay yok. Açık transaction'ın kilidi değişmez.
-          <Dugme
-            tur={lock === 'yazma-acik' ? 'tehlikeli' : 'ikincil'}
-            boyut="kucuk"
-            className="kilit-dugmesi"
-            aria-pressed={lock === 'yazma-acik'}
-            title={WRITE_LOCK_LABELS[lock].eylem}
-            onClick={onToggleWriteMode}
-            disabled={busy}
-          >
-            <KilitIkonu durum={lock} />
-            {WRITE_LOCK_LABELS[lock].rozet}
-          </Dugme>
-        )}
         {pending && (
           <Dugme title="Bekleyen değişikliklerin hepsini at" onClick={() => setChanges(NO_CHANGES)} disabled={none}>
             <Undo2 aria-hidden="true" /> Geri al
@@ -620,11 +604,12 @@ export function TabloSekmesi({
 
   return (
     <section aria-label={`${name} tablosu`} className="tablo-sekmesi" hidden={hidden}>
-      <header className="tablo-basligi">
+      <header className={`tablo-basligi${lock === 'yazma-acik' ? ' yazma-acik' : ''}`}>
         <h2 title={target ? `${target.connection.name} / ${target.database} · ${name}` : name}>
           <span className="soluk">{tab.sema}.</span>
           {tab.tablo}
         </h2>
+        <KilitDugmesi lock={lock} onToggle={onToggleWriteMode} disabled={busy} />
         <span className="soluk kucuk tablo-sayaci" title="pg_class.reltuples tahmini · yüklü satırlar">
           {rowCounts(estimate, sayfa ? sayfa.satirlar.length : null)}
         </span>

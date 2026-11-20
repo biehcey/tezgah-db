@@ -33,7 +33,7 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 
 **Keşfedilebilirlik.** Ctrl/Cmd+K paleti konsol komutlarıyla dolar (çalıştır, tümünü çalıştır, dene, yazma modu, yeni konsol, sorgu geçmişi, gezgin, tema, kısayollar), her komutun yanında kısayolu yazar. `?` (ve paletteki komut) tüm kısayolları gruplu gösteren bir sayfa açar. Bağlam menülerinde ikon, ayırıcı ve kısayol ipucu olur. Kısayolların tek kaynağı vardır; tooltip, menü, palet ve kısayol sayfası oradan beslenir.
 
-**Prod sinyali.** Yazma kilidi tek yerde, hedef başlığındadır: salt okunurken sakin, yazma açıkken dolu kırmızı ve "YAZMA AÇIK" etiketli. Tek tıkla değişir, ayrıca onay istenmez (değişmez kural korunur). Kırmızı uygulama çerçevesi yalnızca prod hedefli bir konsol sekmesi görünürken çizilir. Ortam rozetlerinde yazı rengi zemine göre okunur kontrastta seçilir.
+**Prod sinyali.** Yazma kilidi tek yerde, hedef başlığındadır: salt okunurken sakin, yazma açıkken dolu kırmızı ve "YAZMA AÇIK" etiketli. Tek tıkla değişir, ayrıca onay istenmez (değişmez kural korunur). Kırmızı uygulama çerçevesi yalnızca prod hedefli bir konsol ya da Tablo sekmesi görünürken çizilir. Ortam rozetlerinde yazı rengi zemine göre okunur kontrastta seçilir.
 
 **Görsel dil.** Renk, boşluk, yazı boyutu, köşe yarıçapı ve font ailesi için tasarım token'ları; açık ve koyu için ayrı nötr ölçekler ve tema değişse de değişmeyen semantik bir `prod` rengi. Tema Sistem/Açık/Koyu olarak elle seçilir. SQL renklendirmesi token'lara bağlıdır, iki temada da okunur. Ortak bileşenler (düğme, rozet, diyalog, bildirim kutusu/toast, yükleniyor göstergesi, form kontrolleri) tüm ekranlarda kullanılır. İkonlar tutarlı bir SVG setinden gelir. Diyaloglar odağı içinde tutar; klavye odağı her yerde görünür.
 
@@ -251,8 +251,8 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 
 ### Prod sinyali
 
-- Yazma kilidi düğmesi yalnızca hedef başlığında render edilir; alt araç çubuğundaki ikinci kontrol ve başlıktaki ayrı kilit rozeti kaldırılır (tek kontrol hem durumu gösterir hem değiştirir). Kilit davranışı ve kuralları (sekme/hedef başına, sekme değişince ya da diskten gelince kapalı) değişmez.
-- Kırmızı çerçevenin koşulu: görünen ekran bir konsol ya da Tablo sekmesi ve hedefi `prod` etiketli. Bağlantı formu, içe aktarma ve benzeri ekranlarda çizilmez.
+- Yazma kilidi düğmesi (`KilitDugmesi`) yalnızca hedef başlığında render edilir; alt araç çubuğundaki ikinci kontrol ve başlıktaki ayrı kilit rozeti kaldırılır (tek kontrol hem durumu gösterir hem değiştirir). Tablo sekmesinde de kontrol Uygula çubuklarından (bekleyenler, kolon formu) tablo başlığına taşınır. Yazma açıkken konsolun hedef başlığı dolu kırmızıdır; Tablo sekmesinin başlığı WHERE/ORDER BY kutuları okunur kalsın diye kırmızımsı zemin ve kırmızı alt çizgi alır, düğme dolu kırmızıdır. Kilit davranışı ve kuralları (sekme/hedef başına, sekme değişince ya da diskten gelince kapalı) değişmez.
+- Kırmızı çerçevenin koşulu (`showsProdFrame`, `src/core/yazma-kilidi.ts`): görünen ekran bir konsol ya da Tablo sekmesi ve hedefi `prod` etiketli. Bağlantı formu, içe aktarma (ve sonucu) açıkken çizilmez.
 - Saf fonksiyon: `rozetYaziRengi(zemin: '#rrggbb')` → `'#000000' | '#ffffff'`, WCAG göreli parlaklığına göre daha yüksek kontrastlı olan. Tüm ortam rozetleri (`OrtamRozeti`: hedef başlığı, bağlantı formu başlığı ve seçili ortam çipi, palet) bundan beslenir; zemin bağlantının rengi, yoksa etiketin varsayılan rengi. Gezgin ortamı metin rozetiyle değil renk noktasıyla gösterir. Paletteki `prod` rozeti bağlantının rengini değil varsayılan prod rengini kullanır (palet satırı bağlantı rengini taşımaz).
 
 ### Tasarım token'ları ve bileşenler

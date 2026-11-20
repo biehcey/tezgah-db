@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Folder } from '../core/ayarlar';
 import {
-  isProd,
   type Connection,
   type DatabaseSelection,
   type PasswordWriteOutcome,
@@ -62,6 +61,7 @@ import { APPLE, modalOpen, useWindowWidth } from './ortak/pencere';
 import { Bolucu } from './ortak/Bolucu';
 import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari } from '../core/arayuz-tercihleri';
 import { bolucuDegeri } from '../core/bolucu';
+import { showsProdFrame } from '../core/yazma-kilidi';
 import { themeCommands, usePreferences, useTheme } from './ortak/tercihler';
 
 type Status = { kind: 'loading' } | { kind: 'ok'; version: string } | { kind: 'error'; message: string };
@@ -292,6 +292,12 @@ export function App() {
   const formOpen = editing?.kind === 'yeni' || edited !== undefined;
   consoleHidden.current = formOpen;
   const targetConnection = target ? connections?.find((c) => c.id === target.connectionId) : undefined;
+  const prodFrame = showsProdFrame({
+    baglantiFormu: formOpen,
+    iceAktarma: importOpen || importResult !== null,
+    sekme: activeTab?.tur ?? null,
+    envTag: targetConnection?.envTag,
+  });
 
   function open(next: Editing) {
     setEditing(next);
@@ -722,7 +728,7 @@ export function App() {
   }
 
   return (
-    <div className={`tezgah${targetConnection && isProd(targetConnection.envTag) ? ' prod-cerceve' : ''}`}>
+    <div className={`tezgah${prodFrame ? ' prod-cerceve' : ''}`}>
       {!navigatorOpen && (
         <button
           type="button"

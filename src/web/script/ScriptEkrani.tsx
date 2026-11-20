@@ -40,8 +40,9 @@ import type { SessionTab } from '../../core/konsol-sekmeleri';
 import type { Target } from '../../core/veritabani-secimi';
 import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
 import { ChevronDown, ChevronUp, FlaskConical, Play, RefreshCw, Square, TriangleAlert } from 'lucide-react';
-import { STATUS_LABELS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
-import { DurumIkonu, KilitIkonu } from './ikonlar';
+import { STATUS_LABELS, type AnalysisMark } from './durum';
+import { DurumIkonu } from './ikonlar';
+import { KilitDugmesi } from './KilitDugmesi';
 import { Dugme } from '../ortak/Dugme';
 import { OrtamRozeti, Rozet, type RozetTuru } from '../ortak/Rozet';
 import { ScriptEditoru, type EditorMarks, type EditorSecimi, type ScriptEditoruHandle } from './ScriptEditoru';
@@ -130,7 +131,7 @@ function analysisMarks(script: string, statements: Statement[], analysis: Script
 
 /**
  * Script ekranı (ticket 23 varyant B): üstte büyük hedef başlığı, solda editör ve çalıştırma çubuğu,
- * sağda karar kartı ve ifade kartları. prod hedefte başlık kırmızımsıdır; uygulamanın kırmızı
+ * sağda karar kartı ve ifade kartları. prod hedefte başlık kırmızımsıdır, yazma açıkken dolu kırmızı; uygulamanın kırmızı
  * çerçevesi kökte verilir.
  */
 export function ScriptEkrani({
@@ -384,7 +385,7 @@ export function ScriptEkrani({
 
   return (
     <div className="script-ekrani" hidden={hidden}>
-      <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}`}>
+      <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}${lock === 'yazma-acik' ? ' yazma-acik' : ''}`}>
         {target ? (
           <>
             <span
@@ -397,12 +398,7 @@ export function ScriptEkrani({
               {target.connection.name} <span className="soluk">/</span> {target.database}
             </h2>
             {target.connection.envTag && <OrtamRozeti etiket={target.connection.envTag} renk={target.connection.color} />}
-            {lock && (
-              <Rozet tur={lock === 'yazma-acik' ? 'tehlike' : 'notr'} title="Yazma kilidi" className="kilit-rozeti">
-                <KilitIkonu durum={lock} />
-                {WRITE_LOCK_LABELS[lock].rozet}
-              </Rozet>
-            )}
+            <KilitDugmesi lock={lock} onToggle={onToggleWriteMode} disabled={busy} />
           </>
         ) : (
           <>
@@ -433,21 +429,6 @@ export function ScriptEkrani({
             <Rozet tur={MODE_ROZETLERI[analysis.mod]} title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
               {MODE_LABELS[analysis.mod]}
             </Rozet>
-            {lock && (
-              // Tek tık; onay, şerit ya da tema değişimi yok. Açık transaction'ın kilidi değişmez.
-              <Dugme
-                tur={lock === 'yazma-acik' ? 'tehlikeli' : 'ikincil'}
-                boyut="kucuk"
-                className="kilit-dugmesi"
-                aria-pressed={lock === 'yazma-acik'}
-                title={WRITE_LOCK_LABELS[lock].eylem}
-                onClick={onToggleWriteMode}
-                disabled={busy}
-              >
-                <KilitIkonu durum={lock} />
-                {WRITE_LOCK_LABELS[lock].rozet}
-              </Dugme>
-            )}
             {running ? (
               <Dugme tur="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
                 <Square aria-hidden="true" /> İptal
