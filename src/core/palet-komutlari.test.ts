@@ -55,6 +55,15 @@ describe('paletteCommands: Cmd/Ctrl+K komut listesi', () => {
     }
   });
 
+  it('Script ekranının bildirdiği engel çalıştırma komutunu pasif yapar; sekme/hedef/çalışma notu önce gelir', () => {
+    const scriptEngelleri = { calistir: 'İmleçte çalışacak ifade yok', tumunuDene: 'Script boş' };
+    const list = paletteCommands(state({ scriptEngelleri }));
+    expect(find(list, 'calistir').pasif).toBe('İmleçte çalışacak ifade yok');
+    expect(find(list, 'tumunuDene').pasif).toBe('Script boş');
+    expect(find(list, 'dene').pasif).toBeUndefined();
+    expect(find(paletteCommands(state({ scriptEngelleri, hedef: false })), 'calistir').pasif).toBe('hedef seçilmedi');
+  });
+
   it('Tablo sekmesinde ve sekme yokken çalıştırma komutları pasif', () => {
     expect(find(paletteCommands(state({ sekme: 'tablo' })), 'calistir').pasif).toBe('konsol sekmesi değil');
     expect(find(paletteCommands(state({ sekme: null, hedef: false })), 'calistir').pasif).toBe('açık sekme yok');

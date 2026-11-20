@@ -78,7 +78,7 @@ import { historyShortcut, navigatorShortcut, shortcutKey, shortcutsPageShortcut 
 import { paletteCommands as paletteCommandList, type PaletteCommandId } from '../core/palet-komutlari';
 import { DurumCubugu, type SekmeDurumu } from './ortak/DurumCubugu';
 import { KisayolSayfasi } from './ortak/KisayolSayfasi';
-import { sendScriptCommand } from './script/komut';
+import { queryScriptActions, sendScriptCommand } from './script/komut';
 import { kisayol, modalOpen, typingTarget, useWindowWidth } from './ortak/pencere';
 import { Bolucu } from './ortak/Bolucu';
 import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari } from '../core/arayuz-tercihleri';
@@ -542,7 +542,12 @@ export function App() {
     iceAktar: () => setImportOpen(true),
     kayitKlasoru: () => void api.openRunHistoryFolder().catch((err: unknown) => console.error('Kayıt klasörü açılamadı', err)),
   };
+  // Palet açıkken etkin Script ekranına sorulur: düğmeleri kapalı olan komutlar paletten de çalışmaz.
+  const scriptActions = paletteOpen ? queryScriptActions() : null;
   const paletteCommands: PaletteCommand[] = paletteCommandList({
+    scriptEngelleri: scriptActions
+      ? Object.fromEntries(Object.entries(scriptActions).flatMap(([id, s]) => (s.neden === undefined ? [] : [[id, s.neden]])))
+      : undefined,
     sekme: activeTab?.tur ?? null,
     hedef: targetConnection !== undefined,
     prod: targetConnection !== undefined && isProd(targetConnection.envTag),

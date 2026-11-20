@@ -50,7 +50,7 @@ import { SonucGridi, type GridHandle } from '../grid/SonucGridi';
 import { SatirGorunumu } from '../grid/SatirGorunumu';
 import { rowView } from '../../core/grid/satir-gorunumu';
 import { BekleyenListesi } from './BekleyenListesi';
-import { kisayol, modalOpen } from '../ortak/pencere';
+import { ariaKisayol, kisayol, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
 import type { TamamlamaGirdisi } from '../script/tamamlama';
@@ -546,7 +546,7 @@ export function TabloSekmesi({
         </Dugme>
         <Dugme
           title={pending ? `${titles.dene} (${kisayol('tabloDene')})` : titles.dene}
-          aria-keyshortcuts={pending ? 'Control+Shift+Enter Meta+Shift+Enter' : undefined}
+          aria-keyshortcuts={pending ? ariaKisayol('tabloDene') : undefined}
           onClick={() => metin && runScript(metin, true, tur)}
           disabled={none}
         >
@@ -560,7 +560,7 @@ export function TabloSekmesi({
         <Dugme
           tur="birincil"
           title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${kisayol('uygula')})` : titles.uygula}
-          aria-keyshortcuts={pending ? 'Control+Enter Meta+Enter' : undefined}
+          aria-keyshortcuts={pending ? ariaKisayol('uygula') : undefined}
           onClick={() => metin && runScript(metin, false, tur)}
           disabled={none || lock === 'salt-okunur'}
         >
@@ -679,8 +679,8 @@ export function TabloSekmesi({
           ikon
           aria-label="Satır görünümü"
           aria-pressed={rowViewOpen}
-          aria-keyshortcuts="Shift+Enter"
-          title="Satır görünümü (grid’de Shift+Enter)"
+          aria-keyshortcuts={ariaKisayol('satirGorunumu')}
+          title={`Satır görünümü (grid’de ${kisayol('satirGorunumu')})`}
           disabled={!sayfa}
           onClick={() => setRowViewOpen(!rowViewOpen)}
         >
@@ -781,7 +781,7 @@ export function TabloSekmesi({
                   tur="sade"
                   boyut="kucuk"
                   aria-expanded={sqlOpen}
-                  aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
+                  aria-keyshortcuts={ariaKisayol('tabloSql')}
                   title={`Bekleyen listesi ve üretilen SQL (${kisayol('tabloSql')})`}
                   onClick={() => setSqlOpen(!sqlOpen)}
                 >

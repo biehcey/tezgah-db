@@ -51,6 +51,19 @@ describe('Cmd/Ctrl+K paleti: konsol komutları', () => {
     expect(run).toHaveTextContent('hedef seçilmedi');
   });
 
+  it('boş script ya da engelli script: çalıştırma komutları pasif, nedeni düğmeninki', async () => {
+    const { user, command, palette } = await setup();
+    const option = (name: string) => within(palette()).getByText(name, { exact: true }).closest('[role="option"]');
+    expect(await command('Çalıştır')).toHaveAttribute('aria-disabled', 'true');
+    expect(option('Çalıştır')).toHaveTextContent('İmleçte çalışacak ifade yok');
+    expect(option('Tümünü dene')).toHaveTextContent('Script boş');
+    await user.keyboard('{Escape}');
+    setEditorScript('SELECT 1;\nVACUUM;');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tümünü çalıştır' })).toBeDisabled());
+    expect(await command('Tümünü çalıştır')).toHaveAttribute('aria-disabled', 'true');
+    expect(option('Tümünü çalıştır')).toHaveTextContent('Karışık');
+  });
+
   it('"Çalıştır" etkin sekmenin Çalışacak aralığını çalıştırır', async () => {
     const { user, runs, command } = await setup();
     setEditorScript('SELECT 1;');

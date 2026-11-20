@@ -21,7 +21,8 @@ import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } fr
 import { positionOf, splitStatements, type Statement } from '../../core/ifade-bolme';
 import { formatRemaining, startDecision, type DecisionTimer } from '../../core/karar-suresi';
 import { scriptShortcut, shortcutKey, type ScriptShortcut } from '../../core/kisayollar';
-import { kisayol } from '../ortak/pencere';
+import { ariaKisayol, kisayol } from '../ortak/pencere';
+import { NO_RANGE_MESSAGE, formatReason, runActionStates } from '../../core/calistirma-eylemleri';
 import { useScriptCommand } from './komut';
 import { Degisiklikler, DenemeProdUyarisi } from './Degisiklikler';
 import { BekletmeGostergesi } from './BekletmeGostergesi';
@@ -106,9 +107,6 @@ const AUTOCOMMIT_CONNECTION_LOST: ServerEvent = {
   sonuc: 'hata',
   mesaj: 'Tezgah sunucusuyla bağlantı koptu; çalışan ifade iptal edildi, uygulanmış ifadeler kalıcıdır.',
 };
-
-/** Ctrl/Cmd+Enter'ın imlecinde ve öncesinde ifade yok. */
-const NO_RANGE_MESSAGE = 'İmleçte çalışacak ifade yok';
 
 /** Yazarken analiz bu kadar duraklamadan sonra yenilenir. */
 const ANALYSIS_DELAY_MS = 200;
@@ -238,8 +236,6 @@ export function ScriptEkrani({
     () => runBlockReasons(analyzed, statements, lock, { analysis, deneme: true }),
     [analyzed, statements, lock, analysis],
   );
-  const blocked = reasons.length > 0;
-  const tryBlocked = tryReasons.length > 0;
   /** Editörün seçimi; Çalışacak aralık bundan çıkar. */
   const [secim, setSecim] = useState<EditorSecimi>({ from: 0, to: 0, imlec: 0 });
   const aralik = useMemo(() => {
@@ -346,26 +342,33 @@ export function ScriptEkrani({
     runShortcut(eylem);
   }
 
-  /** Kısayolun ya da paletteki aynı adlı komutun işi; düğmesi kapalıysa hiçbir şey yapmaz. */
+  /** Dört çalıştırma eyleminin açık/kapalı durumu ve ipucu: kısayol, düğmeler, "⋯" menüsü ve palet. */
+  const eylemler = useMemo(
+    () =>
+      runActionStates(
+        {
+          hedef: target !== null,
+          mesgul: busy,
+          ifadeVar: hasStatements,
+          aralikVar: aralik !== null,
+          engeller: { calistir: rangeRunReasons, dene: rangeTryReasons, tumunuCalistir: reasons, tumunuDene: tryReasons },
+        },
+        kisayol,
+      ),
+    [target, busy, hasStatements, aralik, rangeRunReasons, rangeTryReasons, reasons, tryReasons],
+  );
+
+  /** Kısayolun ya da paletteki aynı adlı komutun işi; düğmesi kapalıysa hiçbir şey yapmaz (imleçte ifade yoksa not düşer). */
   function runShortcut(eylem: ScriptShortcut) {
-    if (!target || busy) return;
-    switch (eylem) {
-      case 'calistir':
-      case 'dene': {
-        const deneme = eylem === 'dene';
-        if ((deneme ? rangeTryReasons : rangeRunReasons).length > 0) return;
-        runRange(deneme);
-        return;
-      }
-      case 'tumunuCalistir':
-      case 'tumunuDene': {
-        const deneme = eylem === 'tumunuDene';
-        if (!hasStatements || (deneme ? tryBlocked : blocked)) return;
-        runAll(deneme);
-      }
+    const durum = eylemler[eylem];
+    if (durum.kapali) {
+      if (durum.neden === NO_RANGE_MESSAGE && target && !busy) setNotice(NO_RANGE_MESSAGE);
+      return;
     }
+    if (eylem === 'calistir' || eylem === 'dene') runRange(eylem === 'dene');
+    else runAll(eylem === 'tumunuDene');
   }
-  useScriptCommand(!hidden, runShortcut);
+  useScriptCommand(!hidden, runShortcut, eylemler);
 
   /**
    * Grid sona yaklaştı: transaction açıksa ve sonucun devamı varsa bir sayfa daha istenir. Yanıt
@@ -427,10 +430,13 @@ export function ScriptEkrani({
   const tasan = useTasanEylemler(toolbar, running ? TOOLBAR_RUNNING : TOOLBAR_IDLE);
   const [overflowMenu, setOverflowMenu] = useState<MenuPosition | null>(null);
   const closeOverflowMenu = useCallback(() => setOverflowMenu(null), []);
-  const tumunuDeneKapali = !target || busy || !hasStatements || tryBlocked;
-  const tumunuDeneIpucu = tryBlocked ? tryReasons.map(formatReason).join('\n') : `Tüm script'i çalıştır ve her zaman geri al (${kisayol('tumunuDene')})`;
-  const tumunuCalistirKapali = !target || busy || !hasStatements || blocked;
-  const tumunuCalistirIpucu = blocked ? reasons.map(formatReason).join('\n') : `Tüm script'i çalıştır (${kisayol('tumunuCalistir')})`;
+  /** Çalıştırma düğmesinin ortak öznitelikleri: durum, ipucu ve katalogdaki kısayol. */
+  const eylemDugmesi = (eylem: ScriptShortcut) => ({
+    'data-eylem': eylem,
+    title: eylemler[eylem].ipucu,
+    'aria-keyshortcuts': ariaKisayol(eylem),
+    disabled: eylemler[eylem].kapali,
+  });
 
   /** Sonuç sekmesi başına grid seçiminin özeti; yeni çalıştırmada silinir. */
   const [secimler, setSecimler] = useState<Readonly<Record<number, SecimOzeti>>>({});
@@ -512,56 +518,19 @@ export function ScriptEkrani({
                   </Dugme>
                 )}
                 {!tasan.includes('tumunuDene') && (
-                  <Dugme
-                    data-eylem="tumunuDene"
-                    title={tumunuDeneIpucu}
-                    aria-keyshortcuts="Control+Alt+Shift+Enter Meta+Alt+Shift+Enter"
-                    onClick={() => runAll(true)}
-                    disabled={tumunuDeneKapali}
-                  >
+                  <Dugme {...eylemDugmesi('tumunuDene')} onClick={() => runShortcut('tumunuDene')}>
                     Tümünü dene
                   </Dugme>
                 )}
-                <Dugme
-                  data-eylem="dene"
-                  title={
-                    !aralik
-                      ? NO_RANGE_MESSAGE
-                      : rangeTryReasons.length > 0
-                        ? rangeTryReasons.map(formatReason).join('\n')
-                        : `Seçimi ya da imleçteki ifadeyi çalıştır ve her zaman geri al (${kisayol('dene')})`
-                  }
-                  aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
-                  onClick={() => runRange(true)}
-                  disabled={!target || busy || !aralik || rangeTryReasons.length > 0}
-                >
+                <Dugme {...eylemDugmesi('dene')} onClick={() => runShortcut('dene')}>
                   <FlaskConical aria-hidden="true" /> Dene
                 </Dugme>
                 {!tasan.includes('tumunuCalistir') && (
-                  <Dugme
-                    data-eylem="tumunuCalistir"
-                    title={tumunuCalistirIpucu}
-                    aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
-                    onClick={() => runAll(false)}
-                    disabled={tumunuCalistirKapali}
-                  >
+                  <Dugme {...eylemDugmesi('tumunuCalistir')} onClick={() => runShortcut('tumunuCalistir')}>
                     Tümünü çalıştır
                   </Dugme>
                 )}
-                <Dugme
-                  data-eylem="calistir"
-                  tur="birincil"
-                  title={
-                    !aralik
-                      ? NO_RANGE_MESSAGE
-                      : rangeRunReasons.length > 0
-                        ? rangeRunReasons.map(formatReason).join('\n')
-                        : `Seçimi ya da imleçteki ifadeyi çalıştır (${kisayol('calistir')})`
-                  }
-                  aria-keyshortcuts="Control+Enter Meta+Enter"
-                  onClick={() => runRange(false)}
-                  disabled={!target || busy || !aralik || rangeRunReasons.length > 0}
-                >
+                <Dugme {...eylemDugmesi('calistir')} tur="birincil" onClick={() => runShortcut('calistir')}>
                   <Play aria-hidden="true" /> Çalıştır
                 </Dugme>
               </>
@@ -572,15 +541,15 @@ export function ScriptEkrani({
           x={overflowMenu.x}
           y={overflowMenu.y}
           label="Diğer eylemler"
-          items={tasan.map((anahtar) =>
-            anahtar === 'tumunuDene'
-              ? { label: 'Tümünü dene', disabled: tumunuDeneKapali, onSelect: () => runAll(true) }
-              : { label: 'Tümünü çalıştır', disabled: tumunuCalistirKapali, onSelect: () => runAll(false) },
-          )}
+          items={tasan.filter((a) => a === 'tumunuDene' || a === 'tumunuCalistir').map((anahtar) => ({
+            label: anahtar === 'tumunuDene' ? 'Tümünü dene' : 'Tümünü çalıştır',
+            disabled: eylemler[anahtar].kapali,
+            onSelect: () => runShortcut(anahtar),
+          }))}
           onClose={closeOverflowMenu}
         />
       )}
-      {!busy && blocked && <BlockReasons reasons={reasons} />}
+      {!busy && reasons.length > 0 && <BlockReasons reasons={reasons} />}
       <div className="script-govde" ref={govde}>
         <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
           <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} onSelectionChange={setSecim} />
@@ -687,10 +656,6 @@ function BlockReasons({ reasons }: { reasons: ReturnType<typeof runBlockReasons>
       ))}
     </ul>
   );
-}
-
-function formatReason({ satir, mesaj }: { satir: number | null; mesaj: string }): string {
-  return satir === null ? mesaj : `Satır ${satir}: ${mesaj}`;
 }
 
 /**

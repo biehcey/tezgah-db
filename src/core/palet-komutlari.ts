@@ -3,7 +3,7 @@
  * notla. Komutun eylemi arayüzde kimliğe göre bağlanır.
  */
 import { TEMALAR, type Tema } from './arayuz-tercihleri';
-import type { ShortcutId } from './kisayollar';
+import type { ScriptShortcut, ShortcutId } from './kisayollar';
 
 export interface PaletteState {
   /** Etkin sekmenin türü; sekme yoksa `null`. */
@@ -22,6 +22,8 @@ export interface PaletteState {
   sonucDaraltilmis: boolean;
   /** Konsol gizli (bağlantı formu açık). */
   konsolGizli: boolean;
+  /** Etkin Script ekranının çalıştırma eylemi engelleri (`runActionStates`'in `neden`i); düğmeyle aynı. */
+  scriptEngelleri?: Partial<Record<ScriptShortcut, string>>;
 }
 
 export type PaletteCommandId =
@@ -81,17 +83,17 @@ function resultAreaBlock(s: PaletteState): string | undefined {
 
 /** Paletin komutları, sırasıyla: konsol komutları, görünüm ve tema, kısayollar, bağlantı yönetimi. */
 export function paletteCommands(s: PaletteState): PaletteCommandItem[] {
-  const run = runBlock(s);
+  const run = (eylem: ScriptShortcut) => runBlock(s) ?? s.scriptEngelleri?.[eylem];
   const item = (id: PaletteCommandId, etiket: string, extra: Omit<PaletteCommandItem, 'id' | 'etiket'> = {}): PaletteCommandItem => ({
     id,
     etiket,
     ...extra,
   });
   return [
-    item('calistir', 'Çalıştır', { kisayol: 'calistir', pasif: run }),
-    item('tumunuCalistir', 'Tümünü çalıştır', { kisayol: 'tumunuCalistir', pasif: run }),
-    item('dene', 'Dene', { kisayol: 'dene', pasif: run }),
-    item('tumunuDene', 'Tümünü dene', { kisayol: 'tumunuDene', pasif: run }),
+    item('calistir', 'Çalıştır', { kisayol: 'calistir', pasif: run('calistir') }),
+    item('tumunuCalistir', 'Tümünü çalıştır', { kisayol: 'tumunuCalistir', pasif: run('tumunuCalistir') }),
+    item('dene', 'Dene', { kisayol: 'dene', pasif: run('dene') }),
+    item('tumunuDene', 'Tümünü dene', { kisayol: 'tumunuDene', pasif: run('tumunuDene') }),
     item('yazmaModu', s.yazmaModu ? 'Yazma modunu kapat' : 'Yazma modunu aç', { pasif: writeModeBlock(s) }),
     item('yeniKonsol', 'Yeni konsol'),
     item('gecmis', 'Sorgu geçmişi', { kisayol: 'gecmis', pasif: s.konsolGizli ? 'bağlantı formu açık' : undefined }),
