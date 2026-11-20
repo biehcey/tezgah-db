@@ -54,6 +54,7 @@ import type { TamamlamaGirdisi } from '../script/tamamlama';
 import { KolonFormu } from './KolonFormu';
 import { tableHasRows } from '../../core/kolon-ekle';
 import type { CatalogReason } from '../katalog/kataloglar';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 
 interface Props {
   tab: TableTab;
@@ -623,8 +624,16 @@ export function TabloSekmesi({
         <span className="soluk kucuk tablo-sayaci" title="pg_class.reltuples tahmini · yüklü satırlar">
           {rowCounts(estimate, sayfa ? sayfa.satirlar.length : null)}
         </span>
-        {loading && sayfa && <span className="soluk kucuk">Yükleniyor…</span>}
-        {sayfa?.yukleniyor && <span className="soluk kucuk">Satırlar yükleniyor…</span>}
+        {loading && sayfa && (
+          <span className="soluk kucuk">
+            <Yukleniyor />
+          </span>
+        )}
+        {sayfa?.yukleniyor && (
+          <span className="soluk kucuk">
+            <Yukleniyor>Satırlar yükleniyor…</Yukleniyor>
+          </span>
+        )}
         <div className="filtre-cercevesi">
           {BOXES.map((kutu) => (
             <div key={kutu} className="filtre-kutusu">
@@ -697,7 +706,11 @@ export function TabloSekmesi({
               </button>
             </div>
           )}
-          {loading && !sayfa && <p className="soluk kucuk">Yükleniyor…</p>}
+          {loading && !sayfa && (
+            <p className="soluk kucuk">
+              <Yukleniyor />
+            </p>
+          )}
           {view.durum === 'hata' && !loading && (
             <p role="alert" className="uyari-metni kucuk">
               {view.hata}

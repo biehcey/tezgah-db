@@ -16,6 +16,7 @@ import { ApiError, useApi } from '../api/client';
 import { catalogKey, type CatalogEntry } from '../katalog/kataloglar';
 import { menuBelow, type MenuPosition } from '../ortak/Menu';
 import type { ConnectionSession } from '../veritabanlari/hedef';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 
 /** Son içe aktarmanın izleri: bir sonraki içe aktarmaya kadar "yeni" rozeti ve toplu test sonucu. */
 export interface ImportMarks {
@@ -503,7 +504,7 @@ function VeritabaniDugumleri({
     return (
       <>
         {entry?.durum === 'hata' && <p className="uyari-metni kucuk agac-notu">Tablolar okunamadı: {entry.hata}</p>}
-        {!entry?.katalog && entry?.durum !== 'hata' && <p className="soluk kucuk agac-notu">Tablolar yükleniyor…</p>}
+        {!entry?.katalog && entry?.durum !== 'hata' && <p className="soluk kucuk agac-notu"><Yukleniyor>Tablolar yükleniyor…</Yukleniyor></p>}
         {entry?.katalog && all.length === 0 && <p className="soluk kucuk agac-notu">Bu şemada tablo yok.</p>}
         <ul aria-label={`${schema} tabloları`} className="agac-tablolari">
           {found.map((r) => (
@@ -535,7 +536,7 @@ function VeritabaniDugumleri({
 
   const schemaList = (entry: DatabaseSelection) => {
     const state = schemas[schemasOf(connection.id, entry.database)];
-    if (!state || state.kind === 'yukleniyor') return <p className="soluk kucuk agac-notu">Şemalar yükleniyor…</p>;
+    if (!state || state.kind === 'yukleniyor') return <p className="soluk kucuk agac-notu"><Yukleniyor>Şemalar yükleniyor…</Yukleniyor></p>;
     if (state.kind === 'hata') return <p className="uyari-metni kucuk agac-notu">{state.message}</p>;
     const visible = visibleSchemas(entry, state.schemas);
     const hidden = state.schemas.filter((s) => !visible.includes(s));
