@@ -6,7 +6,7 @@ Spec: [Tasarım token'ları ve bileşenler](../spec.md#tasarım-tokenları-ve-bi
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (18a4a71)
 
 - [x] Token kümesi: boşluk ölçeği (2, 4, 6, 8, 12, 16, 24, 32), yazı ölçeği (11, 12, 13, 14, 16, 18), yarıçap (küçük/orta/büyük/tam), `--font-ui` ve `--font-mono` (monospace yığını tek yerde), 12 adımlı nötr ölçek açık ve koyu için ayrı, semantik renkler (vurgu, tehlike, uyarı, başarı), `--env-prod`, sözdizimi renkleri.
 - [x] Mevcut 11 renk token'ı yeni ölçeğe eşlenir; stil dosyasında token dışı `font-size`, `border-radius` ve font ailesi kalmaz (ölçek dışı tekil değerler en yakın token'a yuvarlanır).
