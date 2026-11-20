@@ -6,7 +6,7 @@ Spec: [Sunucu bildirimleri (hikâyeler)](../spec.md#sunucu-bildirimleri), [Sunuc
 
 **Blocked by:** 09
 
-**Status:** done
+**Status:** done (814dc1d)
 
 - [x] core `ServerEvent`'e `{ type: 'bildirim'; i: number | null; seviye; mesaj; detay?; ipucu? }`; `bitti`'ye `bildirimFazlasi?: number`.
 - [x] core `applyEvent` bildirimleri ve fazlalığı `RunView`'da tutar (saf).
