@@ -15,10 +15,11 @@ Spec: [Tasarım token'ları ve bileşenler](../spec.md#tasarım-tokenları-ve-bi
 - [x] 11 px'ten küçük yazı kalmaz.
 - [x] Global `:focus-visible` halkası token'la tanımlanır; `outline: none` kullanımları kaldırılır ya da eşdeğer görünür odakla değiştirilir.
 - [x] Mevcut testler yeşil; davranış değişikliği yok.
-- [ ] Elle kontrol: uygulama açık ve koyu temada açılır, editörde `SELECT … FROM … WHERE 'x' -- yorum` okunur; ekran görüntüleri ticket yorumuna not edilir.
+- [x] Elle kontrol: uygulama açık ve koyu temada açılır, editörde `SELECT … FROM … WHERE 'x' -- yorum` okunur; ekran görüntüleri ticket yorumuna not edilir.
 
 ## Comments
 
 - Uygulayıcı: elle kontrol (açık/koyu temada uygulamayı açıp ekran görüntüsü almak) ajan oturumunda yapılmadı; insan kontrolü bekliyor. Sözleşme src/web/styles.test.ts (token dışı yazı boyutu/yarıçap/font/boşluk/renk yok, 11 px altı yok, odak gizlenmez, koyu tema seçicileri, temadan bağımsız --env-prod) ve src/web/ortak/sozdizimi.test.ts (anahtar kelime, dizge, sayı, yorum, ad, tip renkleri --sozdizimi-* token'larından) ile denetleniyor.
 - Uygulayıcı: eski 11 renk adı (--zemin, --uyari …) bileşenlerin kullandığı takma adlar olarak kaldı ve yeni ölçeğe/semantik renklere eşlendi. Ölçek dışı boşluklar en yakın token'a, eşitlikte küçüğe yuvarlandı (ör. 3→2, 10→8, 14→12); 15 px başlıklar 16'ya, 12.5 px 12'ye, 9/14 px yarıçaplar --yaricap-tam'a. .filtre-editoru .cm-focused CodeMirror çerçevesini kapatır, yerine token'lı alt çizgi ve çerçeve vurgusu gelir (testte tek istisna).
 - Ticket 14: görsel tur bu oturumda yapılamadı (tarayıcı eklentisi bağlı değildi); bu kutu açık kaldı ve [ticket 15](15-tarayicida-gorsel-tur.md)'e taşındı.
+- Ticket 15: Playwright/Chromium ile açık ve koyu temada bakıldı; `SELECT … FROM … WHERE 'x' -- yorum` iki temada okunur (anahtar kelime, dizge, italik yorum ayrışıyor), tema komutuyla editör renkleri anında değişiyor. Kutu işaretlendi.

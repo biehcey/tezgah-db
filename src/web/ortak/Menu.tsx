@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import type { ShortcutId } from '../../core/kisayollar';
+import { menuKonumu } from '../../core/menu-konumu';
 import { ariaKisayol, kisayol } from './pencere';
 
 export interface MenuItem {
@@ -40,11 +41,21 @@ interface Props extends MenuPosition {
 
 const WIDTH = 240;
 
+const pencereBoyutu = () => ({ genislik: window.innerWidth, yukseklik: window.innerHeight });
+
 /** Sağ tık / ⋯ menüsü. Escape ve dışarı tıklama kapatır; ok tuşları öğeler arasında gezer. */
 export function Menu({ x, y, items: initial, label, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   // Açılıştaki öğeler; alt menü seçilince yer değiştirir. Yeni menü için bileşen yeniden kurulur (key).
   const [items, setItems] = useState(initial);
+  // İlk çizimde istenen nokta; ölçülünce (ve alt menüyle boy değişince) pencereye sığdırılır.
+  const [konum, setKonum] = useState(() => menuKonumu({ x, y }, { genislik: WIDTH, yukseklik: 0 }, pencereBoyutu()));
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setKonum(menuKonumu({ x, y }, { genislik: el.offsetWidth || WIDTH, yukseklik: el.offsetHeight }, pencereBoyutu()));
+  }, [x, y, items]);
 
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
@@ -86,7 +97,7 @@ export function Menu({ x, y, items: initial, label, onClose }: Props) {
       role="menu"
       aria-label={label}
       className="menu"
-      style={{ left: Math.max(0, Math.min(x, window.innerWidth - WIDTH)), top: y }}
+      style={konum}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >

@@ -1,12 +1,12 @@
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { Compartment, EditorState } from '@codemirror/state';
-import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { EditorView, keymap } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
 import { sqlRenklendirme } from '../ortak/sozdizimi';
 import { sqlDili, tamamlamaTemeli, type TamamlamaGirdisi } from '../script/tamamlama';
 
 interface Props {
-  /** Erişilebilir ad ve yer tutucu (`WHERE` / `ORDER BY`). */
+  /** Erişilebilir ad (`WHERE` / `ORDER BY`); görünür etiket kutunun solunda durur, yer tutucu yok. */
   etiket: string;
   value: string;
   onChange: (value: string) => void;
@@ -54,7 +54,6 @@ export function FiltreKutusu({ etiket, value, onChange, onApply, completion, inv
             ...historyKeymap,
           ]),
           sqlRenklendirme,
-          placeholder(etiket),
           language.current.of(sqlDili(completion)),
           attributes.current.of(ariaAttributes(invalid)),
           EditorView.updateListener.of((update) => {

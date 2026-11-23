@@ -799,8 +799,10 @@ button:disabled {
 
 /* Pencereler (ortak/Diyalog.tsx: yerel <dialog>; hızlı geçiş paleti hâlâ .perde kullanır) */
 
+/* Grid'in yapışkan başlığı (z-index 2-3) ve geçmiş çekmecesinin üstünde, toast'ların altında. */
 .perde {
   position: fixed;
+  z-index: 15;
   inset: 0;
   display: grid;
   place-items: center;
@@ -934,6 +936,8 @@ dialog.diyalog::backdrop {
   display: flex;
   flex-direction: column;
   min-width: 220px;
+  max-height: 100vh;
+  overflow-y: auto;
   padding: var(--bosluk-4) 0;
   border: 1px solid var(--cizgi);
   border-radius: var(--yaricap-orta);
@@ -1515,6 +1519,16 @@ dialog.diyalog::backdrop {
   color: var(--env-prod);
 }
 
+/* Tıklandıktan sonra imleç üstündeyken de ters kalır (genel hover zemini kırmızıydı: kırmızı üstünde kırmızı). */
+.hedef-basligi.yazma-acik .kilit-dugmesi.acik:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--metin-zit) 88%, var(--env-prod));
+}
+
+/* Vurgu mavisi kırmızı zeminde okunmuyor. */
+.hedef-basligi.yazma-acik .kayit-klasoru {
+  color: var(--metin-zit);
+}
+
 .hedef-basligi.yazma-acik .rozet-ortam {
   box-shadow: 0 0 0 1px var(--metin-zit);
 }
@@ -1702,7 +1716,7 @@ dialog.diyalog::backdrop {
 
 /* Ctrl/Cmd+Enter'ın çalıştıracağı ifade (odak + boş seçim). */
 .cm-calisacak-aralik {
-  background: color-mix(in srgb, var(--vurgu) 8%, transparent);
+  background: color-mix(in srgb, var(--vurgu) 14%, transparent);
 }
 
 .cm-transaction-disi,
@@ -2889,6 +2903,7 @@ button.grid-kose:hover,
 /* Tek satır: ad, sayaç, WHERE/ORDER BY çerçevesi, eylemler. */
 .tablo-basligi {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--bosluk-8);
   padding: var(--bosluk-6) var(--bosluk-12);
@@ -3165,10 +3180,14 @@ button.grid-kose:hover,
   gap: var(--bosluk-8);
 }
 
-/* WHERE / ORDER BY: tek çerçevede yan yana tek satırlık kutular; hata ilgili kutunun altında. */
+/*
+ * WHERE / ORDER BY: tek çerçevede yan yana tek satırlık kutular; hata ilgili kutunun altında.
+ * 320 px'ten dara sığmazsa başlık sarılır ve çerçeve eylemlerle alt satıra iner (900 px pencerede
+ * çerçeve sıfıra iniyor, etiketler üst üste biniyordu).
+ */
 .tablo-basligi > .filtre-cercevesi {
   display: flex;
-  flex: 1;
+  flex: 1 1 320px;
   gap: var(--bosluk-8);
   min-width: 0;
   padding: 0 var(--bosluk-6);

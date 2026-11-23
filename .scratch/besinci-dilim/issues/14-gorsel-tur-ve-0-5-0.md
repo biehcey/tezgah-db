@@ -8,8 +8,8 @@ Spec: [Testing Decisions](../spec.md#testing-decisions), [Further Notes](../spec
 
 **Status:** done (9d05df5)
 
-- [ ] Gerçek yerel veritabanıyla (ör. embedded-postgres ya da yerel bir sunucu) yukarıdaki ekranların açık/koyu ve dar/geniş ekran görüntüleri alınır; dosyalar repoya konmaz, gözlemler bu dosyanın `## Comments` bölümüne yazılır.
-- [ ] 1–13'ün kabul kriterleriyle çelişen bir görünüm varsa düzeltilir ya da `.scratch/besinci-dilim/issues/` altında yeni ticket açılır.
+- [x] Gerçek yerel veritabanıyla (ör. embedded-postgres ya da yerel bir sunucu) yukarıdaki ekranların açık/koyu ve dar/geniş ekran görüntüleri alınır; dosyalar repoya konmaz, gözlemler bu dosyanın `## Comments` bölümüne yazılır.
+- [x] 1–13'ün kabul kriterleriyle çelişen bir görünüm varsa düzeltilir ya da `.scratch/besinci-dilim/issues/` altında yeni ticket açılır.
 - [x] README: yeni kısayollar (Çalışacak aralık, Tümünü çalıştır, Ctrl/Cmd+F, Ctrl/Cmd+Shift+C, `?`), tema seçimi, Sunucu bildirimleri.
 - [x] Sürüm 0.5.0'a çıkar; sürüm notunda Ctrl/Cmd+Enter'ın artık tüm script yerine Çalışacak aralığı çalıştırdığı açıkça yazar.
 - [x] Spec'te uygulamayla ayrışan satırlar düzeltilmiş durumdadır; spec'in `Status:` satırı güncellenir.
@@ -20,3 +20,4 @@ Spec: [Testing Decisions](../spec.md#testing-decisions), [Further Notes](../spec
 - Sürüm notu yeni `CHANGELOG.md`'de (önceki sürümlerin notu yoktu; 0.5.0 ilk girdi). README'ye Diğer kısayollar (Ctrl/Cmd+F, Ctrl/Cmd+Shift+C, `?`, palet, gezgin), Tema ve arayüz tercihleri, Sunucu bildirimleri bölümleri eklendi; prod bölümündeki eski "araç çubuğundaki 🔒/🔓 düğmesi" ifadesi başlıktaki kilit düğmesine göre düzeltildi.
 - Spec'in Implementation Decisions bölümü 01–13'ün kapanışlarında koda göre yeniden yazılmıştı; okuyunca ayrışan satır bulunmadı. Spec'in `Status:` satırı güncellendi.
 - `npm run check` (2222 test) ve `npm run test:pg` (381 test) yeşil.
+- İlk iki kutu [ticket 15](15-tarayicida-gorsel-tur.md)'te Playwright ile yapılan turla karşılandı; gözlemler ve düzeltilen kusurlar orada.

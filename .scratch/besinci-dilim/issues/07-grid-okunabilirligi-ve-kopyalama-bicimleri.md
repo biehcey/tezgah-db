@@ -9,7 +9,7 @@ Spec: [Grid okunabilirliği ve kopyalama](../spec.md#grid-okunabilirliği-ve-kop
 **Status:** done (a168647)
 
 - [x] core kolon hizası: `int2`, `int4`, `int8`, `numeric`, `float4`, `float8`, `money`, `oid` → sağ; diğerleri sol. Sağ kolonlarda `tabular-nums`.
-- [ ] Satır hover vurgusu; seçim ve düzenlenmiş hücre renkleri token'lara bağlı; tip etiketi en az 11 px.
+- [x] Satır hover vurgusu; seçim ve düzenlenmiş hücre renkleri token'lara bağlı; tip etiketi en az 11 px.
 - [x] core kopyalama modülü: `toCsv` (RFC 4180, başlıklı, NULL boş alan, boş metin `""`), `toMarkdown` (başlık + ayırıcı, `|` ve satır sonu kaçışı, sayısal kolonlar `---:`), `toJson` (nesne dizisi; NULL `null`, `bool` true/false, `int2`/`int4`/`float` sayı, `int8`/`numeric` metin, `json`/`jsonb` iç içe; yinelenen adlar `ad`, `ad_2`), başlıklı `toTsv`. Tam (kesilmemiş) değerlerle çalışır.
 - [x] `Menu` alt menü ve ayırıcı destekler; grid menüsünde "Kopyala ▸" grubu.
 - [x] Ctrl/Cmd+Shift+C başlıklı TSV.
@@ -24,3 +24,4 @@ Spec: [Grid okunabilirliği ve kopyalama](../spec.md#grid-okunabilirliği-ve-kop
 - Görsel turda bakılacak: Chrome'da Ctrl+Shift+C DevTools'un öğe seçicisini açabilir; sayfa tuşu yakalayabiliyor mu, gerçek tarayıcıda denenmeli.
 - Spec'teki Grid maddesi, kodun netleştirdiği kurallarla yeniden yazıldı (kolonlar seçili aralıktan; Markdown NULL `NULL`, satır sonu `<br>`; JSON'da `NaN`/`Infinity` metin, anahtar sırası korunur).
 - Ticket 14: görsel tur bu oturumda yapılamadı (tarayıcı eklentisi bağlı değildi); bu kutu açık kaldı ve [ticket 15](15-tarayicida-gorsel-tur.md)'e taşındı.
+- Ticket 15: tarayıcıda doğrulandı (hover ve seçim zemini, düzenlenen hücre turuncumsu, tip etiketi 11 px, sayısal kolonlar sağa yaslı `tabular-nums`); kutu işaretlendi. Ctrl+Shift+C sayfaya ulaşıyor (başlıklı TSV yazıldı), ama Playwright tuşu tarayıcının kendi kısayollarını atlayarak gönderdiği için gerçek Chrome'daki DevTools çakışması elle denenmeli.

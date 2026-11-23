@@ -9,7 +9,7 @@ Spec: [Prod sinyali (hikâyeler)](../spec.md#prod-sinyali) (hikâye 92–95), [P
 **Status:** done (f37df84)
 
 - [x] Kilit kontrolü yalnızca hedef başlığında; alt araç çubuğu kontrolü ve ayrı rozet kaldırılır.
-- [ ] Salt okunur/yazma açık görünümleri token'larla (`--env-prod`); "YAZMA AÇIK" 900×700 pencerede kesilmez.
+- [x] Salt okunur/yazma açık görünümleri token'larla (`--env-prod`); "YAZMA AÇIK" 900×700 pencerede kesilmez.
 - [x] Kırmızı çerçeve koşulu: görünen ekran konsol ya da Tablo sekmesi ve hedef `prod`.
 - [x] Onay penceresi eklenmez (değişmez kural).
 - [x] Testler (arayüz): prod hedefte kilit kontrolü tek tanedir ve tek tıkla durum değiştirir; yazma açıkken "YAZMA AÇIK" görünür; prod konsolu açıkken yeni bağlantı formuna geçilince çerçeve kaybolur, konsola dönülünce geri gelir; mevcut yazma kilidi testleri geçer.
@@ -20,3 +20,4 @@ Spec: [Prod sinyali (hikâyeler)](../spec.md#prod-sinyali) (hikâye 92–95), [P
 - Tablo sekmesinde de tek kontrol tablo başlığına taşındı (önceden bekleyenler ve kolon formu çubuklarındaydı). Başlık dolu kırmızı değil, kırmızımsı + kırmızı alt çizgi: WHERE/ORDER BY kutuları okunur kalsın. Spec güncellendi.
 - Çerçeve içe aktarma sonucu penceresi açıkken de çizilmez.
 - Ticket 14: görsel tur bu oturumda yapılamadı (tarayıcı eklentisi bağlı değildi); bu kutu açık kaldı ve [ticket 15](15-tarayicida-gorsel-tur.md)'e taşındı.
+- Ticket 15: 900×700'de "YAZMA AÇIK" kesilmiyor; kutu işaretlendi. Turda bulunan iki kusur düzeltildi: tıklamadan sonra imleç üstündeyken kilit düğmesi kırmızı zeminde kırmızı yazıydı (hover zemini) ve "Çalıştırma kayıtları klasörünü aç" kırmızı başlıkta mavi kalıyordu.
