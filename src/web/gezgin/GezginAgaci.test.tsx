@@ -65,7 +65,7 @@ describe('Gezgin ağacı: bağlanmamış bağlantı', () => {
     await user.click(within(panel()).getByRole('button', { name: 'postgres' }));
     expect(within(header()).getByRole('heading')).toHaveTextContent('Yerel / postgres');
     expect(within(panel()).getByRole('button', { name: 'postgres' })).toHaveAttribute('aria-current', 'true');
-    expect(within(rowOf('Yerel')).getByText('● hedef')).toBeInTheDocument();
+    expect(within(rowOf('Yerel')).getByText('hedef')).toBeInTheDocument();
     expect(fake.databaseRequests).toEqual([]);
   });
 });
@@ -126,7 +126,7 @@ describe('Gezgin ağacı: şemalar, tablolar ve arama', () => {
     const tables = within(await within(panel()).findByRole('list', { name: 'public tabloları' }));
     expect(tables.getByRole('button', { name: 'musteri' })).toHaveTextContent('≈12k');
     // Hiç analiz edilmemiş tabloda sayı yok.
-    expect(tables.getByRole('button', { name: 'siparis' }).textContent).toBe('▦siparis');
+    expect(tables.getByRole('button', { name: 'siparis' }).textContent).toBe('siparis');
     await user.click(tables.getByRole('button', { name: 'musteri' }));
     expect(await screen.findByRole('region', { name: 'public.musteri tablosu' })).toBeInTheDocument();
   });

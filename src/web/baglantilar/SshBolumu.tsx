@@ -11,6 +11,8 @@ import type { FixId, TestField, TestStep } from '../../core/baglanti-testi';
 import type { HostKeyProblem } from '../../core/ssh-tuneli';
 import { HostAnahtariKutusu } from './HostAnahtariKutusu';
 import { AdimDurumu, TestAdimlari, type TestState } from './TestSonucu';
+import { KeyRound, TriangleAlert } from 'lucide-react';
+import { AcKapaOku } from '../ortak/ikonlar';
 
 /** Formdaki SSH değerleri; port metin, yollar boş dize ise "yok". */
 export interface SshForm {
@@ -138,7 +140,7 @@ export function SshBolumu(props: Props) {
     <fieldset className="bolum katlanir" aria-label="SSH tüneli">
       <legend>
         <button type="button" className="bolum-acici" aria-expanded={open} onClick={onToggle}>
-          <span aria-hidden="true">{open ? '▾' : '▸'}</span> SSH tüneli
+          <AcKapaOku acik={open} /> SSH tüneli
           <span className="bolum-ozeti"> · {summary}</span>
           <AdimDurumu state={props.testState} step="ssh" />
         </button>
@@ -187,7 +189,7 @@ export function SshBolumu(props: Props) {
                     <>
                       <span className="etiket">{secretLabel}</span>
                       <p className="keychain-kayitli">
-                        🔑 keychain'de kayıtlı ·{' '}
+                        <KeyRound aria-hidden="true" /> keychain'de kayıtlı ·{' '}
                         <button type="button" className="baglanti-dugme" onClick={props.onChangeStored}>
                           değiştir
                         </button>
@@ -227,7 +229,8 @@ export function SshBolumu(props: Props) {
                     SSH sırrını keychain'e kaydet
                   </label>
                   {!value.saveSecret && (
-                    <p className="uyari-satiri">{secretLabel} her açılışta ilk bağlanmada sorulur, yalnızca bellekte tutulur.</p>
+                    <p className="uyari-satiri">
+                      <TriangleAlert aria-hidden="true" /> {secretLabel} her açılışta ilk bağlanmada sorulur, yalnızca bellekte tutulur.</p>
                   )}
                 </div>
               )}

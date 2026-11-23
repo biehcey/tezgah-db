@@ -1,6 +1,9 @@
 import type { StatementStatus } from '../../core/script-calistirma';
 
-/** İfade durumunun satır işareti ve kartlardaki simgesi. */
+/**
+ * İfade durumunun editör kenar çubuğundaki metin işareti (CodeMirror gutter'ı DOM'u kendisi kurar;
+ * kartlar aynı durumu `DurumIkonu` SVG'siyle gösterir).
+ */
 export const STATUS_SYMBOLS: Record<StatementStatus, string> = {
   basarili: '✓',
   hatali: '✗',
@@ -28,8 +31,8 @@ export const STATUS_LABELS: Record<StatementStatus, string> = {
   calistirilmadi: 'çalıştırılmadı',
 };
 
-/** prod yazma kilidinin rozeti ve düğmenin açıklaması. */
-export const WRITE_LOCK_LABELS: Record<'salt-okunur' | 'yazma-acik', { rozet: string; eylem: string }> = {
-  'salt-okunur': { rozet: '🔒 Salt okunur', eylem: 'Yazma modunu aç' },
-  'yazma-acik': { rozet: '🔓 Yazma açık', eylem: 'Salt okunura dön' },
+/** prod yazma kilidi düğmesinin etiketi ve açıklaması; ikonu `KilitIkonu`. */
+export const WRITE_LOCK_LABELS: Record<'salt-okunur' | 'yazma-acik', { etiket: string; eylem: string }> = {
+  'salt-okunur': { etiket: 'Salt okunur', eylem: 'Yazma modunu aç' },
+  'yazma-acik': { etiket: 'YAZMA AÇIK', eylem: 'Salt okunura dön' },
 };

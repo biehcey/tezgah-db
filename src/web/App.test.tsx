@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from './api/client';
@@ -21,10 +21,36 @@ describe('App', () => {
     expect(await screen.findByText('v1.2.3')).toBeInTheDocument();
   });
 
+  it('kenar çubuğunun ikon düğmeleri adlarıyla bulunur; metin karakteri değil SVG ikon taşır', async () => {
+    renderWithApi(<App />, createFakeApi({ listConnections: async () => [], listFolders: async () => [] }));
+    for (const name of ['İçe aktar', 'Yeni klasör', 'Yeni bağlantı', 'Gezgini gizle']) {
+      const button = await screen.findByRole('button', { name });
+      expect(button).toHaveTextContent(/^$/);
+      expect(button.querySelector('svg')).not.toBeNull();
+    }
+  });
+
   it('oturum geçersizse terminaldeki URL\'in yeniden açılmasını söyler', async () => {
     const unauthorized = () => Promise.reject(new ApiError(401));
     renderWithApi(<App />, createFakeApi({ status: unauthorized, listConnections: unauthorized, listFolders: unauthorized }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Terminaldeki adresi yeniden açın/);
+  });
+});
+
+describe('App: bildirimler', () => {
+  it('işlem hatası çalışma alanı üstünde paragraf değil, kapatılabilir bir toast olarak görünür', async () => {
+    const user = userEvent.setup();
+    const fake = createFakeConnections([connection({ id: 'a', name: 'Analitik' })]);
+    fake.api.copyConnection = () => Promise.reject(new TypeError('Failed to fetch'));
+    renderWithApi(<App />, fake.api);
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /Analitik/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'Kopyala' }));
+
+    const toast = await within(screen.getByRole('region', { name: 'Bildirimler' })).findByRole('alert');
+    expect(toast).toHaveTextContent('Kopyalanamadı: Tezgah sunucusuna ulaşılamıyor.');
+    expect(within(screen.getByRole('main')).queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(within(toast).getByRole('button', { name: 'Bildirimi kapat' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
@@ -56,7 +82,7 @@ describe('App: bağlantı formu script ekranını kapatmaz', () => {
   it('karar beklenirken form açılırsa transaction geri alınmaz; dönünce karar kartı yerinde', async () => {
     const { user, runs, toggleForm } = await setup();
     setEditorScript('INSERT INTO t VALUES (1)');
-    await user.click(screen.getByRole('button', { name: '▶ Çalıştır' }));
+    await user.click(screen.getByRole('button', { name: 'Çalıştır' }));
     runs.last().emit({ type: 'done', i: 0, rowCount: 1, ms: 1, komut: 'INSERT' }, { type: 'kararBekleniyor', commitEdilebilir: true, kalanMs: 1_800_000 });
     await toggleForm();
     expect(runs.last().closed).toBe(false);
@@ -74,12 +100,12 @@ describe('App: prod yazma kilidi', () => {
     await screen.findByText('Canlı', { selector: '.baglanti-adi' });
     await user.keyboard('{Control>}k{/Control}');
     await user.keyboard('{Enter}');
-    const lockButton = () => screen.getByRole('button', { name: /Salt okunur|Yazma açık/ });
+    const lockButton = () => screen.getByRole('button', { name: /Salt okunur|YAZMA AÇIK/ });
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
 
     await user.click(screen.getByRole('button', { name: 'Yeni bağlantı' }));
     await user.click(screen.getByRole('button', { name: 'İptal' }));
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
   });
 });

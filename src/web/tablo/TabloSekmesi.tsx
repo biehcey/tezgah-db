@@ -26,7 +26,10 @@ import { ROW_LIMIT_MESSAGE, applyEvent, startRunView, targetLock, type RunView }
 import { writeLockState } from '../../core/yazma-kilidi';
 import { Degisiklikler, DenemeProdUyarisi } from '../script/Degisiklikler';
 import { KararKarti } from '../script/KararKarti';
-import { WRITE_LOCK_LABELS } from '../script/durum';
+import { KilitDugmesi } from '../script/KilitDugmesi';
+import { ChevronDown, ChevronUp, FlaskConical, PanelRight, Plus, RefreshCw, Undo2 } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
+import { Rozet } from '../ortak/Rozet';
 import type { ScriptRunHandle } from '../api/client';
 import {
   BOX_LABELS,
@@ -47,13 +50,16 @@ import { SonucGridi, type GridHandle } from '../grid/SonucGridi';
 import { SatirGorunumu } from '../grid/SatirGorunumu';
 import { rowView } from '../../core/grid/satir-gorunumu';
 import { BekleyenListesi } from './BekleyenListesi';
-import { APPLE, modalOpen } from '../ortak/pencere';
+import { ariaKisayol, kisayol, modalOpen } from '../ortak/pencere';
 import type { CatalogEntry } from '../katalog/kataloglar';
 import { FiltreKutusu } from './FiltreKutusu';
 import type { TamamlamaGirdisi } from '../script/tamamlama';
 import { KolonFormu } from './KolonFormu';
 import { tableHasRows } from '../../core/kolon-ekle';
 import type { CatalogReason } from '../katalog/kataloglar';
+import { Yukleniyor } from '../ortak/Yukleniyor';
+import type { SekmeDurumu } from '../ortak/DurumCubugu';
+import type { SecimOzeti } from '../../core/grid/secim-ozeti';
 
 interface Props {
   tab: TableTab;
@@ -81,6 +87,8 @@ interface Props {
    * `tazelendi` sunucu DDL commit'inden sonra katalogu tazeleyince (`bitti.katalogYenilendi`).
    */
   onCatalog?: (reason: Extract<CatalogReason, 'hedef' | 'tazelendi'>) => void;
+  /** Durum çubuğunun değerleri: "Uygula" çalıştırması, tahmini satır, bekleyen değişiklik, grid seçimi. */
+  onDurum?: (durum: SekmeDurumu) => void;
   hidden: boolean;
 }
 
@@ -153,12 +161,8 @@ const ACTION_TITLES: Record<RunKind, { aktar: string; dene: string; uygula: stri
   },
 };
 
-/** Platformdaki değiştirici tuş; düğmelerdeki kısayol ipuçları için. */
-const MOD = APPLE ? '⌘' : 'Ctrl+';
-const MOD_ADI = APPLE ? 'Cmd' : 'Ctrl';
-
 /** Bekleyen değişiklik yokken çekmece satırındaki kısayol ipucu. */
-const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd+Shift+N: NULL · sağ tık: satır sil · Ctrl/Cmd+V: TSV yapıştır · Shift+Enter: satır görünümü · ${MOD_ADI}+B: gezgin`;
+const HINT = `Yaz / ${kisayol('hucreDuzenle')} / çift tık: düzenle · Tab: sonraki hücre · ${kisayol('nullYap')}: NULL · sağ tık: satır sil · ${kisayol('yapistir')}: TSV yapıştır · ${kisayol('satirGorunumu')}: satır görünümü · ${kisayol('gezgin')}: gezgin`;
 
 /**
  * Tablo sekmesi: editörsüz, tek satırlık üst çubukta ad, `≈N · M yüklü`, tek çerçevede serbest
@@ -171,7 +175,7 @@ const HINT = `Yaz / F2 / çift tık: düzenle · Tab: sonraki hücre · Ctrl/Cmd
  * sayıyı ve eylemleri gösterir; "SQL'i göster" ile liste ve üretilen SQL grid'in altında açılır.
  * "Uygula" (Ctrl/Cmd+Enter) o SQL'i bu sekmede mevcut Script çalıştırıcıyla Transaction modunda,
  * her ifade tam 1 satır etkileyecek şekilde çalıştırır (karar kartı); "Dene" (Ctrl/Cmd+Shift+Enter)
- * aynısını Deneme modunda gösterir, "Konsola aktar" yeni konsol sekmesine taşır, "↶ Geri al"
+ * aynısını Deneme modunda gösterir, "Konsola aktar" yeni konsol sekmesine taşır, "Geri al"
  * bekleyenlerin hepsini atar.
  */
 export function TabloSekmesi({
@@ -187,6 +191,7 @@ export function TabloSekmesi({
   onPendingChange,
   onExportToConsole,
   onCatalog,
+  onDurum,
   hidden,
 }: Props) {
   const api = useApi();
@@ -372,6 +377,14 @@ export function TabloSekmesi({
     },
     [],
   );
+  /** Grid seçiminin özeti; grid yeniden kurulunca (yeni sayfa, filtre) yeniden bildirilir. */
+  const [secim, setSecim] = useState<SecimOzeti | null>(null);
+  const onDurumRef = useRef(onDurum);
+  onDurumRef.current = onDurum;
+  useEffect(
+    () => onDurumRef.current?.({ run, deadline, secim, tablo: { tahmin: estimate, bekleyen: count } }),
+    [run, deadline, secim, estimate, count],
+  );
   // Tarayıcı sekmesi kapanırken de uyarılır.
   useEffect(() => {
     if (count === 0) return;
@@ -410,6 +423,8 @@ export function TabloSekmesi({
       ...(tur === 'bekleyen' && { beklenenSatir: 1 as const }),
     };
     handle.current = api.runScript(request, (event) => {
+      // Bekleyen değişiklik ve kolon ekleme script'lerinde Sunucu bildirimleri gösterilmez.
+      if (event.type === 'bildirim') return;
       setRun((current) => (current ? applyEvent(current, event) : current));
       if (event.type === 'kararBekleniyor' || event.type === 'uzatildi') setDeadline(startDecision(event.kalanMs, Date.now()));
       if (event.type === 'bitti' && event.sonuc === 'commit') {
@@ -513,7 +528,7 @@ export function TabloSekmesi({
 
   /**
    * Uygula/Dene/Konsola aktar çubuğu; `metin` `null` ya da boşsa düğmeler kapalı. Bekleyenlerinkinde
-   * "↶ Geri al" ve kısayol ipuçları da var.
+   * "Geri al" ve kısayol ipuçları da var.
    */
   const actionBar = (metin: string | null, tur: RunKind) => {
     const none = busy || !metin;
@@ -521,56 +536,41 @@ export function TabloSekmesi({
     const pending = tur === 'bekleyen';
     return (
       <div className="script-cubugu">
-        {lock && (
-          // Tek tık; onay yok. Açık transaction'ın kilidi değişmez.
-          <button
-            type="button"
-            className={`kilit-dugmesi ${lock}`}
-            aria-pressed={lock === 'yazma-acik'}
-            title={WRITE_LOCK_LABELS[lock].eylem}
-            onClick={onToggleWriteMode}
-            disabled={busy}
-          >
-            {WRITE_LOCK_LABELS[lock].rozet}
-          </button>
-        )}
         {pending && (
-          <button type="button" title="Bekleyen değişikliklerin hepsini at" onClick={() => setChanges(NO_CHANGES)} disabled={none}>
-            ↶ Geri al
-          </button>
+          <Dugme title="Bekleyen değişikliklerin hepsini at" onClick={() => setChanges(NO_CHANGES)} disabled={none}>
+            <Undo2 aria-hidden="true" /> Geri al
+          </Dugme>
         )}
-        <button type="button" title={titles.aktar} onClick={() => metin && onExportToConsole(metin)} disabled={none}>
+        <Dugme title={titles.aktar} onClick={() => metin && onExportToConsole(metin)} disabled={none}>
           Konsola aktar
-        </button>
-        <button
-          type="button"
-          title={pending ? `${titles.dene} (${MOD}Shift+Enter)` : titles.dene}
-          aria-keyshortcuts={pending ? 'Control+Shift+Enter Meta+Shift+Enter' : undefined}
+        </Dugme>
+        <Dugme
+          title={pending ? `${titles.dene} (${kisayol('tabloDene')})` : titles.dene}
+          aria-keyshortcuts={pending ? ariaKisayol('tabloDene') : undefined}
           onClick={() => metin && runScript(metin, true, tur)}
           disabled={none}
         >
-          ⟲ Dene
+          <FlaskConical aria-hidden="true" /> Dene
           {pending && (
             <kbd className="kisayol-ipucu" aria-hidden="true">
-              {MOD}⇧↵
+              {kisayol('tabloDene')}
             </kbd>
           )}
-        </button>
-        <button
-          type="button"
-          className="birincil"
-          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${MOD}Enter)` : titles.uygula}
-          aria-keyshortcuts={pending ? 'Control+Enter Meta+Enter' : undefined}
+        </Dugme>
+        <Dugme
+          tur="birincil"
+          title={lock === 'salt-okunur' ? 'Salt okunur prod: yazma kilidini açın' : pending ? `${titles.uygula} (${kisayol('uygula')})` : titles.uygula}
+          aria-keyshortcuts={pending ? ariaKisayol('uygula') : undefined}
           onClick={() => metin && runScript(metin, false, tur)}
           disabled={none || lock === 'salt-okunur'}
         >
           Uygula
           {pending && (
             <kbd className="kisayol-ipucu" aria-hidden="true">
-              {MOD}↵
+              {kisayol('uygula')}
             </kbd>
           )}
-        </button>
+        </Dugme>
       </div>
     );
   };
@@ -615,16 +615,25 @@ export function TabloSekmesi({
 
   return (
     <section aria-label={`${name} tablosu`} className="tablo-sekmesi" hidden={hidden}>
-      <header className="tablo-basligi">
+      <header className={`tablo-basligi${lock === 'yazma-acik' ? ' yazma-acik' : ''}`}>
         <h2 title={target ? `${target.connection.name} / ${target.database} · ${name}` : name}>
           <span className="soluk">{tab.sema}.</span>
           {tab.tablo}
         </h2>
+        <KilitDugmesi lock={lock} onToggle={onToggleWriteMode} disabled={busy} />
         <span className="soluk kucuk tablo-sayaci" title="pg_class.reltuples tahmini · yüklü satırlar">
           {rowCounts(estimate, sayfa ? sayfa.satirlar.length : null)}
         </span>
-        {loading && sayfa && <span className="soluk kucuk">Yükleniyor…</span>}
-        {sayfa?.yukleniyor && <span className="soluk kucuk">Satırlar yükleniyor…</span>}
+        {loading && sayfa && (
+          <span className="soluk kucuk">
+            <Yukleniyor />
+          </span>
+        )}
+        {sayfa?.yukleniyor && (
+          <span className="soluk kucuk">
+            <Yukleniyor>Satırlar yükleniyor…</Yukleniyor>
+          </span>
+        )}
         <div className="filtre-cercevesi">
           {BOXES.map((kutu) => (
             <div key={kutu} className="filtre-kutusu">
@@ -646,12 +655,12 @@ export function TabloSekmesi({
           ))}
         </div>
         {table && (
-          <button type="button" onClick={addRowAction} disabled={!editing} title="Sona yeni satır ekler; dokunulmayan kolonlar DEFAULT kalır">
-            + Satır
-          </button>
+          <Dugme boyut="kucuk" onClick={addRowAction} disabled={!editing} title="Sona yeni satır ekler; dokunulmayan kolonlar DEFAULT kalır">
+            <Plus aria-hidden="true" /> Satır
+          </Dugme>
         )}
-        <button
-          type="button"
+        <Dugme
+          boyut="kucuk"
           title="ALTER TABLE … ADD COLUMN önizlemeli kolon ekleme formunu aç"
           aria-pressed={columnForm}
           disabled={!target || busy}
@@ -660,30 +669,23 @@ export function TabloSekmesi({
             setColumnForm(!columnForm);
           }}
         >
-          + Kolon
-        </button>
-        <button
-          type="button"
-          className="ikon-dugme"
-          aria-label="Tabloyu yeniden yükle"
-          title="Yeniden yükle"
-          disabled={!target || loading}
-          onClick={reload}
-        >
-          ↻
-        </button>
-        <button
-          type="button"
-          className="ikon-dugme"
+          <Plus aria-hidden="true" /> Kolon
+        </Dugme>
+        <Dugme tur="sade" ikon aria-label="Tabloyu yeniden yükle" title="Yeniden yükle" disabled={!target || loading} onClick={reload}>
+          <RefreshCw aria-hidden="true" />
+        </Dugme>
+        <Dugme
+          tur="sade"
+          ikon
           aria-label="Satır görünümü"
           aria-pressed={rowViewOpen}
-          aria-keyshortcuts="Shift+Enter"
-          title="Satır görünümü (grid’de Shift+Enter)"
+          aria-keyshortcuts={ariaKisayol('satirGorunumu')}
+          title={`Satır görünümü (grid’de ${kisayol('satirGorunumu')})`}
           disabled={!sayfa}
           onClick={() => setRowViewOpen(!rowViewOpen)}
         >
-          ◧
-        </button>
+          <PanelRight aria-hidden="true" />
+        </Dugme>
       </header>
       {errorLine(null)}
       <div className="tablo-govde">
@@ -692,12 +694,16 @@ export function TabloSekmesi({
           {target && view.durum === 'bekliyor' && !loading && (
             <div className="tablo-yukle">
               <p className="soluk kucuk">Tablo henüz yüklenmedi; yüklemek hedefe bağlanır.</p>
-              <button type="button" onClick={() => load(applied)}>
+              <Dugme tur="birincil" onClick={() => load(applied)}>
                 Yükle
-              </button>
+              </Dugme>
             </div>
           )}
-          {loading && !sayfa && <p className="soluk kucuk">Yükleniyor…</p>}
+          {loading && !sayfa && (
+            <p className="soluk kucuk">
+              <Yukleniyor />
+            </p>
+          )}
           {view.durum === 'hata' && !loading && (
             <p role="alert" className="uyari-metni kucuk">
               {view.hata}
@@ -713,6 +719,7 @@ export function TabloSekmesi({
               satirlar={shownRows}
               toplamSatir={complete(sayfa) ? shownRows.length : null}
               onSonaYaklasti={loadMore}
+              onSecimOzeti={setSecim}
               onKolonTikla={(c) => sortBy(sayfa, sayfa.kolonlar[c]!)}
               siralama={siralama}
               onDuzenle={editing ? editCellAt : undefined}
@@ -768,18 +775,19 @@ export function TabloSekmesi({
           <div className="cekmece-cubugu">
             {count > 0 ? (
               <>
-                <span className="rozet sayi-rozeti">{count}</span>
+                <Rozet tur="sayi">{count}</Rozet>
                 <b>bekleyen değişiklik</b>
-                <button
-                  type="button"
-                  className="ikon-dugme"
+                <Dugme
+                  tur="sade"
+                  boyut="kucuk"
                   aria-expanded={sqlOpen}
-                  aria-keyshortcuts="Control+Alt+Enter Meta+Alt+Enter"
-                  title={`Bekleyen listesi ve üretilen SQL (${MOD}Alt+Enter)`}
+                  aria-keyshortcuts={ariaKisayol('tabloSql')}
+                  title={`Bekleyen listesi ve üretilen SQL (${kisayol('tabloSql')})`}
                   onClick={() => setSqlOpen(!sqlOpen)}
                 >
-                  {sqlOpen ? 'SQL’i gizle ▾' : 'SQL’i göster ▴'}
-                </button>
+                  {sqlOpen ? 'SQL’i gizle' : 'SQL’i göster'}
+                  {sqlOpen ? <ChevronDown aria-hidden="true" /> : <ChevronUp aria-hidden="true" />}
+                </Dugme>
               </>
             ) : (
               idleNote && <span className="soluk kucuk cekmece-notu">{idleNote}</span>

@@ -8,6 +8,8 @@ import {
 } from '../../core/baglanti';
 import type { FixId } from '../../core/baglanti-testi';
 import { TestAdimlari, TlsDurumu, type TestState } from './TestSonucu';
+import { TriangleAlert } from 'lucide-react';
+import { AcKapaOku } from '../ortak/ikonlar';
 
 /** Formdaki SSL değerleri: yollar düz metin, boş dize "yok". */
 export type SslForm = { sslmode: SslMode } & Record<SslPathField, string>;
@@ -71,11 +73,16 @@ export function SslBolumu({ id, value, onChange, open, onToggle, prod, errors, i
     <fieldset className="bolum katlanir" aria-label="SSL/TLS">
       <legend>
         <button type="button" className="bolum-acici" aria-expanded={open} onClick={onToggle}>
-          <span aria-hidden="true">{open ? '▾' : '▸'}</span> SSL/TLS
+          <AcKapaOku acik={open} /> SSL/TLS
           <span className="bolum-ozeti">
             {' '}
             · {value.sslmode}
-            {recommend && ' · ⚠ verify-full önerilir'}
+            {recommend && (
+              <>
+                {' · '}
+                <TriangleAlert aria-hidden="true" /> verify-full önerilir
+              </>
+            )}
           </span>
           <TlsDurumu state={testState} />
         </button>
@@ -98,7 +105,7 @@ export function SslBolumu({ id, value, onChange, open, onToggle, prod, errors, i
             <p className="soluk">{MODE_NOTES[value.sslmode]}</p>
             {recommend && (
               <p className="uyari-satiri">
-                prod için verify-full önerilir ·{' '}
+                <TriangleAlert aria-hidden="true" /> prod için verify-full önerilir ·{' '}
                 <button type="button" className="baglanti-dugme" onClick={() => set({ sslmode: 'verify-full' })}>
                   Uygula
                 </button>

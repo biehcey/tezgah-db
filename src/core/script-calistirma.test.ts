@@ -5,9 +5,11 @@ import {
   ROW_LIMIT_MESSAGE,
   applyEvent,
   autocommitSummary,
+  bildirimGeldi,
   canFetchMore,
   requestMore,
   formatSummary,
+  noticeEvent,
   parseClientMessage,
   startRunView,
   targetLock,
@@ -123,6 +125,32 @@ describe('çalıştırma görünümü', () => {
     expect(warned.uyari).toBeUndefined();
     const done = applyEvent(warned, { type: 'bitti', sonuc: 'commit' });
     expect(done.kayitUyarisi).toBe('Çalıştırma kaydı yazılamadı');
+  });
+});
+
+describe('çalıştırma görünümü: Çalışacak aralık', () => {
+  // Editörde üçüncü satırdaki iki ifade çalışır; sunucu aralığı tek başına bir script olarak görür.
+  const EDITOR = 'SELECT 0;\n-- not\nSELECT 1;\n  SELECT nope\n  FROM t;\nSELECT 9;';
+  const bas = EDITOR.indexOf('SELECT 1');
+  const ARALIK = EDITOR.slice(bas, EDITOR.indexOf('SELECT 9') - 1);
+  const view = () => startRunView(ARALIK, { aralik: { bas, editorMetni: EDITOR } });
+
+  it('ifadelerin satırı editördeki satırdır; görünüm aralığın yerini ve editör metnini taşır', () => {
+    expect(view()).toMatchObject({ script: ARALIK, bas, editorMetni: EDITOR });
+    expect(view().ifadeler.map((s) => s.satir)).toEqual([3, 4]);
+  });
+
+  it('hata konumu (offset, satır, sütun) editör metnine taşınır', () => {
+    // Sunucunun konumu aralığa göredir: `nope` aralığın 2. satırının 10. sütunu.
+    const yerel = ARALIK.indexOf('nope');
+    const hatali = applyEvent(view(), { type: 'error', i: 1, ms: 1, sqlstate: '42703', mesaj: 'yok', satir: 2, sutun: 10, bas: yerel, bit: yerel + 4 });
+    expect(hatali.ifadeler[1]!.hata).toMatchObject({ satir: 4, sutun: 10, bas: EDITOR.indexOf('nope'), bit: EDITOR.indexOf('nope') + 4 });
+  });
+
+  it('tüm script ofset 0’lı aralıktır: aralık verilmezse görünüm script’in kendisidir', () => {
+    expect(startRunView(SCRIPT)).toMatchObject({ bas: 0, editorMetni: SCRIPT });
+    const hatali = applyEvent(startRunView(SCRIPT), { type: 'error', i: 1, ms: 1, sqlstate: null, mesaj: 'x', satir: 3, sutun: 1, bas: 27, bit: 35 });
+    expect(hatali.ifadeler[1]!.hata).toMatchObject({ satir: 3, sutun: 1, bas: 27, bit: 35 });
   });
 });
 
@@ -279,5 +307,78 @@ describe('çalıştırma görünümü: daha fazla satır', () => {
     expect(result(view).yukleniyor).toBeUndefined();
     expect(view.bekleyenIstek).toBe('uzat');
     expect(canFetchMore(view, 1)).toBe(false);
+  });
+});
+
+describe('çalıştırma görünümü: Sunucu bildirimleri', () => {
+  const notice = (i: number | null, mesaj: string, ek: Partial<Extract<ServerEvent, { type: 'bildirim' }>> = {}): ServerEvent => ({
+    type: 'bildirim',
+    i,
+    seviye: 'NOTICE',
+    mesaj,
+    ...ek,
+  });
+
+  it('başta bildirim yok', () => {
+    expect(play().bildirimler).toEqual([]);
+    expect(play().bildirimFazlasi).toBeUndefined();
+  });
+
+  it('bildirimler geldikleri sırayla, geldikleri ifadenin editördeki satırıyla tutulur', () => {
+    const view = play(
+      { type: 'started', i: 2 },
+      notice(2, 'bir'),
+      notice(2, 'iki', { seviye: 'WARNING', detay: 'ayrıntı', ipucu: 'öneri' }),
+      notice(null, 'ifadesiz'),
+    );
+    expect(view.bildirimler).toEqual([
+      { i: 2, satir: 3, seviye: 'NOTICE', mesaj: 'bir' },
+      { i: 2, satir: 3, seviye: 'WARNING', mesaj: 'iki', detay: 'ayrıntı', ipucu: 'öneri' },
+      { i: null, satir: null, seviye: 'NOTICE', mesaj: 'ifadesiz' },
+    ]);
+  });
+
+  it('satır Çalışacak aralıktan editöre taşınır', () => {
+    const EDITOR = 'SELECT 0;\n\nDO $$ BEGIN RAISE NOTICE $q$x$q$; END $$;';
+    const bas = EDITOR.indexOf('DO');
+    const view = applyEvent(startRunView(EDITOR.slice(bas), { aralik: { bas, editorMetni: EDITOR } }), notice(0, 'x'));
+    expect(view.bildirimler[0]).toMatchObject({ i: 0, satir: 3 });
+  });
+
+  it('1000’den sonrası gösterilmez, sayılır; bitti sunucunun saydığı fazlalığı taşır', () => {
+    let view = play();
+    for (let n = 0; n < 1002; n++) view = applyEvent(view, notice(0, `n${n}`));
+    expect(view.bildirimler).toHaveLength(1000);
+    expect(view.bildirimler.at(-1)!.mesaj).toBe('n999');
+    expect(view.bildirimFazlasi).toBe(2);
+    expect(applyEvent(play(), { type: 'bitti', sonuc: 'commit', bildirimFazlasi: 7 }).bildirimFazlasi).toBe(7);
+    // Fazlalık bildirmeyen bitti görünümdeki sayıyı silmez.
+    expect(applyEvent(view, { type: 'bitti', sonuc: 'commit' }).bildirimFazlasi).toBe(2);
+  });
+});
+
+describe('noticeEvent', () => {
+  it.each([
+    ['NOTICE', { severity: 'NOTICE', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: 'm' }],
+    ['WARNING, DETAIL ve HINT', { severity: 'WARNING', message: 'm', detail: 'd', hint: 'h' }, { type: 'bildirim', i: 1, seviye: 'WARNING', mesaj: 'm', detay: 'd', ipucu: 'h' }],
+    ['INFO', { severity: 'INFO', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'INFO', mesaj: 'm' }],
+    ['LOG', { severity: 'LOG', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'LOG', mesaj: 'm' }],
+    ['DEBUG', { severity: 'DEBUG', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'DEBUG', mesaj: 'm' }],
+    // Yerelleştirilmiş ya da tanınmayan seviye NOTICE sayılır.
+    ['tanınmayan seviye', { severity: 'UYARI', message: 'm' }, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: 'm' }],
+    ['seviyesiz, mesajsız', {}, { type: 'bildirim', i: 1, seviye: 'NOTICE', mesaj: '' }],
+  ])('%s', (_, raw, expected) => {
+    expect(noticeEvent(raw, 1)).toEqual(expected);
+  });
+});
+
+describe('bildirimGeldi: Sunucu bildirimi sınırı (sunucu ve arayüz aynı sayar)', () => {
+  it.each([
+    ['ilk bildirim gösterilir', { gosterilen: 0, fazla: 0 }, { goster: true, sayac: { gosterilen: 1, fazla: 0 } }],
+    ['sınırdan bir önceki gösterilir', { gosterilen: 999, fazla: 0 }, { goster: true, sayac: { gosterilen: 1000, fazla: 0 } }],
+    ['sınır dolunca fazlaya sayılır', { gosterilen: 1000, fazla: 0 }, { goster: false, sayac: { gosterilen: 1000, fazla: 1 } }],
+    ['fazla birikir', { gosterilen: 1000, fazla: 4 }, { goster: false, sayac: { gosterilen: 1000, fazla: 5 } }],
+  ])('%s', (_, sayac, expected) => {
+    expect(bildirimGeldi(sayac)).toEqual(expected);
   });
 });

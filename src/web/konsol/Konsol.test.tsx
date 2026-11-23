@@ -36,8 +36,8 @@ const strip = () => screen.getByRole('tablist', { name: 'Konsol sekmeleri' });
 const tabs = () => within(strip()).getAllByRole('tab');
 const tabNamed = (name: RegExp) => within(strip()).getByRole('tab', { name });
 const header = () => screen.getByRole('region', { name: 'Hedef' });
-const lockButton = () => screen.getByRole('button', { name: /Salt okunur|Yazma açık/ });
-const runButton = () => screen.getByRole('button', { name: '▶ Çalıştır' });
+const lockButton = () => screen.getByRole('button', { name: /Salt okunur|YAZMA AÇIK/ });
+const runButton = () => screen.getByRole('button', { name: 'Çalıştır' });
 const frame = (view: { container: HTMLElement }) => view.container.querySelector('.tezgah')!;
 
 /** Paletten hedef seçer (ilk eşleşen hedef). */
@@ -58,7 +58,7 @@ describe('Konsol sekmeleri: açılış', () => {
 
   it('geri gelen prod sekmesi her zaman 🔒 açılır ve hiçbir sunucuya istek gitmez', async () => {
     const { fake, runs } = await setup(saved([prodTab('s1', 'DELETE FROM t')]));
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
     expect(fake.databaseRequests).toEqual([]);
     expect(runs.runs).toEqual([]);
   });
@@ -88,6 +88,21 @@ describe('Konsol sekmeleri: şerit', () => {
     expect(frame(view)).toHaveClass('prod-cerceve');
     expect(within(header()).getByRole('heading')).toHaveTextContent('Canlı / app');
     expect(header()).toHaveClass('prod');
+  });
+
+  it('prod konsolu açıkken yeni bağlantı formuna geçilince çerçeve kalkar; konsola dönülünce geri gelir', async () => {
+    const { user, view } = await setup(saved([prodTab('s1')]));
+    expect(frame(view)).toHaveClass('prod-cerceve');
+    await user.click(screen.getByRole('button', { name: 'Yeni bağlantı' }));
+    expect(frame(view)).not.toHaveClass('prod-cerceve');
+    await user.click(screen.getByRole('button', { name: 'İptal' }));
+    expect(frame(view)).toHaveClass('prod-cerceve');
+  });
+
+  it('prod konsolu açıkken içe aktarma açılınca çerçeve kalkar', async () => {
+    const { user, view } = await setup(saved([prodTab('s1')]));
+    await user.click(screen.getByRole('button', { name: 'İçe aktar' }));
+    expect(frame(view)).not.toHaveClass('prod-cerceve');
   });
 
   it('yeni sekme aktif sekmenin hedefiyle, boş metinle açılır; kapatılınca komşusu aktif olur', async () => {
@@ -221,13 +236,13 @@ describe('Konsol sekmeleri: Yazma kilidi', () => {
   it('bir prod sekmesinde 🔓 başka prod sekmesini etkilemez', async () => {
     const { user, runs } = await setup(saved([prodTab('s1', 'SELECT 1'), prodTab('s2', 'SELECT 2')]));
     await user.click(lockButton());
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
     await user.click(tabs()[1]!);
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
     await user.click(runButton());
     expect(runs.last().yazmaModu).toBe(false);
     await user.click(tabs()[0]!);
-    expect(lockButton()).toHaveTextContent('🔓 Yazma açık');
+    expect(lockButton()).toHaveTextContent('YAZMA AÇIK');
   });
 
   it('sekmenin hedefi değişince kilit kapanır', async () => {
@@ -235,7 +250,7 @@ describe('Konsol sekmeleri: Yazma kilidi', () => {
     await user.click(lockButton());
     await pickTarget(user, 'Yerel');
     await pickTarget(user, 'Canlı');
-    expect(lockButton()).toHaveTextContent('🔒 Salt okunur');
+    expect(lockButton()).toHaveTextContent('Salt okunur');
   });
 });
 

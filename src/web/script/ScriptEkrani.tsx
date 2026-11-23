@@ -1,9 +1,29 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, type ArayuzTercihleri } from '../../core/arayuz-tercihleri';
+import {
+  baslangicSecimi,
+  bildirimSayilari,
+  calismaIlerledi,
+  editorBoyu,
+  gosterilenSekme,
+  kendiligindenAcilir,
+  kullaniciSecti,
+  sonucOraniniBul,
+  sonucSekmeleri,
+  type SekmeSecimi,
+  type SonucAlaniSekmesi,
+  type SonucSekmesiAnahtari,
+} from '../../core/sonuc-alani';
+import { Bolucu } from '../ortak/Bolucu';
 import { isProd, type Connection } from '../../core/baglanti';
+import { calisacakAralik, editorSatiri, type AralikYeri } from '../../core/calisacak-aralik';
 import { analyzeScript, forceTransaction, type RunMode, type ScriptAnalysis } from '../../core/calistirma-modu';
 import { positionOf, splitStatements, type Statement } from '../../core/ifade-bolme';
 import { formatRemaining, startDecision, type DecisionTimer } from '../../core/karar-suresi';
-import { scriptShortcut, shortcutKey } from '../../core/kisayollar';
+import { scriptShortcut, shortcutKey, type ScriptShortcut } from '../../core/kisayollar';
+import { ariaKisayol, kisayol } from '../ortak/pencere';
+import { NO_RANGE_MESSAGE, formatReason, runActionStates } from '../../core/calistirma-eylemleri';
+import { useScriptCommand } from './komut';
 import { Degisiklikler, DenemeProdUyarisi } from './Degisiklikler';
 import { BekletmeGostergesi } from './BekletmeGostergesi';
 import { KararKarti, resultText, useCountdown } from './KararKarti';
@@ -23,16 +43,26 @@ import type { ServerEvent } from '../../core/script-calistirma';
 import type { SessionTab } from '../../core/konsol-sekmeleri';
 import type { Target } from '../../core/veritabani-secimi';
 import { runBlockReasons, writeLockState } from '../../core/yazma-kilidi';
-import { STATUS_LABELS, STATUS_SYMBOLS, WRITE_LOCK_LABELS, type AnalysisMark } from './durum';
-import { ScriptEditoru, type EditorMarks, type ScriptEditoruHandle } from './ScriptEditoru';
+import { ChevronDown, ChevronUp, Ellipsis, FlaskConical, History, Play, RefreshCw, Square, TriangleAlert } from 'lucide-react';
+import { STATUS_LABELS, type AnalysisMark } from './durum';
+import { DurumIkonu } from './ikonlar';
+import { KilitDugmesi } from './KilitDugmesi';
+import { Dugme } from '../ortak/Dugme';
+import type { SekmeDurumu } from '../ortak/DurumCubugu';
+import { Menu, menuBelow, type MenuPosition } from '../ortak/Menu';
+import { TASMA_MENUSU, useTasanEylemler } from '../ortak/tasma';
+import type { SecimOzeti } from '../../core/grid/secim-ozeti';
+import { OrtamRozeti, Rozet, type RozetTuru } from '../ortak/Rozet';
+import { ScriptEditoru, type EditorMarks, type EditorSecimi, type ScriptEditoruHandle } from './ScriptEditoru';
 import { resultSummary, resultTotal } from '../../core/grid/ozet';
 import { SonucGovdesi } from '../grid/SonucGovdesi';
+import { Yukleniyor } from '../ortak/Yukleniyor';
 import { catalogUse, type CatalogEntry, type CatalogReason } from '../katalog/kataloglar';
 
 interface Props {
   /** Hedefin bağlantısı ve veritabanı; hedef seçilmediyse `null`. */
   target: { connection: Connection; database: string } | null;
-  /** "hedefi değiştir ▾": hızlı geçiş paletini açar. */
+  /** "hedefi değiştir": hızlı geçiş paletini açar. */
   onChangeTarget: () => void;
   /** Hedef kilidinin nedeni değişti (`null`: hedef değiştirilebilir); ekran kapanınca `null`. */
   onTargetLockChange?: (reason: string | null) => void;
@@ -41,7 +71,7 @@ interface Props {
   onScriptChange: (script: string) => void;
   /** Bu sekmenin Yazma kilidi açık mı (sekme ve hedef başına; sahibi konsoldur). */
   writeMode: boolean;
-  /** 🔒/🔓 düğmesi: sekmenin yazma modunu tek tıkla açar ya da kapatır. */
+  /** Kilit düğmesi: sekmenin yazma modunu tek tıkla açar ya da kapatır. */
   onToggleWriteMode: () => void;
   /** Aynı hedefte açık oturumu olan diğer sekmeler; `havuzDolu` mesajı bunlarla kurulur. */
   sessionTabs?: readonly SessionTab[];
@@ -56,6 +86,15 @@ interface Props {
    * kapanmak transaction'ı geri aldırırdı (ADR-0002).
    */
   hidden?: boolean;
+  /** Arayüz tercihlerinden: Sonuç alanının yüksekliğe oranı ve daraltılmışlığı. */
+  sonucOrani: number;
+  sonucDaraltilmis: boolean;
+  /** Oran (sürükleme bitince) ya da daraltılmışlık değişti; tercihe yazılır. */
+  onSonucAlani: (change: Partial<Pick<ArayuzTercihleri, 'sonucOrani' | 'sonucDaraltilmis'>>) => void;
+  /** Durum çubuğunun değerleri (çalıştırma, geri sayım, görünen grid'in seçimi, kısa geri bildirim). */
+  onDurum?: (durum: SekmeDurumu) => void;
+  /** Hedef başlığındaki düğme: Sorgu geçmişi çekmecesini açar ya da kapatır. */
+  onHistory?: () => void;
 }
 
 /** Aynı satırda başlayan birden çok ifadede satır işareti en önemli durumu gösterir. */
@@ -73,9 +112,21 @@ const AUTOCOMMIT_CONNECTION_LOST: ServerEvent = {
 const ANALYSIS_DELAY_MS = 200;
 
 const MODE_LABELS: Record<RunMode, string> = { transaction: 'Transaction', autocommit: 'Autocommit', okuma: 'Okuma', karisik: 'Karışık' };
+/** Araç çubuğunun eylemleri sırasıyla; birincil olanlar (mod rozeti dahil) hiç taşmaz. */
+const TOOLBAR_IDLE = [
+  { anahtar: 'mod', birincil: true },
+  { anahtar: 'tumunuDene', birincil: false },
+  { anahtar: 'dene', birincil: true },
+  { anahtar: 'tumunuCalistir', birincil: false },
+  { anahtar: 'calistir', birincil: true },
+] as const;
+const TOOLBAR_RUNNING = [
+  { anahtar: 'mod', birincil: true },
+  { anahtar: 'iptal', birincil: true },
+] as const;
 
-type Tab = 'degisiklikler' | 'log';
-const TAB_LABELS: Record<Tab, string> = { degisiklikler: 'Değişiklikler', log: 'Log' };
+const MODE_ROZETLERI: Record<RunMode, RozetTuru> = { transaction: 'notr', autocommit: 'dikkat', okuma: 'basari', karisik: 'tehlike' };
+
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -102,7 +153,7 @@ function analysisMarks(script: string, statements: Statement[], analysis: Script
 
 /**
  * Script ekranı (ticket 23 varyant B): üstte büyük hedef başlığı, solda editör ve çalıştırma çubuğu,
- * sağda karar kartı ve ifade kartları. prod hedefte başlık kırmızımsıdır; uygulamanın kırmızı
+ * sağda karar kartı ve ifade kartları. prod hedefte başlık kırmızımsıdır, yazma açıkken dolu kırmızı; uygulamanın kırmızı
  * çerçevesi kökte verilir.
  */
 export function ScriptEkrani({
@@ -118,6 +169,11 @@ export function ScriptEkrani({
   catalog,
   onCatalog,
   hidden = false,
+  sonucOrani,
+  sonucDaraltilmis,
+  onSonucAlani,
+  onDurum,
+  onHistory,
 }: Props) {
   const api = useApi();
   const prod = target !== null && isProd(target.connection.envTag);
@@ -180,22 +236,58 @@ export function ScriptEkrani({
     () => runBlockReasons(analyzed, statements, lock, { analysis, deneme: true }),
     [analyzed, statements, lock, analysis],
   );
-  const blocked = reasons.length > 0;
-  const tryBlocked = tryReasons.length > 0;
-  /** Sonuç sütununun seçili sekmesi; Değişiklikler yalnızca denemede var. */
-  const [tab, setTab] = useState<Tab>('log');
-  const tabs: Tab[] = run?.deneme ? ['degisiklikler', 'log'] : ['log'];
-  const shownTab = run?.deneme ? tab : 'log';
+  /** Editörün seçimi; Çalışacak aralık bundan çıkar. */
+  const [secim, setSecim] = useState<EditorSecimi>({ from: 0, to: 0, imlec: 0 });
+  const aralik = useMemo(() => {
+    const a = calisacakAralik(script, secim, secim.imlec);
+    return a && { bas: a.bas, metin: script.slice(a.bas, a.bit) };
+  }, [script, secim]);
+  /**
+   * Çalışacak aralığın engelleri; yalnızca o aralığın içeriğine bakılır (Çalıştırma modu da ondan
+   * çıkar). Satırlar editörün satırlarıdır.
+   */
+  const rangeReasons = useCallback(
+    (deneme: boolean) => {
+      if (!aralik) return [];
+      const yer = { bas: aralik.bas, editorMetni: script };
+      return runBlockReasons(aralik.metin, splitStatements(aralik.metin), lock, { deneme }).map((r) => ({
+        ...r,
+        satir: r.satir === null ? null : editorSatiri(yer, r.satir),
+      }));
+    },
+    [aralik, script, lock],
+  );
+  const rangeRunReasons = useMemo(() => rangeReasons(false), [rangeReasons]);
+  const rangeTryReasons = useMemo(() => rangeReasons(true), [rangeReasons]);
+  /** Kısayolun kısa geri bildirimi (ör. imleçte ifade yok); seçim ya da metin değişince kalkar. */
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => setNotice(null), [script, secim]);
+  /** Sonuç alanının seçili sekmesi; çalıştırma başında ve bitişinde açılış kuralıyla seçilir. */
+  const [sekmeSecimi, setSekmeSecimi] = useState<SekmeSecimi | null>(null);
   /** Çalıştırma sayacı: yeni çalıştırmanın grid'leri eskilerin durumunu (seçim, genişlik) devralmaz. */
   const [runNo, setRunNo] = useState(0);
-  /** Seçili sonuç sekmesinin ifade indeksi; yoksa ilk sonuç. */
-  const [resultTab, setResultTab] = useState<number | null>(null);
+  /** Görünümün bir önceki hâli: bitiş ve kendiliğinden açılma geçişten anlaşılır. */
+  const previousRun = useRef<RunView | null>(null);
+  const sonucDaraltilmisRef = useRef(sonucDaraltilmis);
+  sonucDaraltilmisRef.current = sonucDaraltilmis;
+  useEffect(() => {
+    const onceki = previousRun.current;
+    previousRun.current = run;
+    if (!run || onceki === run) return;
+    setSekmeSecimi((s) => (s ? calismaIlerledi(s, onceki, run) : s));
+    if (sonucDaraltilmisRef.current && kendiligindenAcilir(onceki, run)) onSonucAlani({ sonucDaraltilmis: false });
+  }, [run, onSonucAlani]);
 
   /**
-   * `zorlaTransaction`: Okuma deseni yanıldı (25006); hata alan script (`metin`, editör sonradan
-   * değişmiş olabilir) karar kartıyla Transaction modunda çalışır. Sunucu yine kendi analizini yapar.
+   * `metin` sunucuya bir script olarak gider (ADR-0003, ADR-0006); `yer` onun editördeki yeridir
+   * (tüm script: ofset 0). `zorlaTransaction`: Okuma deseni yanıldı (25006); hata alan aralık (editör
+   * sonradan değişmiş olabilir) karar kartıyla Transaction modunda çalışır. Sunucu yine kendi
+   * analizini yapar.
    */
-  function start(deneme: boolean, { zorlaTransaction = false, metin = script }: { zorlaTransaction?: boolean; metin?: string } = {}) {
+  function start(
+    deneme: boolean,
+    { metin, yer, zorlaTransaction = false }: { metin: string; yer: AralikYeri; zorlaTransaction?: boolean },
+  ) {
     if (!targetRef || busy) return;
     // Analiz yazmanın gerisinde kalabilir; çalıştırmadan önce güncel metinle yeniden bakılır.
     const currentStatements = splitStatements(metin);
@@ -203,13 +295,15 @@ export function ScriptEkrani({
     if (runBlockReasons(metin, currentStatements, lock, { analysis: current, deneme }).length > 0) return;
     // Açık Okuma transaction'ı da bu soketle birlikte geri alınır.
     handle.current?.close();
-    setRun(startRunView(metin, { deneme }));
+    setNotice(null);
+    const view = startRunView(metin, { deneme, aralik: yer });
+    setRun(view);
     setRunOnProd(prod);
-    setTab(deneme ? 'degisiklikler' : 'log');
+    setSekmeSecimi(baslangicSecimi(view));
     setRunNo((n) => n + 1);
-    setResultTab(null);
     setDeadline(null);
     setPoolFullTabs([]);
+    setSecimler({});
     moreAsked.current.clear();
     // Sekmenin ilk çalıştırması (bu hedefin katalogu yoksa) katalogu ister.
     onCatalog?.('calistir');
@@ -225,19 +319,56 @@ export function ScriptEkrani({
     });
   }
 
+  /** Tüm script: ofset 0'lı Çalışacak aralık. */
+  const runAll = (deneme: boolean) => start(deneme, { metin: script, yer: { bas: 0, editorMetni: script } });
+  const runRange = (deneme: boolean) => {
+    if (!aralik) {
+      setNotice(NO_RANGE_MESSAGE);
+      return;
+    }
+    start(deneme, { metin: aralik.metin, yer: { bas: aralik.bas, editorMetni: script } });
+  };
+
   /**
-   * Editörde Ctrl/Cmd+Enter Çalıştır, +Shift Dene: düğmesi kapalıysa hiçbir şey yapmaz. Yakalama
-   * evresinde: CodeMirror'ın Mod-Enter'ı (boş satır ekle) çalışmasın.
+   * Editörde Ctrl/Cmd+Enter Çalışacak aralığı çalıştırır, +Shift dener; +Alt tüm script için aynısı.
+   * Düğmesi kapalıysa hiçbir şey yapmaz. Yakalama evresinde: CodeMirror'ın Mod-Enter'ı (boş satır
+   * ekle) çalışmasın.
    */
   function onEditorShortcut(e: KeyboardEvent<HTMLElement>) {
     const eylem = scriptShortcut(shortcutKey(e.nativeEvent));
     if (!eylem) return;
     e.preventDefault();
     e.stopPropagation();
-    if (!target || busy || !hasStatements) return;
-    if (eylem === 'calistir' ? blocked : tryBlocked) return;
-    start(eylem === 'dene');
+    runShortcut(eylem);
   }
+
+  /** Dört çalıştırma eyleminin açık/kapalı durumu ve ipucu: kısayol, düğmeler, "⋯" menüsü ve palet. */
+  const eylemler = useMemo(
+    () =>
+      runActionStates(
+        {
+          hedef: target !== null,
+          mesgul: busy,
+          ifadeVar: hasStatements,
+          aralikVar: aralik !== null,
+          engeller: { calistir: rangeRunReasons, dene: rangeTryReasons, tumunuCalistir: reasons, tumunuDene: tryReasons },
+        },
+        kisayol,
+      ),
+    [target, busy, hasStatements, aralik, rangeRunReasons, rangeTryReasons, reasons, tryReasons],
+  );
+
+  /** Kısayolun ya da paletteki aynı adlı komutun işi; düğmesi kapalıysa hiçbir şey yapmaz (imleçte ifade yoksa not düşer). */
+  function runShortcut(eylem: ScriptShortcut) {
+    const durum = eylemler[eylem];
+    if (durum.kapali) {
+      if (durum.neden === NO_RANGE_MESSAGE && target && !busy) setNotice(NO_RANGE_MESSAGE);
+      return;
+    }
+    if (eylem === 'calistir' || eylem === 'dene') runRange(eylem === 'dene');
+    else runAll(eylem === 'tumunuDene');
+  }
+  useScriptCommand(!hidden, runShortcut, eylemler);
 
   /**
    * Grid sona yaklaştı: transaction açıksa ve sonucun devamı varsa bir sayfa daha istenir. Yanıt
@@ -257,7 +388,7 @@ export function ScriptEkrani({
 
   // Satır işaretleri yalnızca editördeki metin çalıştırılanla aynıyken anlamlı.
   const marks = useMemo((): EditorMarks => {
-    if (!run || run.script !== script) return analyzed === script ? analysisMarks(script, statements, analysis) : NO_MARKS;
+    if (!run || run.editorMetni !== script) return analyzed === script ? analysisMarks(script, statements, analysis) : NO_MARKS;
     const lines = new Map<number, StatementStatus>();
     for (const s of run.ifadeler) {
       const existing = lines.get(s.satir);
@@ -271,9 +402,54 @@ export function ScriptEkrani({
   /** Okuma'da karar kartı yok; yerinde ince bir durum satırı durur (ADR-0004). */
   const reading = run?.evre === 'okuma' || run?.sonuc === 'okuma';
 
+  /** Editör + Sonuç alanının yüksekliği; ölçülemezse (jsdom) pencere yüksekliği. */
+  const govde = useRef<HTMLDivElement>(null);
+  const [toplam, setToplam] = useState(() => window.innerHeight);
+  useLayoutEffect(() => {
+    const el = govde.current;
+    if (!el) return;
+    const measure = () => setToplam(el.clientHeight || window.innerHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  /** Sürüklenirken oran; bırakınca tercihe yazılır. */
+  const [surukleme, setSurukleme] = useState<number | null>(null);
+  const oran = surukleme ?? sonucOrani;
+  /** Kullanıcı şeritte (ya da Log'daki bildirim sayacıyla) sekme seçti; daraltılmış alan açılır. */
+  const selectTab = (anahtar: SonucSekmesiAnahtari) => {
+    setSekmeSecimi((s) => kullaniciSecti(s ?? { secili: 'log', elle: false }, anahtar));
+    if (sonucDaraltilmis) onSonucAlani({ sonucDaraltilmis: false });
+  };
+  const bildirimSayaclari = bildirimSayilari(run);
+
+  /** Araç çubuğu tek satırda kalır; sığmayan ikincil eylemler "⋯" menüsüne taşınır. */
+  const toolbar = useRef<HTMLDivElement>(null);
+  const tasan = useTasanEylemler(toolbar, running ? TOOLBAR_RUNNING : TOOLBAR_IDLE);
+  const [overflowMenu, setOverflowMenu] = useState<MenuPosition | null>(null);
+  const closeOverflowMenu = useCallback(() => setOverflowMenu(null), []);
+  /** Çalıştırma düğmesinin ortak öznitelikleri: durum, ipucu ve katalogdaki kısayol. */
+  const eylemDugmesi = (eylem: ScriptShortcut) => ({
+    'data-eylem': eylem,
+    title: eylemler[eylem].ipucu,
+    'aria-keyshortcuts': ariaKisayol(eylem),
+    disabled: eylemler[eylem].kapali,
+  });
+
+  /** Sonuç sekmesi başına grid seçiminin özeti; yeni çalıştırmada silinir. */
+  const [secimler, setSecimler] = useState<Readonly<Record<number, SecimOzeti | null>>>({});
+  const shown = gosterilenSekme(sekmeSecimi, run);
+  const shownResult = sonucSekmeleri(run).find((t) => t.anahtar === shown)?.i;
+  const gridSecimi = shownResult === undefined || sonucDaraltilmis ? null : (secimler[shownResult] ?? null);
+  const onDurumRef = useRef(onDurum);
+  onDurumRef.current = onDurum;
+  useEffect(() => onDurumRef.current?.({ run, deadline, secim: gridSecimi, bildirim: notice }), [run, deadline, gridSecimi, notice]);
+
   return (
     <div className="script-ekrani" hidden={hidden}>
-      <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}`}>
+      <section aria-label="Hedef" className={`hedef-basligi${prod ? ' prod' : ''}${lock === 'yazma-acik' ? ' yazma-acik' : ''}`}>
         {target ? (
           <>
             <span
@@ -285,16 +461,8 @@ export function ScriptEkrani({
             <h2 className="hedef-adi">
               {target.connection.name} <span className="soluk">/</span> {target.database}
             </h2>
-            {target.connection.envTag && (
-              <span className="ortam-rozeti" style={{ backgroundColor: target.connection.color ?? undefined }}>
-                {target.connection.envTag}
-              </span>
-            )}
-            {lock && (
-              <span title="Yazma kilidi" className={`kilit-rozeti ${lock}`}>
-                {WRITE_LOCK_LABELS[lock].rozet}
-              </span>
-            )}
+            {target.connection.envTag && <OrtamRozeti etiket={target.connection.envTag} renk={target.connection.color} />}
+            <KilitDugmesi lock={lock} onToggle={onToggleWriteMode} disabled={busy} />
           </>
         ) : (
           <>
@@ -303,12 +471,17 @@ export function ScriptEkrani({
           </>
         )}
         {target && <KatalogDugmesi catalog={catalog} onRefresh={() => onCatalog?.('yenile')} />}
-        <button type="button" className="hedef-degistir" onClick={onChangeTarget}>
-          hedefi değiştir ▾
-        </button>
-        <button type="button" className="kayit-klasoru" onClick={openHistoryFolder}>
+        <Dugme tur="sade" boyut="kucuk" className="hedef-degistir" onClick={onChangeTarget}>
+          hedefi değiştir <ChevronDown aria-hidden="true" />
+        </Dugme>
+        {onHistory && (
+          <Dugme tur="sade" ikon className="gecmis-dugmesi" aria-label="Sorgu geçmişi" title={`Sorgu geçmişi (${kisayol('gecmis')})`} onClick={onHistory}>
+            <History aria-hidden="true" />
+          </Dugme>
+        )}
+        <Dugme tur="sade" boyut="kucuk" className="kayit-klasoru" onClick={openHistoryFolder}>
           Çalıştırma kayıtları klasörünü aç
-        </button>
+        </Dugme>
         {folderError && (
           <span role="alert" className="uyari kucuk">
             {folderError}
@@ -317,118 +490,139 @@ export function ScriptEkrani({
       </section>
       {analysis.mod === 'autocommit' && (
         <div role="note" aria-label="Autocommit uyarısı" className="uyari-seridi autocommit">
-          ⚠ {analysis.transactionDisi.length} ifade anında kalıcı uygulanır, geri alınamaz
+          <TriangleAlert aria-hidden="true" /> {analysis.transactionDisi.length} ifade anında kalıcı uygulanır, geri alınamaz
         </div>
       )}
       {runOnProd && run?.deneme && <DenemeProdUyarisi />}
-      <div className="script-govde">
-        <div className="script-sol">
-          <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
-            <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} />
-          </section>
-          {!busy && blocked && <BlockReasons reasons={reasons} />}
-          <div className="script-cubugu">
-            <span title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
+          <div className="script-cubugu" role="toolbar" aria-label="Çalıştırma" ref={toolbar}>
+            <Rozet data-eylem="mod" tur={MODE_ROZETLERI[analysis.mod]} title="Çalıştırma modu" className={`mod-rozeti ${analysis.mod}`}>
               {MODE_LABELS[analysis.mod]}
-            </span>
-            {lock && (
-              // Tek tık; onay, şerit ya da tema değişimi yok. Açık transaction'ın kilidi değişmez.
-              <button
-                type="button"
-                className={`kilit-dugmesi ${lock}`}
-                aria-pressed={lock === 'yazma-acik'}
-                title={WRITE_LOCK_LABELS[lock].eylem}
-                onClick={onToggleWriteMode}
-                disabled={busy}
-              >
-                {WRITE_LOCK_LABELS[lock].rozet}
-              </button>
-            )}
+            </Rozet>
             {running ? (
-              <button type="button" className="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
-                ■ İptal
-              </button>
+              <Dugme data-eylem="iptal" tur="tehlikeli" onClick={() => request('iptal')} disabled={run.bekleyenIstek === 'iptal'}>
+                <Square aria-hidden="true" /> İptal
+              </Dugme>
             ) : (
               <>
-                <button
-                  type='button'
-                  title={tryBlocked ? tryReasons.map(formatReason).join('\n') : 'Çalıştır ve her zaman geri al (Ctrl/Cmd+Shift+Enter)'}
-                  aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
-                  onClick={() => start(true)}
-                  disabled={!target || busy || !hasStatements || tryBlocked}
-                >
-                  ⟲ Dene
-                </button>
-                <button
-                  type="button"
-                  className="birincil"
-                  title="Ctrl/Cmd+Enter"
-                  aria-keyshortcuts="Control+Enter Meta+Enter"
-                  onClick={() => start(false)}
-                  disabled={!target || busy || !hasStatements || blocked}
-                >
-                  ▶ Çalıştır
-                </button>
+                {tasan.length > 0 && (
+                  <Dugme
+                    data-eylem={TASMA_MENUSU}
+                    tur="sade"
+                    ikon
+                    aria-label="Diğer eylemler"
+                    aria-haspopup="menu"
+                    title="Diğer eylemler"
+                    onClick={(e) => setOverflowMenu(menuBelow(e))}
+                  >
+                    <Ellipsis aria-hidden="true" />
+                  </Dugme>
+                )}
+                {!tasan.includes('tumunuDene') && (
+                  <Dugme {...eylemDugmesi('tumunuDene')} onClick={() => runShortcut('tumunuDene')}>
+                    Tümünü dene
+                  </Dugme>
+                )}
+                <Dugme {...eylemDugmesi('dene')} onClick={() => runShortcut('dene')}>
+                  <FlaskConical aria-hidden="true" /> Dene
+                </Dugme>
+                {!tasan.includes('tumunuCalistir') && (
+                  <Dugme {...eylemDugmesi('tumunuCalistir')} onClick={() => runShortcut('tumunuCalistir')}>
+                    Tümünü çalıştır
+                  </Dugme>
+                )}
+                <Dugme {...eylemDugmesi('calistir')} tur="birincil" onClick={() => runShortcut('calistir')}>
+                  <Play aria-hidden="true" /> Çalıştır
+                </Dugme>
               </>
             )}
           </div>
-          <Sonuclar run={run} runNo={runNo} selected={resultTab} onSelect={setResultTab} onMore={fetchMore} tipAdlari={tipAdlari} />
-        </div>
-        <aside aria-label="Çalıştırma" className="calistirma-sutunu">
-          {run && reading ? (
-            <OkumaDurumu run={run} deadline={run.evre === 'okuma' ? deadline : null} />
-          ) : (
-            <KararKarti
-              run={run}
-              deadline={run?.evre === 'karar' ? deadline : null}
-              onRequest={request}
-              poolFullTabs={poolFullTabs}
-              onGoToTab={onGoToTab}
-            />
-          )}
-          <div role="tablist" className="sekmeler">
-            {tabs.map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={t === shownTab}
-                className={`sekme${t === shownTab ? ' secili' : ''}`}
-                onClick={() => setTab(t)}
-              >
-                {TAB_LABELS[t]}
-              </button>
-            ))}
-          </div>
-          {shownTab === 'degisiklikler' && run ? (
-            <div role="tabpanel" aria-label={TAB_LABELS.degisiklikler} className="ifade-listesi">
-              <Degisiklikler run={run} />
+      {overflowMenu && (
+        <Menu
+          x={overflowMenu.x}
+          y={overflowMenu.y}
+          label="Diğer eylemler"
+          items={tasan.filter((a) => a === 'tumunuDene' || a === 'tumunuCalistir').map((anahtar) => ({
+            label: anahtar === 'tumunuDene' ? 'Tümünü dene' : 'Tümünü çalıştır',
+            disabled: eylemler[anahtar].kapali,
+            onSelect: () => runShortcut(anahtar),
+          }))}
+          onClose={closeOverflowMenu}
+        />
+      )}
+      {!busy && reasons.length > 0 && <BlockReasons reasons={reasons} />}
+      <div className="script-govde" ref={govde}>
+        <section aria-label="Script editörü" className="editor-alani" onKeyDownCapture={onEditorShortcut}>
+          <ScriptEditoru ref={editor} value={script} onChange={onScriptChange} readOnly={busy} marks={marks} completion={completion} onSelectionChange={setSecim} />
+        </section>
+        {!sonucDaraltilmis && (
+          <Bolucu
+            yon="yatay"
+            {...editorBoyu(oran, toplam)}
+            adim={16}
+            varsayilan={editorBoyu(ARAYUZ_TERCIHLERI_VARSAYILAN.sonucOrani, toplam).deger}
+            onDegis={(v) => setSurukleme(sonucOraniniBul(v, toplam))}
+            onBitir={(v) => {
+              setSurukleme(null);
+              onSonucAlani({ sonucOrani: sonucOraniniBul(v, toplam) });
+            }}
+            aria-label="Editör ile Sonuç alanı arası"
+          />
+        )}
+        <div className={`sonuc-bolumu${sonucDaraltilmis ? ' daraltilmis' : ''}`} style={sonucDaraltilmis ? undefined : { flexBasis: `${oran * 100}%` }}>
+          {run && (
+            // Karar şeridi: hangi sekme açık olursa olsun görünür.
+            <div className="karar-seridi">
+              {reading ? (
+                <OkumaDurumu run={run} deadline={run.evre === 'okuma' ? deadline : null} />
+              ) : (
+                <KararKarti
+                  run={run}
+                  deadline={run.evre === 'karar' ? deadline : null}
+                  onRequest={request}
+                  poolFullTabs={poolFullTabs}
+                  onGoToTab={onGoToTab}
+                />
+              )}
             </div>
-          ) : (
-            <div role="tabpanel" aria-label={TAB_LABELS.log} className="ifade-listesi">
-              {run ? (
+          )}
+          <SonucAlani
+            run={run}
+            runNo={runNo}
+            shown={shown}
+            onSecim={(i, ozet) => setSecimler((s) => ({ ...s, [i]: ozet }))}
+            onSelect={selectTab}
+            daraltilmis={sonucDaraltilmis}
+            onToggle={() => onSonucAlani({ sonucDaraltilmis: !sonucDaraltilmis })}
+            onMore={fetchMore}
+            tipAdlari={tipAdlari}
+            log={
+              run ? (
                 <ol className="ifade-kartlari">
                   {run.ifadeler.map((s) => (
                     <IfadeKarti
                       key={s.i}
                       statement={s}
                       onGoTo={goToLine}
-                      onForceTransaction={busy ? undefined : () => start(false, { zorlaTransaction: true, metin: run.script })}
+                      bildirimSayisi={bildirimSayaclari.get(s.i)}
+                      onBildirimler={() => selectTab('bildirimler')}
+                      onForceTransaction={
+                        busy ? undefined : () => start(false, { zorlaTransaction: true, metin: run.script, yer: { bas: run.bas, editorMetni: run.editorMetni } })
+                      }
                     />
                   ))}
                 </ol>
               ) : (
-                <p className="soluk kucuk">Script çalıştırılınca ifadeler burada listelenir.</p>
-              )}
-            </div>
-          )}
-        </aside>
+                <p className="soluk kucuk">Script çalıştırılınca ifadeler ve SELECT sonuçları burada açılır.</p>
+              )
+            }
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-/** "↻": hedefin katalogunu yeniden okutur; durum düğmenin açıklamasında. */
+/** Yenile ikonu: hedefin katalogunu yeniden okutur; durum düğmenin açıklamasında. */
 function KatalogDugmesi({ catalog, onRefresh }: { catalog: CatalogEntry | undefined; onRefresh: () => void }) {
   const loading = catalog?.durum === 'yukleniyor';
   const title = !catalog
@@ -439,16 +633,17 @@ function KatalogDugmesi({ catalog, onRefresh }: { catalog: CatalogEntry | undefi
         ? `Katalog okunamadı: ${catalog.hata}`
         : `Katalog: ${catalog.katalog.iliskiler.length} ilişki · yenile`;
   return (
-    <button
-      type="button"
-      className={`ikon-dugme katalog-yenile${catalog?.durum === 'hata' ? ' hata' : ''}`}
+    <Dugme
+      tur="sade"
+      ikon
+      className={`katalog-yenile${catalog?.durum === 'hata' ? ' hata' : ''}`}
       aria-label="Katalogu yenile"
       title={title}
       disabled={loading}
       onClick={onRefresh}
     >
-      <span aria-hidden="true">↻</span>
-    </button>
+      <RefreshCw aria-hidden="true" />
+    </Dugme>
   );
 }
 
@@ -461,10 +656,6 @@ function BlockReasons({ reasons }: { reasons: ReturnType<typeof runBlockReasons>
       ))}
     </ul>
   );
-}
-
-function formatReason({ satir, mesaj }: { satir: number | null; mesaj: string }): string {
-  return satir === null ? mesaj : `Satır ${satir}: ${mesaj}`;
 }
 
 /**
@@ -493,7 +684,11 @@ function OkumaDurumu({ run, deadline }: { run: RunView; deadline: DecisionTimer 
       )}
       <BekletmeGostergesi oturumlar={run.bekletilenler} />
       {run.uyari && <span className="uyari">{run.uyari}</span>}
-      {run.kayitUyarisi && <span className="uyari">⚠ {run.kayitUyarisi}</span>}
+      {run.kayitUyarisi && (
+        <span className="uyari">
+          <TriangleAlert aria-hidden="true" /> {run.kayitUyarisi}
+        </span>
+      )}
     </section>
   );
 }
@@ -503,24 +698,61 @@ function IfadeKarti({
   statement: s,
   onGoTo,
   onForceTransaction,
+  bildirimSayisi = 0,
+  onBildirimler,
 }: {
   statement: StatementView;
   onGoTo: (line: number) => void;
   /** 25006 sonrası "Transaction modunda çalıştır"; çalıştırma sürerken yok. */
   onForceTransaction?: () => void;
+  /** Bu ifade çalışırken gelen Sunucu bildirimi sayısı; sayaç Bildirimler sekmesine götürür. */
+  bildirimSayisi?: number;
+  onBildirimler: () => void;
 }) {
   return (
     <li className={`ifade-karti ${s.durum}`}>
-      <button type="button" className="ifade-karti-basligi" onClick={() => onGoTo(s.satir)}>
-        <span className={`ifade-isareti ${s.durum}`} aria-hidden="true">
-          {STATUS_SYMBOLS[s.durum]}
-        </span>
-        <span className="komut-etiketi">{s.komut}</span>
-        <span className="soluk">satır {s.satir}</span>
-        {s.ms !== undefined && <span className="soluk sure">{s.ms} ms</span>}
-      </button>
+      <div className="ifade-karti-satiri">
+        <button type="button" className="ifade-karti-basligi" onClick={() => onGoTo(s.satir)}>
+          <span className={`ifade-isareti ${s.durum}`} aria-hidden="true">
+            <DurumIkonu durum={s.durum} />
+          </span>
+          <span className="komut-etiketi">{s.komut}</span>
+          <span className="soluk">satır {s.satir}</span>
+          {s.ms !== undefined && <span className="soluk sure">{s.ms} ms</span>}
+        </button>
+        {bildirimSayisi > 0 && (
+          <Dugme tur="sade" boyut="kucuk" className="bildirim-sayaci" onClick={onBildirimler}>
+            {bildirimSayisi} bildirim
+          </Dugme>
+        )}
+      </div>
       <StatementDetail statement={s} onForceTransaction={onForceTransaction} />
     </li>
+  );
+}
+
+/**
+ * Bildirimler sekmesi: Sunucu bildirimleri geldikleri sırayla; satır, seviye, mesaj ve varsa
+ * DETAIL/HINT. Düz metindir, seçilip kopyalanabilir.
+ */
+function Bildirimler({ run }: { run: RunView }) {
+  return (
+    <>
+      <ol aria-label="Sunucu bildirimleri" className="bildirim-listesi kucuk">
+        {run.bildirimler.map((b, n) => (
+          <li key={n} className={`bildirim ${b.seviye.toLowerCase()}`}>
+            <Rozet tur={b.seviye === 'WARNING' ? 'dikkat' : 'notr'}>{b.seviye}</Rozet>
+            {b.satir !== null && <span className="soluk">satır {b.satir}</span>}
+            <span className="bildirim-mesaji">{b.mesaj}</span>
+            {b.detay && <p className="bildirim-eki">DETAIL: {b.detay}</p>}
+            {b.ipucu && <p className="bildirim-eki">HINT: {b.ipucu}</p>}
+          </li>
+        ))}
+      </ol>
+      {run.bildirimFazlasi !== undefined && run.bildirimFazlasi > 0 && (
+        <p className="soluk kucuk">+{run.bildirimFazlasi} bildirim daha gösterilmedi</p>
+      )}
+    </>
   );
 }
 
@@ -540,9 +772,9 @@ function StatementDetail({ statement: s, onForceTransaction }: { statement: Stat
           {s.hata?.transactionOnerisi && (
             <p className="ifade-ipucu kucuk">
               Okuma sanılan ifade yazmaya çalıştı.{' '}
-              <button type="button" onClick={onForceTransaction} disabled={!onForceTransaction}>
+              <Dugme boyut="kucuk" onClick={onForceTransaction} disabled={!onForceTransaction}>
                 Transaction modunda çalıştır
-              </button>
+              </Dugme>
             </p>
           )}
         </>
@@ -556,93 +788,133 @@ function StatementDetail({ statement: s, onForceTransaction }: { statement: Stat
 }
 
 /**
- * Editörün altındaki sonuç sekmeleri: satır döndüren her ifadeye bir sekme. Yeni çalıştırmanın
- * görünümünde önizleme yoktur; eski sekmeler kendiliğinden silinir. Gizli sekmelerin grid'leri
- * (seçim, kolon genişliği) yerinde kalır. Sekme şeridi tek sekme durağıdır: oklar ve Home/End
- * sekme seçer.
+ * Sonuç alanı: Sonuç sekmeleri (satır döndüren her ifadeye bir), Log ve (Deneme'de) Değişiklikler
+ * tek şeritte. Yeni çalıştırmanın görünümünde önizleme yoktur; eski Sonuç sekmeleri kendiliğinden
+ * silinir. Gizli sekmelerin grid'leri (seçim, kolon genişliği) yerinde kalır. Şerit tek sekme
+ * durağıdır: oklar ve Home/End sekme seçer. Daraltılınca yalnızca şerit kalır.
  */
-function Sonuclar({
+function SonucAlani({
   run,
   runNo,
-  selected,
+  shown,
   onSelect,
+  daraltilmis,
+  onToggle,
   onMore,
+  onSecim,
   tipAdlari,
+  log,
 }: {
   run: RunView | null;
   runNo: number;
-  selected: number | null;
-  onSelect: (i: number) => void;
+  shown: SonucSekmesiAnahtari;
+  onSelect: (anahtar: SonucSekmesiAnahtari) => void;
+  daraltilmis: boolean;
+  onToggle: () => void;
   /** `i`. sonucun grid'i yüklü satırların sonuna yaklaştı. */
   onMore: (i: number) => void;
+  /** `i`. sonucun grid'inde seçim değişti. */
+  onSecim: (i: number, ozet: SecimOzeti | null) => void;
   /** Katalogdan OID → tip adı ("INSERT olarak kopyala"). */
   tipAdlari?: ReadonlyMap<number, string>;
+  /** Log sekmesinin içeriği. */
+  log: ReactNode;
 }) {
   const id = useId();
-  const results = run?.ifadeler.filter((s) => s.onizleme && s.onizleme.kolonlar.length > 0) ?? [];
-  const shown = results.find((s) => s.i === selected) ?? results[0];
-  const tabId = (s: StatementView) => `${id}-sekme-${runNo}-${s.i}`;
-  const panelId = (s: StatementView) => `${id}-panel-${runNo}-${s.i}`;
+  const tabs = sonucSekmeleri(run);
+  const tabId = (t: SonucAlaniSekmesi) => `${id}-sekme-${runNo}-${t.anahtar}`;
+  const panelId = (t: SonucAlaniSekmesi) => `${id}-panel-${runNo}-${t.anahtar}`;
 
   function onTabKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const at = results.indexOf(shown!);
-    const last = results.length - 1;
+    const at = tabs.findIndex((t) => t.anahtar === shown);
+    const last = tabs.length - 1;
     const to = { ArrowRight: at === last ? 0 : at + 1, ArrowLeft: at === 0 ? last : at - 1, Home: 0, End: last }[e.key];
     if (to === undefined) return;
     e.preventDefault();
-    const next = results[to]!;
-    onSelect(next.i);
+    const next = tabs[to]!;
+    onSelect(next.anahtar);
     document.getElementById(tabId(next))?.focus();
   }
 
-  return (
-    <section aria-label="Sonuçlar" className={`sonuclar${shown ? '' : ' bos'}`}>
-      {shown ? (
+  function panel(t: SonucAlaniSekmesi) {
+    if (t.i !== undefined) {
+      const s = run!.ifadeler[t.i]!;
+      return (
         <>
-          <div role="tablist" aria-label="Sonuç sekmeleri" className="sekmeler sonuc-sekmeleri" onKeyDown={onTabKeyDown}>
-            {results.map((s) => (
-              <button
-                key={s.i}
-                id={tabId(s)}
-                type="button"
-                role="tab"
-                aria-selected={s === shown}
-                aria-controls={panelId(s)}
-                tabIndex={s === shown ? 0 : -1}
-                className={`sekme${s === shown ? ' secili' : ''}`}
-                onClick={() => onSelect(s.i)}
-              >
-                {resultLabel(s)}
-              </button>
-            ))}
-          </div>
-          {results.map((s) => (
-            <div key={`${runNo}:${s.i}`} id={panelId(s)} role="tabpanel" aria-labelledby={tabId(s)} className="sonuc-paneli" hidden={s !== shown}>
-              <p className="kucuk soluk sonuc-ozeti">
-                {resultSummary(s.onizleme!, s.rowCount)}
-                {s.yukleniyor && <span> · Satırlar yükleniyor…</span>}
-                {s.sinir && <span className="sonuc-notu"> · {ROW_LIMIT_MESSAGE}</span>}
-                {s.devamKapandi && <span className="sonuc-notu"> · {s.devamKapandi}</span>}
-              </p>
-              <SonucGovdesi
-                etiket={`${resultLabel(s)} sonucu`}
-                kolonlar={s.onizleme!.kolonlar}
-                tipler={s.onizleme!.tipler}
-                tipAdlari={tipAdlari}
-                satirlar={s.onizleme!.satirlar}
-                toplamSatir={resultTotal(s.onizleme!, s.rowCount)}
-                onSonaYaklasti={() => onMore(s.i)}
-              />
-            </div>
-          ))}
+          <p className="kucuk soluk sonuc-ozeti">
+            {resultSummary(s.onizleme!, s.rowCount)}
+            {s.yukleniyor && (
+              <span>
+                {' · '}
+                <Yukleniyor>Satırlar yükleniyor…</Yukleniyor>
+              </span>
+            )}
+            {s.sinir && <span className="sonuc-notu"> · {ROW_LIMIT_MESSAGE}</span>}
+            {s.devamKapandi && <span className="sonuc-notu"> · {s.devamKapandi}</span>}
+          </p>
+          <SonucGovdesi
+            etiket={`${t.etiket} sonucu`}
+            kolonlar={s.onizleme!.kolonlar}
+            tipler={s.onizleme!.tipler}
+            tipAdlari={tipAdlari}
+            satirlar={s.onizleme!.satirlar}
+            toplamSatir={resultTotal(s.onizleme!, s.rowCount)}
+            onSonaYaklasti={() => onMore(s.i)}
+            onSecimOzeti={(ozet) => onSecim(s.i, ozet)}
+          />
         </>
-      ) : (
-        <p className="soluk kucuk">SELECT sonuçları burada açılır.</p>
-      )}
+      );
+    }
+    if (t.anahtar === 'degisiklikler') return run && <Degisiklikler run={run} />;
+    if (t.anahtar === 'bildirimler') return run && <Bildirimler run={run} />;
+    return log;
+  }
+
+  return (
+    <section aria-label="Sonuç alanı" className={`sonuc-alani${daraltilmis ? ' daraltilmis' : ''}`}>
+      <div className="sonuc-seridi">
+        <div role="tablist" aria-label="Sonuç alanı sekmeleri" className="sekmeler" onKeyDown={onTabKeyDown}>
+          {tabs.map((t) => (
+            <button
+              key={t.anahtar}
+              id={tabId(t)}
+              type="button"
+              role="tab"
+              aria-selected={t.anahtar === shown}
+              aria-controls={panelId(t)}
+              tabIndex={t.anahtar === shown ? 0 : -1}
+              className={`sekme${t.anahtar === shown ? ' secili' : ''}`}
+              onClick={() => onSelect(t.anahtar)}
+            >
+              {t.etiket}
+            </button>
+          ))}
+        </div>
+        <Dugme
+          tur="sade"
+          boyut="kucuk"
+          ikon
+          className="sonuc-alani-dugmesi"
+          aria-expanded={!daraltilmis}
+          aria-label={daraltilmis ? 'Sonuç alanını aç' : 'Sonuç alanını daralt'}
+          title={daraltilmis ? 'Sonuç alanını aç' : 'Sonuç alanını daralt'}
+          onClick={onToggle}
+        >
+          {daraltilmis ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+        </Dugme>
+      </div>
+      {tabs.map((t) => (
+        <div
+          key={`${runNo}:${t.anahtar}`}
+          id={panelId(t)}
+          role="tabpanel"
+          aria-labelledby={tabId(t)}
+          className={t.i === undefined ? 'ifade-listesi' : 'sonuc-paneli'}
+          hidden={daraltilmis || t.anahtar !== shown}
+        >
+          {panel(t)}
+        </div>
+      ))}
     </section>
   );
-}
-
-function resultLabel(s: StatementView): string {
-  return `${s.komut} · satır ${s.satir}`;
 }

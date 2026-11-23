@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { HostKeyProblem } from '../../core/ssh-tuneli';
+import { TriangleAlert } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
 
 interface Props {
   problem: HostKeyProblem;
@@ -48,7 +50,8 @@ export function HostAnahtariKutusu({ problem, kind, onTrust, onForget, onCancel 
           </dd>
         </dl>
         {problem.digerTurler.length > 0 && (
-          <p className="uyari-satiri">Bu host için başka türde kayıtlı anahtar var: {problem.digerTurler.join(', ')}.</p>
+          <p className="uyari-satiri">
+            <TriangleAlert aria-hidden="true" /> Bu host için başka türde kayıtlı anahtar var: {problem.digerTurler.join(', ')}.</p>
         )}
         {error && (
           <p role="alert" className="alan-hatasi">
@@ -56,12 +59,10 @@ export function HostAnahtariKutusu({ problem, kind, onTrust, onForget, onCancel 
           </p>
         )}
         <p className="host-anahtari-dugmeleri">
-          <button type="button" className="birincil" disabled={busy} onClick={() => void act(onTrust)}>
+          <Dugme tur="birincil" disabled={busy} onClick={() => void act(onTrust)}>
             Güven ve tekrar dene
-          </button>
-          <button type="button" onClick={onCancel}>
-            Vazgeç
-          </button>
+          </Dugme>
+          <Dugme onClick={onCancel}>Vazgeç</Dugme>
         </p>
       </section>
     );
@@ -103,13 +104,11 @@ export function HostAnahtariKutusu({ problem, kind, onTrust, onForget, onCancel 
       )}
       <p className="host-anahtari-dugmeleri">
         {problem.kaynak === 'tezgah' && (
-          <button type="button" className="tehlikeli" disabled={busy} onClick={() => void act(onForget)}>
+          <Dugme tur="tehlikeli" disabled={busy} onClick={() => void act(onForget)}>
             Kayıtlı host anahtarını unut
-          </button>
+          </Dugme>
         )}
-        <button type="button" onClick={onCancel}>
-          Kapat
-        </button>
+        <Dugme onClick={onCancel}>Kapat</Dugme>
       </p>
     </section>
   );

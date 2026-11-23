@@ -1,13 +1,26 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import type { ShortcutId } from '../../core/kisayollar';
+import { menuKonumu } from '../../core/menu-konumu';
+import { ariaKisayol, kisayol } from './pencere';
 
 export interface MenuItem {
   label: string;
+  /** Etiketin solundaki ikon (dekoratif). */
+  icon?: ReactNode;
+  /** Katalogdaki kısayolu: metni öğenin sağında yazar. */
+  shortcut?: ShortcutId;
   onSelect?: () => void;
-  /** Seçilince menü bu öğelerle yer değiştirir (ör. "Klasöre taşı ▸"). */
-  submenu?: MenuItem[];
+  /** Seçilince menü bu öğelerle yer değiştirir (ör. "Klasöre taşı"; yanında ok ikonu). */
+  submenu?: MenuEntry[];
   disabled?: boolean;
   danger?: boolean;
 }
+
+/** Öğe grupları arasındaki çizgi. */
+export const MENU_SEPARATOR = { ayirici: true } as const;
+
+export type MenuEntry = MenuItem | typeof MENU_SEPARATOR;
 
 export interface MenuPosition {
   x: number;
@@ -21,18 +34,28 @@ export function menuBelow(e: ReactMouseEvent<HTMLElement>): MenuPosition {
 }
 
 interface Props extends MenuPosition {
-  items: MenuItem[];
+  items: MenuEntry[];
   label: string;
   onClose: () => void;
 }
 
 const WIDTH = 240;
 
+const pencereBoyutu = () => ({ genislik: window.innerWidth, yukseklik: window.innerHeight });
+
 /** Sağ tık / ⋯ menüsü. Escape ve dışarı tıklama kapatır; ok tuşları öğeler arasında gezer. */
 export function Menu({ x, y, items: initial, label, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   // Açılıştaki öğeler; alt menü seçilince yer değiştirir. Yeni menü için bileşen yeniden kurulur (key).
   const [items, setItems] = useState(initial);
+  // İlk çizimde istenen nokta; ölçülünce (ve alt menüyle boy değişince) pencereye sığdırılır.
+  const [konum, setKonum] = useState(() => menuKonumu({ x, y }, { genislik: WIDTH, yukseklik: 0 }, pencereBoyutu()));
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setKonum(menuKonumu({ x, y }, { genislik: el.offsetWidth || WIDTH, yukseklik: el.offsetHeight }, pencereBoyutu()));
+  }, [x, y, items]);
 
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
@@ -74,23 +97,39 @@ export function Menu({ x, y, items: initial, label, onClose }: Props) {
       role="menu"
       aria-label={label}
       className="menu"
-      style={{ left: Math.max(0, Math.min(x, window.innerWidth - WIDTH)), top: y }}
+      style={konum}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {items.map((item) => (
-        <button
-          key={item.label}
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          className={item.danger ? 'tehlikeli' : undefined}
-          disabled={item.disabled}
-          onClick={() => choose(item)}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((item, i) =>
+        'ayirici' in item ? (
+          <div key={`ayirici-${i}`} role="separator" className="menu-ayirici" />
+        ) : (
+          <button
+            key={item.label}
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className={item.danger ? 'tehlikeli' : undefined}
+            disabled={item.disabled}
+            aria-keyshortcuts={item.shortcut && ariaKisayol(item.shortcut)}
+            onClick={() => choose(item)}
+          >
+            {item.icon && (
+              <span className="menu-ikonu" aria-hidden="true">
+                {item.icon}
+              </span>
+            )}
+            <span className="menu-etiketi">{item.label}</span>
+            {item.shortcut && (
+              <kbd className="kisayol-ipucu" aria-hidden="true">
+                {kisayol(item.shortcut)}
+              </kbd>
+            )}
+            {item.submenu && <ChevronRight aria-hidden="true" className="menu-alt-oku" />}
+          </button>
+        ),
+      )}
     </div>
   );
 }

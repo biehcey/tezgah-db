@@ -1,9 +1,11 @@
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { Compartment, EditorState, RangeSet, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
-import { Decoration, EditorView, GutterMarker, gutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
+import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter, keymap, lineNumbers, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { calisacakAralik } from '../../core/calisacak-aralik';
 import type { StatementStatus } from '../../core/script-calistirma';
+import { sqlRenklendirme } from '../ortak/sozdizimi';
+import { editorTemelleri } from './editor-temelleri';
 import { ANALYSIS_MARKS, STATUS_LABELS, STATUS_SYMBOLS, isAnalysisMark, type AnalysisMark } from './durum';
 import { sqlDili, tamamlamaTemeli, type TamamlamaGirdisi } from './tamamlama';
 
@@ -22,6 +24,13 @@ export interface ScriptEditoruHandle {
   goToLine(line: number): void;
 }
 
+/** Editörün ana seçimi; boşsa `from === to === imlec`. */
+export interface EditorSecimi {
+  from: number;
+  to: number;
+  imlec: number;
+}
+
 interface Props {
   value: string;
   onChange: (value: string) => void;
@@ -29,7 +38,14 @@ interface Props {
   marks: EditorMarks;
   /** Tamamlama motorunun girdisi (katalog + görünür şemalar); katalog yoksa `null`. */
   completion?: TamamlamaGirdisi | null;
+  /** Seçim ya da imleç değişti (açılışta da bir kez). */
+  onSelectionChange?: (secim: EditorSecimi) => void;
 }
+
+const secimOf = (state: EditorState): EditorSecimi => {
+  const { from, to, head } = state.selection.main;
+  return { from, to, imlec: head };
+};
 
 
 class StatusMarker extends GutterMarker {
@@ -96,6 +112,32 @@ const analysisDecorations = EditorView.decorations.compute([marksField], (state)
   return Decoration.set(ranges, true);
 });
 
+/**
+ * Çalışacak ifadenin hafif zemini: yalnızca editör odaktayken ve seçim boşken; hata vurgusu
+ * varken gösterilmez (hata önce gelir).
+ */
+const calisacakVurgu = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = this.build(view);
+    }
+    update(update: ViewUpdate) {
+      const marksChanged = update.startState.field(marksField) !== update.state.field(marksField);
+      if (update.docChanged || update.selectionSet || update.focusChanged || marksChanged) this.decorations = this.build(update.view);
+    }
+    build(view: EditorView): DecorationSet {
+      const { state } = view;
+      const { main } = state.selection;
+      if (!view.hasFocus || !main.empty || state.field(marksField).error) return Decoration.none;
+      const aralik = calisacakAralik(state.doc.toString(), main, main.head);
+      if (!aralik || aralik.bit <= aralik.bas) return Decoration.none;
+      return Decoration.set([Decoration.mark({ class: 'cm-calisacak-aralik' }).range(aralik.bas, aralik.bit)]);
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
 const statusGutter = gutter({
   class: 'cm-ifade-isaretleri',
   markers: (view) => {
@@ -115,23 +157,27 @@ const baseExtensions: Extension[] = [
   lineNumbers(),
   history(),
   tamamlamaTemeli,
+  editorTemelleri,
   keymap.of([...defaultKeymap, ...historyKeymap]),
-  syntaxHighlighting(defaultHighlightStyle),
+  sqlRenklendirme,
   marksField,
   errorDecorations,
   analysisDecorations,
+  calisacakVurgu,
   EditorView.lineWrapping,
 ];
 
 /** CodeMirror 6 SQL editörü; durumu (metin, salt okunurluk, süsler) React'ten gelir. */
 export const ScriptEditoru = forwardRef<ScriptEditoruHandle, Props>(function ScriptEditoru(
-  { value, onChange, readOnly, marks, completion = null },
+  { value, onChange, readOnly, marks, completion = null, onSelectionChange },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onSelectionRef = useRef(onSelectionChange);
+  onSelectionRef.current = onSelectionChange;
   const readOnlyCompartment = useRef(new Compartment());
   const languageCompartment = useRef(new Compartment());
 
@@ -148,11 +194,13 @@ export const ScriptEditoru = forwardRef<ScriptEditoruHandle, Props>(function Scr
           EditorView.contentAttributes.of({ 'aria-label': 'SQL script' }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChangeRef.current(update.state.doc.toString());
+            if (update.docChanged || update.selectionSet) onSelectionRef.current?.(secimOf(update.state));
           }),
         ],
       }),
     });
     view.current = created;
+    onSelectionRef.current?.(secimOf(created.state));
     return () => {
       created.destroy();
       view.current = null;

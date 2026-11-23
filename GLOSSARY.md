@@ -64,6 +64,10 @@ _Avoid_: Kapsam, scope, context
 Postgres'in bir transaction bloğu içinde çalıştırmayı reddettiği komut (ör. `VACUUM`, `CREATE INDEX CONCURRENTLY`). Etkisi anında kalıcıdır, geri alınamaz.
 _Avoid_: Özel komut, non-tx
 
+**Çalışacak aralık**:
+Konsol sekmesinde Ctrl/Cmd+Enter'ın çalıştırdığı metin: seçim varsa seçim, yoksa imlecin bulunduğu (ya da imleçten önceki en yakın) ifade. Sunucuya tek başına bir script olarak gider; Çalıştırma modu yalnızca onun içeriğinden çıkar. Tüm script, editör metninin tamamı olan aralıktır.
+_Avoid_: Seçili sorgu, current statement
+
 **Çalıştırma modu**:
 Bir script'in içeriğinden çıkarılan, nasıl çalışacağını belirleyen mod: *Transaction* (tüm ifadeler tek transaction'da, sonda commit veya rollback) *Autocommit* (script yalnızca transaction dışı komutlardan oluşur; her ifade anında kalıcı) ya da *Okuma* (tüm ifadeler okuma ifadesi; `BEGIN READ ONLY` ile çalışır, commit/rollback sorulmaz, transaction yalnızca sonuçtan daha fazla satır çekilebilsin diye açık kalır). Transaction dışı komutla diğer türleri karıştıran script çalıştırılamaz. Deneme modu bir çalıştırma modu değildir; Transaction modunun sonu her zaman rollback olan biçimidir.
 _Avoid_: Transaction modu anahtarı, execution mode
@@ -92,18 +96,36 @@ _Avoid_: Zaman aşımı, timeout
 Bir sekmenin hedefte client tutan çalıştırması: script çalışıyor, karar bekliyor ya da Okuma transaction'ı açık. Hedef başına en fazla 5 açık oturum olabilir; sınırı aşan çalıştırma beklemeden reddedilir. Katalog okuma, iptal gibi kısa süreli sorgular açık oturum sayılmaz. Hedefin eş anlamlısı değildir.
 _Avoid_: Bağlantı, client, session
 
+**Sonuç alanı**:
+Konsol sekmesinde editörün altındaki, Sonuç sekmelerini, Log'u, Değişiklikler'i ve Bildirimler'i aynı şeritte taşıyan, boyutlandırılabilir ve daraltılabilir panel. Çalıştırma bitince en anlamlı sekmeyi açar (hata → Log, Deneme → Değişiklikler, satır döndüren son ifade → onun Sonuç sekmesi, yoksa Log); kullanıcı çalışma sürerken sekme seçtiyse dokunmaz. Karar kartı ve bekletme göstergesi üstündeki Karar şeridinde, sekmeden bağımsız durur.
+_Avoid_: Alt panel, output
+
 **Sonuç sekmesi**:
-Bir çalıştırmada satır döndüren her ifade için editörün altında açılan, o ifadenin Sonuç grid'ini gösteren alt sekme. Bir Sekme değildir: diske yazılmaz, kapatılmaz; script yeniden çalıştırılınca hepsi silinir.
+Bir çalıştırmada satır döndüren her ifade için Sonuç alanında açılan, o ifadenin Sonuç grid'ini gösteren alt sekme. Bir Sekme değildir: diske yazılmaz, kapatılmaz; script yeniden çalıştırılınca hepsi silinir.
 _Avoid_: Sonuç penceresi, sekme (tek başına)
 
 **Sonuç grid'i**:
 Bir ifadenin döndürdüğü satırları gösteren salt okunur tablo. İlk sayfa 500 satırdır; transaction açıkken (karar beklenirken ya da Okuma'da) sona kaydırdıkça ifadenin imlecinden 500'er satır daha yüklenir. Transaction kapanınca yüklenenler kalır, devamı çekilemez ve bu sonuçta yazar. En fazla 100.000 satır yüklenir ("Sınıra ulaşıldı, filtrele"). Hücre seçilir, aralık kopyalanır (başlıksız TSV; sağ tıkla seçili satırlar INSERT olarak), tam değer F2 ile açılır; değer düzenlenmez. NULL boş metinden ayrı gösterilir.
 _Avoid_: Sonuç tablosu, result set, veri grid'i
 
+**Sunucu bildirimi**:
+Bir çalıştırma sırasında Postgres'in gönderdiği `NOTICE`/`WARNING`/`INFO`/`LOG`/`DEBUG` mesajı; geldiği ifadeyle birlikte Sonuç alanında gösterilir, Çalıştırma kaydına yazılmaz.
+_Avoid_: Log, uyarı (tek başına), mesaj
+
 **Çalıştırma kaydı**:
 Bir script çalıştırmasının sonradan değiştirilmeyen kaydı: ne çalıştırıldı, hangi hedefte, nasıl sonuçlandı. Deneme modu ve hatalı çalıştırmalar da kaydedilir; çalıştırmanın döndürdüğü veriyi içermez.
 _Avoid_: Geçmiş, log, audit log, denetim kaydı
 
 **Sorgu geçmişi**:
-Konsolda Ctrl/Cmd+Alt+E ile açılıp kapanan, Çalıştırma kayıtlarını yeniden eskiye listeleyen yan panel. Bir kayda çift tıklamak metnini yeni bir Sekmede, kaydın hedefiyle açar. Panelin adıdır; içindeki her öğe bir Çalıştırma kaydıdır.
+Konsolda Ctrl/Cmd+Alt+E ya da hedef başlığındaki düğmeyle açılıp kapanan, Çalıştırma kayıtlarını yeniden eskiye listeleyen çekmece; editörü daraltmadan sağdan üste biner, Esc ve dışına tıklama kapatır. Bir kayda çift tıklamak metnini yeni bir Sekmede, kaydın hedefiyle açar. Panelin adıdır; içindeki her öğe bir Çalıştırma kaydıdır.
 _Avoid_: Geçmiş kaydı, log
+
+## Arayüz
+
+**Arayüz tercihleri**:
+Gezgin görünürlüğü ve genişliği, editör/sonuç oranı, Sonuç alanının daraltılmışlığı ve temanın bağlantı ayarlarından ayrı dosyada (`arayuz.json`) saklanan değerleri. Bozuk ya da eksikse varsayılanlarla açılır; okunup yazılması hiçbir veritabanına bağlanmaz.
+_Avoid_: Ayarlar (tek başına), config
+
+**Durum çubuğu**:
+Uygulamanın en altındaki, etkin sekmenin hedefini ve ortam rozetini, transaction durumunu (Hazır, Çalışıyor, Karar bekleniyor, Okuma açık, Bağlı değil), son çalıştırmanın süresi ile satır sayısını, grid seçiminin özetini (hücre sayısı; sayısal hücrelerde kesin toplam ve ortalama), Tablo sekmesinde tahmini satır ile bekleyen değişiklik sayısını, kısa geri bildirimleri, kısayol sayfası düğmesini ve sürümü gösteren tek satır. Salt görüntüdür; Yazma kilidi burada değildir.
+_Avoid_: Footer, alt bilgi, status bar

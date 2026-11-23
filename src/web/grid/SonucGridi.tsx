@@ -18,15 +18,21 @@ import {
 } from 'react';
 import { DEFAULT_LABEL, NULL_LABEL, cellDisplay, initialColumnWidths, type TextWidth } from '../../core/grid/gosterim';
 import { CONSOLE_READ_ONLY_REASON, DELETED_REASON, isDefaultCell, type GridRow } from '../../core/grid/bekleyen';
-import { rowViewShortcut, shortcutKey } from '../../core/kisayollar';
+import { gridCopyShortcut, rowViewShortcut, shortcutKey, type ShortcutId } from '../../core/kisayollar';
 import { MIN_COLUMN_WIDTH, PAGE_ROWS } from '../../core/grid/sabitler';
 import { PLACEHOLDER_TABLE, insertStatements } from '../../core/grid/insert';
 import type { ColumnSort } from '../../core/tablo-sayfasi';
-import { extendTo, isSelected, navigate, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
-import { typeName } from '../../core/grid/tipler';
-import { toTsv } from '../../core/grid/tsv';
-import { Menu, menuBelow, type MenuItem, type MenuPosition } from '../ortak/Menu';
+import { extendTo, isSelected, navigate, rowActions, selectAll, selectCell, selectRows, selectedValues, selectionRange, tabTarget, type Cell, type Selection } from '../../core/grid/secim';
+import { columnAlignment, typeName } from '../../core/grid/tipler';
+import { secimOzeti, type SecimOzeti } from '../../core/grid/secim-ozeti';
+import { COPY_FORMATS, copyAs, copyFeedback, type CopyFormat } from '../../core/grid/kopyalama';
+import { MENU_SEPARATOR, Menu, menuBelow, type MenuEntry, type MenuPosition } from '../ortak/Menu';
+import { ArrowDown, ArrowUp, CircleSlash, Copy, Plus, Trash2, Undo2 } from 'lucide-react';
 import { GridOlcumu, canvasTextWidth } from './olcum';
+import { useBildirimler } from '../ortak/Bildirimler';
+
+/** "Kopyala ▸" biçimlerinden kısayolu olanlar (katalogdaki). */
+const COPY_SHORTCUTS: Partial<Record<CopyFormat, ShortcutId>> = { tsv: 'kopyala', baslikliTsv: 'baslikliKopyala' };
 
 /** Sabit satır ve başlık yüksekliği (px); satırlar ölçülmez. CSS bunları `--grid-*` olarak alır. */
 const ROW_HEIGHT = 24;
@@ -100,6 +106,8 @@ interface Props {
   onSatirGorunumu?: (acik: boolean) => void;
   /** Aktif hücrenin satırı değişti (ilk çizimde de bildirilir); satır görünümü onu gösterir. */
   onAktifSatir?: (satir: number) => void;
+  /** Seçim ya da satırlar değişti (ilk çizimde de bildirilir); Durum çubuğu özeti gösterir. Satır yoksa `null`. */
+  onSecimOzeti?: (ozet: SecimOzeti | null) => void;
 }
 
 const DURUM_ETIKETI = { eklendi: 'eklendi', silinecek: 'silinecek' } as const;
@@ -121,7 +129,7 @@ interface ValueBox {
 const EDITOR_MAX_LINES = 10;
 
 const SORT_ARIA = { artan: 'ascending', azalan: 'descending' } as const;
-const SORT_ARROW = { artan: ' ▲', azalan: ' ▼' } as const;
+const SORT_ARROW = { artan: <ArrowUp />, azalan: <ArrowDown /> } as const;
 
 /** Sona bu kadar satır kala "daha fazla" bildirilir: sayfa, kaydırma bitmeden gelsin. */
 const NEAR_END_ROWS = 100;
@@ -161,6 +169,7 @@ export function SonucGridi({
   satirGorunumuAcik = false,
   onSatirGorunumu,
   onAktifSatir,
+  onSecimOzeti,
 }: Props) {
   const olcum = useContext(GridOlcumu);
   const noteId = useId();
@@ -171,6 +180,10 @@ export function SonucGridi({
     () => kolonlar.map((_, c) => (tipler?.[c] === undefined ? null : typeName(tipler[c], tipAdlari))),
     [kolonlar, tipler, tipAdlari],
   );
+  /** Sayısal kolonlar (başlıklarıyla) sağa yaslanır. */
+  const sagda = useMemo(() => kolonlar.map((_, c) => columnAlignment(tipler?.[c]) === 'sag'), [kolonlar, tipler]);
+  /** Kopyalamanın kısa geri bildirimi toast olarak. */
+  const bildir = useBildirimler();
   /** Genişlik ölçümünde başlık: ad ve tip birlikte. */
   const basliklar = kolonlar.map((ad, c) => (tipAdi[c] ? `${ad}  ${tipAdi[c]}` : ad));
   // Ölçü verilmediyse (tarayıcı) genişlik, yazı tipi okunabilsin diye ilk çizimden hemen sonra ölçülür.
@@ -282,6 +295,16 @@ export function SonucGridi({
   onAktifSatirRef.current = onAktifSatir;
   useEffect(() => onAktifSatirRef.current?.(activeRow), [activeRow]);
 
+  const onSecimOzetiRef = useRef(onSecimOzeti);
+  onSecimOzetiRef.current = onSecimOzeti;
+  useEffect(() => {
+    if (!onSecimOzetiRef.current) return;
+    // Boş sayfada (ör. filtre hiçbir satır döndürmedi) seçilecek hücre yok: özet kalkar.
+    if (satirlar.length === 0) return onSecimOzetiRef.current(null);
+    const r = selectionRange(sel);
+    onSecimOzetiRef.current(secimOzeti(selectedValues(satirlar, sel), kolonlar.slice(r.sol, r.sag + 1).map((_, c) => tipler?.[r.sol + c])));
+  }, [sel, satirlar, kolonlar, tipler]);
+
   function moveTo(next: Selection) {
     setSel(next);
     focusPending.current = true;
@@ -310,12 +333,6 @@ export function SonucGridi({
       for (let kolon = r.sol; kolon <= r.sag; kolon++) if (cellReadOnlyReason({ satir, kolon }) === null) onDuzenle?.(satir, kolon, null);
   }
 
-  /** Aralığın satırları. */
-  const selectedRows = (s: Selection) => {
-    const r = selectionRange(s);
-    return Array.from({ length: r.alt - r.ust + 1 }, (_, i) => r.ust + i).filter((i) => i < satirlar.length);
-  };
-
   const isNullKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n';
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -331,9 +348,10 @@ export function SonucGridi({
       if (onDuzenle && satirlar.length > 0) setNull(sel);
       return;
     }
-    if (ctrl && e.key.toLowerCase() === 'c') {
+    const copyFormat = gridCopyShortcut(shortcutKey(e.nativeEvent));
+    if (copyFormat) {
       e.preventDefault();
-      copyText(toTsv(selectedValues(satirlar, sel)));
+      copy(copyFormat, sel);
       return;
     }
     if (e.key === 'F2') {
@@ -466,7 +484,7 @@ export function SonucGridi({
     closeBox(true);
     setSel(next);
     focusPending.current = true;
-    copyText(toTsv(selectedValues(satirlar, next)));
+    copy('tsv', next);
   }
 
   function onCellMouseEnter(cell: Cell) {
@@ -489,24 +507,39 @@ export function SonucGridi({
     focusPending.current = true;
   }, []);
 
-  function copyAsInsert(s: Selection) {
+  /**
+   * Seçimi panoya yazar, ardından kısa bilgi gösterir. INSERT seçili satırların tüm kolonlarını,
+   * diğer biçimler seçili aralığın kolonlarını (tam değerleriyle) yazar.
+   */
+  function copy(bicim: CopyFormat, s: Selection) {
     const r = selectionRange(s);
-    const sql = insertStatements({ tablo: PLACEHOLDER_TABLE, kolonlar, tipler, katalog: tipAdlari, satirlar: satirlar.slice(r.ust, r.alt + 1) });
-    copyText(sql);
+    const rows = satirlar.slice(r.ust, r.alt + 1);
+    const metin =
+      bicim === 'insert'
+        ? insertStatements({ tablo: PLACEHOLDER_TABLE, kolonlar, tipler, katalog: tipAdlari, satirlar: rows })
+        : copyAs(bicim, { kolonlar: kolonlar.slice(r.sol, r.sag + 1), tipler: tipler?.slice(r.sol, r.sag + 1), satirlar: selectedValues(satirlar, s) });
+    void copyText(metin).then((ok) => (ok ? bildir.basari(copyFeedback(rows.length, bicim)) : bildir.hata('Panoya kopyalanamadı')));
   }
 
-  /** Sağ tık menüsü: düzenlenebilir grid'de NULL ve satır eylemleri, her zaman INSERT olarak kopyala. */
-  function menuItems(s: Selection): MenuItem[] {
-    const items: MenuItem[] = [];
+  /** Sağ tık menüsü: düzenlenebilir grid'de NULL ve satır eylemleri, her zaman "Kopyala" alt menüsünde biçimler. */
+  function menuItems(s: Selection): MenuEntry[] {
+    const items: MenuEntry[] = [];
     if (onDuzenle) {
-      const rows = selectedRows(s);
-      const deleted = rows.filter((r) => satirIsareti?.(r)?.durum === 'silinecek');
-      items.push({ label: 'NULL yap', onSelect: () => setNull(s) });
-      if (onSatirEkle) items.push({ label: 'Satır ekle', onSelect: onSatirEkle });
-      if (onSatirSil && deleted.length < rows.length) items.push({ label: 'Satırları sil', danger: true, onSelect: () => onSatirSil(rows.filter((r) => !deleted.includes(r))) });
-      if (onSilmeyiGeriAl && deleted.length > 0) items.push({ label: 'Silmeyi geri al', onSelect: () => onSilmeyiGeriAl(deleted) });
+      const { sil, geriAl } = rowActions(s, satirlar.length, (r) => satirIsareti?.(r)?.durum === 'silinecek');
+      items.push({ label: 'NULL yap', icon: <CircleSlash />, shortcut: 'nullYap', onSelect: () => setNull(s) });
+      if (onSatirEkle) items.push({ label: 'Satır ekle', icon: <Plus />, onSelect: onSatirEkle });
+      if (onSatirSil && sil.length > 0) items.push({ label: 'Satırları sil', icon: <Trash2 />, danger: true, onSelect: () => onSatirSil(sil) });
+      if (onSilmeyiGeriAl && geriAl.length > 0) items.push({ label: 'Silmeyi geri al', icon: <Undo2 />, onSelect: () => onSilmeyiGeriAl(geriAl) });
     }
-    items.push({ label: 'INSERT olarak kopyala', onSelect: () => copyAsInsert(s) });
+    if (items.length > 0) items.push(MENU_SEPARATOR);
+    const formats: MenuEntry[] = COPY_FORMATS.map(({ bicim, etiket }) => ({
+      label: etiket,
+      shortcut: COPY_SHORTCUTS[bicim],
+      onSelect: () => copy(bicim, s),
+    }));
+    // INSERT, metin biçimlerinden ayrı bir grup.
+    formats.splice(-1, 0, MENU_SEPARATOR);
+    items.push({ label: 'Kopyala', icon: <Copy />, submenu: formats });
     return items;
   }
 
@@ -569,7 +602,7 @@ export function SonucGridi({
                     role="columnheader"
                     aria-colindex={c + 1}
                     aria-sort={sort ? SORT_ARIA[sort] : undefined}
-                    className="grid-kolon-basligi"
+                    className={`grid-kolon-basligi${sagda[c] ? ' sag' : ''}`}
                     style={{ width: widths[c] }}
                     title={tipAdi[c] ? `${ad} · ${tipAdi[c]}` : ad}
                   >
@@ -650,7 +683,7 @@ export function SonucGridi({
                         aria-selected={selected}
                         tabIndex={active ? 0 : -1}
                         data-hucre={`${r}:${c}`}
-                        className={`grid-hucresi${varsayilan ? ' varsayilan' : shown.null ? ' null' : ''}${selected ? ' secili' : ''}${active ? ' aktif' : ''}${changed ? ' degisti' : ''}`}
+                        className={`grid-hucresi${varsayilan ? ' varsayilan' : shown.null ? ' null' : ''}${selected ? ' secili' : ''}${active ? ' aktif' : ''}${changed ? ' degisti' : ''}${sagda[c] ? ' sag' : ''}`}
                         style={{ width: widths[c] }}
                         onMouseDown={(e) => onCellMouseDown(e, cell)}
                         onMouseEnter={() => onCellMouseEnter(cell)}
@@ -720,7 +753,13 @@ export function SonucGridi({
   );
 }
 
-/** Pano izni reddedilirse kopyalanacak başka yol yok; grid durumu değişmez. */
-function copyText(metin: string) {
-  navigator.clipboard?.writeText(metin).catch(() => {});
+/** Panoya yazar; izin reddedilirse ya da pano yoksa `false` (grid durumu değişmez). */
+async function copyText(metin: string): Promise<boolean> {
+  try {
+    if (!navigator.clipboard) return false;
+    await navigator.clipboard.writeText(metin);
+    return true;
+  } catch {
+    return false;
+  }
 }

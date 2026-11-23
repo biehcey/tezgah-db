@@ -76,6 +76,16 @@ export function selectedValues<T>(rows: readonly (readonly T[])[], sel: Selectio
 }
 
 /**
+ * Sağ tık menüsünün satır eylemleri: seçimin (var olan) satırlarından silinecek işaretli olmayanlar
+ * "Satırları sil"e, işaretliler "Silmeyi geri al"a gider; liste boşsa o eylem menüde yok.
+ */
+export function rowActions(sel: Selection, satirSayisi: number, silinecek: (satir: number) => boolean): { sil: number[]; geriAl: number[] } {
+  const r = selectionRange(sel);
+  const rows = Array.from({ length: r.alt - r.ust + 1 }, (_, i) => r.ust + i).filter((i) => i < satirSayisi);
+  return { sil: rows.filter((i) => !silinecek(i)), geriAl: rows.filter(silinecek) };
+}
+
+/**
  * Tuşun ürettiği yeni seçim. Oklar, Home/End, Ctrl+Home/End ve PageUp/PageDown Shift ile aralığı
  * genişletir; Ctrl+A tümünü seçer. Tab/Shift+Tab sağa/sola gider ve satır sonunda sarar; grid'in ilk/son hücresinde
  * `null` döner ki odak grid'den çıkabilsin. Gezinme tuşu değilse ya da grid boşsa `null`.

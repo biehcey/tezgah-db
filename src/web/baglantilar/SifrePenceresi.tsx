@@ -1,5 +1,7 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { connectionAddress, type Connection, type SessionSecret } from '../../core/baglanti';
+import { Diyalog } from '../ortak/Diyalog';
+import { Dugme } from '../ortak/Dugme';
 
 interface Props {
   connection: Connection;
@@ -26,12 +28,6 @@ export function SifrePenceresi({ connection, secret = 'veritabani', rejection, o
   const [error, setError] = useState<string | null>(rejection);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (password === '') return setError(`${label} gerekli`);
@@ -42,53 +38,51 @@ export function SifrePenceresi({ connection, secret = 'veritabani', rejection, o
   }
 
   return (
-    <div className="perde">
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-label={ssh ? `${connection.name} ${label}` : `${connection.name} şifresi`}
-        className="diyalog sifre-penceresi"
-        onSubmit={submit}
-        noValidate
-      >
-        <h2 className="sifre-basligi">
+    <Diyalog
+      baslik={
+        <>
           <span className="ortam-noktasi" style={{ backgroundColor: connection.color ?? 'transparent' }} aria-hidden="true" />
           {connection.name}
-        </h2>
-        <p className="soluk">{ssh ? `SSH tüneli · ${address}` : address}</p>
-        <div className="alan">
-          <label htmlFor={`${id}-sifre`}>{label}</label>
-          <input
-            id={`${id}-sifre`}
-            type="password"
-            autoFocus
-            autoComplete="off"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? `${id}-hata` : undefined}
-          />
-          {error && (
-            <span id={`${id}-hata`} role="alert" className="alan-hatasi">
-              {error}
-            </span>
-          )}
-          <p className="soluk kucuk">Tezgah kapanana kadar bellekte tutulur, diske yazılmaz.</p>
-        </div>
-        <label className="kutu">
-          <input type="checkbox" checked={saveToKeychain} onChange={(e) => setSaveToKeychain(e.target.checked)} />
-          Keychain'e kaydet (bağlantı ayarını değiştirir)
-        </label>
-        <footer className="form-alt">
+        </>
+      }
+      etiket={ssh ? `${connection.name} ${label}` : `${connection.name} şifresi`}
+      className="sifre-penceresi"
+      onClose={onCancel}
+      onSubmit={submit}
+      dugmeler={
+        <>
           <span className="bosluk" />
-          <button type="button" onClick={onCancel}>
-            İptal
-          </button>
-          <button type="submit" className="birincil" disabled={busy}>
+          <Dugme onClick={onCancel}>İptal</Dugme>
+          <Dugme type="submit" tur="birincil" disabled={busy}>
             Bağlan
-          </button>
-        </footer>
-      </form>
-    </div>
+          </Dugme>
+        </>
+      }
+    >
+      <p className="soluk">{ssh ? `SSH tüneli · ${address}` : address}</p>
+      <div className="alan">
+        <label htmlFor={`${id}-sifre`}>{label}</label>
+        <input
+          id={`${id}-sifre`}
+          type="password"
+          data-autofocus
+          autoComplete="off"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-hata` : undefined}
+        />
+        {error && (
+          <span id={`${id}-hata`} role="alert" className="alan-hatasi">
+            {error}
+          </span>
+        )}
+        <p className="soluk kucuk">Tezgah kapanana kadar bellekte tutulur, diske yazılmaz.</p>
+      </div>
+      <label className="kutu">
+        <input type="checkbox" checked={saveToKeychain} onChange={(e) => setSaveToKeychain(e.target.checked)} />
+        Keychain'e kaydet (bağlantı ayarını değiştirir)
+      </label>
+    </Diyalog>
   );
 }

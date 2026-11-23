@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
 import pkg from '../../package.json' with { type: 'json' };
+import { createPreferenceRoutes, createPreferenceStore } from './arayuz-tercihleri';
 import { SettingsFileError, createSettingsStore } from './ayar-deposu';
 import { createConnectionTestRoutes } from './baglanti-testi';
 import { createConnectionRoutes } from './baglantilar';
@@ -132,6 +133,8 @@ export async function startServer(options: ServerOptions): Promise<TezgahServer>
 
   // Konsol sekmeleri yalnızca dosyaya yazılır ve okunur; hiçbir sunucuya bağlanmaz.
   const tabRoutes = createTabRoutes({ tabs: createTabStore(options.configDir) });
+  // Arayüz tercihleri de yalnızca dosyadır; hiçbir sunucuya bağlanmaz.
+  const preferenceRoutes = createPreferenceRoutes({ preferences: createPreferenceStore(options.configDir) });
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const url = requestUrl(req);
@@ -170,6 +173,7 @@ export async function startServer(options: ServerOptions): Promise<TezgahServer>
     if (await historyRoutes(req, res, url.pathname)) return;
     if (await importRoutes(req, res, url.pathname)) return;
     if (await tabRoutes(req, res, url.pathname)) return;
+    if (await preferenceRoutes(req, res, url.pathname)) return;
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return json(res, 404, { hata: 'Bulunamadı' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return sendStatus(res, 405);
     await serveStatic(options.webRoot, url.pathname, res);

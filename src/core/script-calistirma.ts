@@ -5,6 +5,7 @@
  */
 import { ACTIVE_SQL_TRANSACTION, NON_TRANSACTIONAL_FALLBACK, READ_ONLY_SQL_TRANSACTION, type ScriptAnalysis } from './calistirma-modu';
 import type { BlockedSession } from './bekletme';
+import { editoreTasi, type AralikYeri } from './calisacak-aralik';
 import type { FallbackReason } from './deneme';
 import type { RowChanges, SchemaChange } from './deneme-farki';
 import { splitStatements, positionOf, type Statement } from './ifade-bolme';
@@ -117,6 +118,40 @@ export function formatSummary({ uygulandi, hatali, calistirilmadi }: AutocommitS
   return parts.join(' · ');
 }
 
+/** Sunucu bildiriminin seviyesi; Postgres DEBUG1..5'i `DEBUG` olarak gönderir. */
+export type BildirimSeviyesi = 'DEBUG' | 'LOG' | 'INFO' | 'NOTICE' | 'WARNING';
+const SEVIYELER: readonly BildirimSeviyesi[] = ['DEBUG', 'LOG', 'INFO', 'NOTICE', 'WARNING'];
+
+/** Sunucunun çalıştırma başına gönderdiği (ve arayüzün gösterdiği) en fazla Sunucu bildirimi. */
+export const BILDIRIM_SINIRI = 1000;
+
+/** Çalıştırmada gösterilen (gönderilen) ve sınırdan sonra yalnızca sayılan Sunucu bildirimleri. */
+export interface BildirimSayaci {
+  gosterilen: number;
+  fazla: number;
+}
+
+/** Yeni Sunucu bildirimi geldi: sınır dolmadıysa gösterilir, dolduysa fazlaya sayılır. */
+export function bildirimGeldi(s: BildirimSayaci): { goster: boolean; sayac: BildirimSayaci } {
+  return s.gosterilen < BILDIRIM_SINIRI
+    ? { goster: true, sayac: { gosterilen: s.gosterilen + 1, fazla: s.fazla } }
+    : { goster: false, sayac: { gosterilen: s.gosterilen, fazla: s.fazla + 1 } };
+}
+
+type Bildirim = Extract<ServerEvent, { type: 'bildirim' }>;
+
+/**
+ * Sürücünün `notice` mesajından `bildirim` olayı. `i`: o an çalışan ifade. Seviye yerelleştirilmiş
+ * gelebilir (`lc_messages`); tanınmayan seviye `NOTICE` sayılır.
+ */
+export function noticeEvent(
+  { severity, message, detail, hint }: { severity?: string; message?: string; detail?: string; hint?: string },
+  i: number | null,
+): Bildirim {
+  const seviye = SEVIYELER.find((s) => s === severity) ?? 'NOTICE';
+  return { type: 'bildirim', i, seviye, mesaj: message ?? '', ...(detail && { detay: detail }), ...(hint && { ipucu: hint }) };
+}
+
 export type ServerEvent =
   /** Sunucunun script analizi; her çalıştırmanın ilk olayı. */
   | ({ type: 'analiz' } & ScriptAnalysis)
@@ -165,10 +200,16 @@ export type ServerEvent =
   /** "Uzat" sunucuda işlendi; Karar süresi baştan başladı. */
   | { type: 'uzatildi'; kalanMs: number }
   /**
+   * Sunucu bildirimi (`RAISE NOTICE` vb.), geldiği anda. `i`: o an çalışan ifade; ifade dışında
+   * (ör. `BEGIN`) gelen bildirimde `null`. Çalıştırma başına en fazla `BILDIRIM_SINIRI` tane gelir.
+   */
+  | { type: 'bildirim'; i: number | null; seviye: BildirimSeviyesi; mesaj: string; detay?: string; ipucu?: string }
+  /**
    * `ozet` yalnızca Autocommit'te. `kod: 'havuzDolu'`: hedefte `oturum` açık oturumla sınır doldu,
    * hiçbir şey çalışmadı; arayüz mesajı kendi bildiği açık sekmelerle kurar (`mesaj` yedektir).
    * `katalogYenilendi`: DDL'li script commit ya da autocommit ile bitti, sunucu hedefin Katalog
-   * önbelleğini tazeledi; arayüz katalogu yeniden çeker.
+   * önbelleğini tazeledi; arayüz katalogu yeniden çeker. `bildirimFazlasi`: sınırdan sonra gelip
+   * gönderilmeyen Sunucu bildirimi sayısı.
    */
   | {
       type: 'bitti';
@@ -178,6 +219,7 @@ export type ServerEvent =
       mesaj?: string;
       ozet?: AutocommitSummary;
       katalogYenilendi?: true;
+      bildirimFazlasi?: number;
     }
   /**
    * İstek reddedildi ya da Çalıştırma kaydı yazılamadı; çalıştırma sürüyor. `dahaFazla`: `i`.
@@ -238,7 +280,12 @@ export const ROW_LIMIT_MESSAGE = 'Sınıra ulaşıldı, filtrele';
 export type RunPhase = 'calisiyor' | 'karar' | 'okuma' | 'bitti';
 
 export interface RunView {
+  /** Sunucuya giden metin: Çalışacak aralık (tüm script de bir aralıktır). */
   script: string;
+  /** Aralığın editör metnindeki başlangıç ofseti; tüm script'te 0. */
+  bas: number;
+  /** Çalışma anındaki editör metni; editör bundan farklıysa işaretler gösterilmez. */
+  editorMetni: string;
   /** Deneme modu: karar beklenmez, sonuç her zaman geri alınır. */
   deneme: boolean;
   /** Sunucunun analizinden; `analiz` gelene kadar yok. */
@@ -267,21 +314,36 @@ export interface RunView {
   uyari?: string;
   /** Çalıştırma kaydı yazılamadı; çalıştırma sürer, uyarı kalıcıdır. */
   kayitUyarisi?: string;
+  /** Gelen Sunucu bildirimleri (en fazla `BILDIRIM_SINIRI`); Çalıştırma kaydına yazılmaz. */
+  bildirimler: SunucuBildirimi[];
+  /** Sınırdan sonra gelen, gösterilmeyen bildirim sayısı. */
+  bildirimFazlasi?: number;
 }
 
-export function startRunView(script: string, { deneme = false }: { deneme?: boolean } = {}): RunView {
+/** Görünümdeki Sunucu bildirimi; `satir`: geldiği ifadenin editördeki 1 tabanlı satırı. */
+export interface SunucuBildirimi extends Omit<Bildirim, 'type'> {
+  satir: number | null;
+}
+
+/** `aralik`: `script` editör metninin bir parçasıysa onun yeri; yoksa script editör metninin tamamıdır. */
+export function startRunView(
+  script: string,
+  { deneme = false, aralik = { bas: 0, editorMetni: script } }: { deneme?: boolean; aralik?: AralikYeri } = {},
+): RunView {
   return {
     script,
+    ...aralik,
     deneme,
-    ifadeler: splitStatements(script).map((s, i) => statementView(script, s, i)),
+    ifadeler: splitStatements(script).map((s, i) => statementView(aralik, s, i)),
     evre: 'calisiyor',
     commitEdilebilir: false,
     bekleyenIstek: null,
+    bildirimler: [],
   };
 }
 
-function statementView(script: string, s: Statement, i: number): StatementView {
-  return { i, satir: positionOf(script, s.start).satir, komut: s.keywords[0] ?? s.text.slice(0, 12), durum: 'sirada' };
+function statementView({ bas, editorMetni }: AralikYeri, s: Statement, i: number): StatementView {
+  return { i, satir: positionOf(editorMetni, bas + s.start).satir, komut: s.keywords[0] ?? s.text.slice(0, 12), durum: 'sirada' };
 }
 
 /**
@@ -332,7 +394,9 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
         sema: event.sema,
       });
     case 'error': {
-      const { type: _t, i, ms, ...hata } = event;
+      const { type: _t, i, ms, ...sunucu } = event;
+      // Sunucunun konumu aralığa göredir; işaretler ve Log editör metnindeki yeri gösterir.
+      const hata = { ...sunucu, ...editoreTasi(sunucu, view) };
       const ipucu = hata.sqlstate === ACTIVE_SQL_TRANSACTION ? NON_TRANSACTIONAL_FALLBACK : undefined;
       // Transaction modunda 25006 Yazma kilidinindir (salt okunur prod); öneri yalnızca Okuma'da.
       const oneri = view.mod === 'okuma' && hata.sqlstate === READ_ONLY_SQL_TRANSACTION;
@@ -369,6 +433,14 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
       return { ...view, bekleyenIstek: null, kararSuresi: nextTimer(view, event.kalanMs) };
     case 'bekletilenler':
       return { ...view, bekletilenler: event.oturumlar };
+    case 'bildirim': {
+      const { goster, sayac } = bildirimGeldi({ gosterilen: view.bildirimler.length, fazla: view.bildirimFazlasi ?? 0 });
+      if (!goster) return { ...view, bildirimFazlasi: sayac.fazla };
+      const { type: _t, ...bildirim } = event;
+      // Satır ifadenin satırıdır; o da Çalışacak aralıktan editöre taşınmıştır.
+      const satir = event.i === null ? null : (view.ifadeler[event.i]?.satir ?? null);
+      return { ...view, bildirimler: [...view.bildirimler, { ...bildirim, satir }] };
+    }
     case 'bitti': {
       const { bekletilenler: _b, ...rest } = view;
       return {
@@ -380,6 +452,7 @@ export function applyEvent(view: RunView, event: ServerEvent): RunView {
         oturum: event.oturum,
         mesaj: event.mesaj,
         ozet: event.ozet,
+        bildirimFazlasi: event.bildirimFazlasi ?? view.bildirimFazlasi,
         ifadeler: closeMore(view.ifadeler, MORE_CLOSED_FINISHED).map((s) =>
           s.durum === 'sirada' || s.durum === 'calisiyor' ? { ...s, durum: 'calistirilmadi' } : s,
         ),

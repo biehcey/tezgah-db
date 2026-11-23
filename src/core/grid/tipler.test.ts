@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { typeName } from './tipler';
+import { columnAlignment, typeName } from './tipler';
 
 describe('tip OID → ad', () => {
   it('yaygın yerleşik tipler sabit haritadan çözülür', () => {
@@ -28,5 +28,15 @@ describe('tip OID → ad', () => {
     ]);
     expect(typeName(99999, katalog)).toBe('public.durum');
     expect(typeName(1042, katalog)).toBe('bpchar');
+  });
+});
+
+describe('kolon hizası', () => {
+  it('sayısal tipler (int2, int4, int8, numeric, float4, float8, money, oid) sağa yaslanır', () => {
+    expect([21, 23, 20, 1700, 700, 701, 790, 26].map((oid) => columnAlignment(oid))).toEqual(Array(8).fill('sag'));
+  });
+
+  it('diğer tipler, diziler ve bilinmeyen ya da verilmeyen tip sola yaslanır', () => {
+    expect([25, 16, 1043, 3802, 1184, 1007, 1231, 99999, undefined].map((oid) => columnAlignment(oid))).toEqual(Array(9).fill('sol'));
   });
 });

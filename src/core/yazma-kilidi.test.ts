@@ -6,9 +6,25 @@ import {
   READ_ONLY_AUTOCOMMIT_MESSAGE,
   beginStatement,
   runBlockReasons,
+  showsProdFrame,
   writeLockState,
   type WriteLockState,
 } from './yazma-kilidi';
+
+describe('prod çerçevesi', () => {
+  const ekran = { baglantiFormu: false, iceAktarma: false };
+  it.each([
+    ['prod konsol', { ...ekran, sekme: 'konsol', envTag: 'prod' }, true],
+    ['prod Tablo sekmesi', { ...ekran, sekme: 'tablo', envTag: 'prod' }, true],
+    ['staging konsol', { ...ekran, sekme: 'konsol', envTag: 'staging' }, false],
+    ['etiketsiz konsol', { ...ekran, sekme: 'konsol', envTag: null }, false],
+    ['sekme yok', { ...ekran, sekme: null, envTag: 'prod' }, false],
+    ['prod konsolu arkada, bağlantı formu açık', { ...ekran, baglantiFormu: true, sekme: 'konsol', envTag: 'prod' }, false],
+    ['prod Tablo sekmesi arkada, içe aktarma açık', { ...ekran, iceAktarma: true, sekme: 'tablo', envTag: 'prod' }, false],
+  ] as const)('%s → %s', (_ad, gorunum, expected) => {
+    expect(showsProdFrame(gorunum)).toBe(expected);
+  });
+});
 
 describe('yazma kilidi', () => {
   it.each([

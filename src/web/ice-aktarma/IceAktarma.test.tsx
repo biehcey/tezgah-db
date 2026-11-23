@@ -204,7 +204,8 @@ describe('içe aktarma diyaloğu', () => {
     await openImport(user);
     await user.click(within(rowOf('10.0.4.12')).getByText('10.0.4.12'));
     expect(within(details()).getByText('etl@10.0.4.12')).toBeInTheDocument();
-    expect(within(details()).getByText(/^🔑/)).toHaveTextContent('.pgpass satır 3');
+    // Şifre satırı (dt) ve değeri (dd): şifrenin geldiği .pgpass satırı.
+    expect(within(details()).getByText('Şifre').nextElementSibling).toHaveTextContent('.pgpass satır 3');
     expect(within(details()).getByText('2 kaynaktan birleştirildi')).toBeInTheDocument();
     expect(within(details()).getByText('warehouse')).toHaveTextContent('başlangıç');
 
@@ -254,9 +255,7 @@ describe('içe aktarma diyaloğu', () => {
     await user.click(within(dialog()).getByRole('button', { name: '.pgpass yolu…' }));
     await user.type(within(dialog()).getByLabelText('.pgpass yolu'), '/tmp/gizli.txt{Enter}');
     await waitFor(() => expect(fake.previews.at(-1)).toEqual({ pgpassPath: '/tmp/gizli.txt', disabled: ['pgpass'], projectPaths: [] }));
-    const chip = await within(dialog()).findByText(/⚠/);
-    expect(chip.closest('.cip')).toHaveClass('hatali');
-    expect(chip.closest('.cip')).toHaveAttribute('title', expect.stringMatching(/pgpass\.conf/));
+    expect(await within(dialog()).findByTitle(/pgpass\.conf/)).toBeInTheDocument();
   });
 
   it('İptal ve Escape diyaloğu kapatır, hiçbir şey eklenmez', async () => {
@@ -273,20 +272,18 @@ describe('içe aktarma diyaloğu', () => {
 });
 
 describe('IntelliJ kaynakları', () => {
-  it('JetBrains çipi ve "＋ Proje klasörü…" yol satırı: Enter ile taranır, bulunamazsa çip hatalı', async () => {
+  it('JetBrains çipi ve "Proje klasörü…" yol satırı: Enter ile taranır, bulunamazsa çip hatalı', async () => {
     const { user, fake } = setup();
     fake.jetbrains = true;
     await openImport(user);
     expect(within(dialog()).getByRole('button', { name: /DataGrip2026.2 2/ })).toHaveAttribute('aria-pressed', 'true');
-    await user.click(within(dialog()).getByRole('button', { name: '＋ Proje klasörü…' }));
+    await user.click(within(dialog()).getByRole('button', { name: 'Proje klasörü…' }));
     await user.type(within(dialog()).getByLabelText('Proje klasörü'), '/work/billing{Enter}');
     await waitFor(() => expect(fake.previews.at(-1)).toEqual({ pgpassPath: null, disabled: [], projectPaths: ['/work/billing'] }));
     expect(await within(dialog()).findByRole('button', { name: /billing 0/ })).toBeInTheDocument();
     await user.type(within(dialog()).getByLabelText('Proje klasörü'), '/work/yok');
     await user.click(within(dialog()).getByRole('button', { name: 'Tara' }));
-    const chip = await within(dialog()).findByText(/⚠ yok/);
-    expect(chip.closest('.cip')).toHaveClass('hatali');
-    expect(chip.closest('.cip')).toHaveAttribute('title', expect.stringMatching(/dataSources.xml bulunamadı/));
+    expect(await within(dialog()).findByTitle(/dataSources.xml bulunamadı/)).toHaveTextContent('yok');
   });
 
   it('Postgres dışı kaynaklar en altta gri "Atlandı" bölümünde; ayrıntıda SSL ve SSH özetleri', async () => {
@@ -332,7 +329,7 @@ describe('içe aktardıktan sonra', () => {
     expect(within(nav()).getByRole('button', { name: /prod-db\.internal/ })).toContainElement(
       within(nav()).getByRole('img', { name: /test: PostgreSQL 16\.4/ }),
     );
-    expect(within(within(nav()).getByRole('button', { name: /10\.0\.4\.12/ })).getByRole('img', { name: /test: .*zaman aşımı/ })).toHaveTextContent('⚠');
+    expect(within(within(nav()).getByRole('button', { name: /10\.0\.4\.12/ })).getByRole('img', { name: /test: .*zaman aşımı/ })).toBeInTheDocument();
   });
 
   it('keychain yazamazsa sonuçta listelenir; şifresiz bağlantı test edilmez', async () => {

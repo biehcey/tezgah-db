@@ -40,8 +40,29 @@ import { SKIPPED_WITHOUT_PASSWORD, importTestRequest, importTestResult } from '.
 import { KlasorAdi } from './baglantilar/KlasorAdi';
 import { SifrePenceresi } from './baglantilar/SifrePenceresi';
 import { SilmeOnayi } from './baglantilar/SilmeOnayi';
-import { Menu, type MenuItem, type MenuPosition } from './ortak/Menu';
+import { MENU_SEPARATOR, Menu, type MenuEntry, type MenuItem, type MenuPosition } from './ortak/Menu';
 import { Onay } from './ortak/Onay';
+import { Dugme } from './ortak/Dugme';
+import {
+  Copy,
+  Crosshair,
+  FolderInput,
+  FolderPlus,
+  Import,
+  Link,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  Plug,
+  Plus,
+  RefreshCw,
+  SquareTerminal,
+  Table2,
+  Trash2,
+  Unplug,
+} from 'lucide-react';
+import { Diyalog } from './ortak/Diyalog';
+import { useBildirimler } from './ortak/Bildirimler';
 import { Konsol } from './konsol/Konsol';
 import { targetOfKey, useCatalogs } from './katalog/kataloglar';
 import type { HistoryEntry } from '../core/gecmis-filtresi';
@@ -53,8 +74,17 @@ import {
   type Target,
 } from '../core/veritabani-secimi';
 import type { ConnectionSession } from './veritabanlari/hedef';
-import { navigatorShortcut, shortcutKey } from '../core/kisayollar';
-import { APPLE, modalOpen } from './ortak/pencere';
+import { historyShortcut, navigatorShortcut, shortcutKey, shortcutsPageShortcut } from '../core/kisayollar';
+import { paletteCommands as paletteCommandList, type PaletteCommandId } from '../core/palet-komutlari';
+import { DurumCubugu, type SekmeDurumu } from './ortak/DurumCubugu';
+import { KisayolSayfasi } from './ortak/KisayolSayfasi';
+import { queryScriptActions, sendScriptCommand } from './script/komut';
+import { kisayol, modalOpen, typingTarget, useWindowWidth } from './ortak/pencere';
+import { Bolucu } from './ortak/Bolucu';
+import { ARAYUZ_TERCIHLERI_VARSAYILAN, gezginSinirlari } from '../core/arayuz-tercihleri';
+import { bolucuDegeri } from '../core/bolucu';
+import { showsProdFrame } from '../core/yazma-kilidi';
+import { usePreferences, useTheme } from './ortak/tercihler';
 
 type Status = { kind: 'loading' } | { kind: 'ok'; version: string } | { kind: 'error'; message: string };
 /**
@@ -65,13 +95,10 @@ type Editing = { kind: 'yeni'; url?: { text: string; key: number } } | { kind: '
 /** Alt+Enter ile kenar çubuğunda gösterilecek veritabanı; gösterilince temizlenir. */
 type Reveal = Target;
 
-/** Kısayolların platformdaki yazılışı. */
-const PALETTE_SHORTCUT = APPLE ? '⌘K' : 'Ctrl K';
-const NAVIGATOR_SHORTCUT = APPLE ? '⌘B' : 'Ctrl+B';
 /** Açık klasör penceresi. */
 type FolderDialog = { kind: 'yeni' } | { kind: 'yeniden-adlandir'; folder: Folder } | { kind: 'sil'; folder: Folder } | null;
 /** Açık menü; `key` her açılışta değişir ki menü (alt menü durumu dahil) baştan kurulsun. */
-type OpenMenu = MenuPosition & { key: number; label: string; items: MenuItem[] };
+type OpenMenu = MenuPosition & { key: number; label: string; items: MenuEntry[] };
 /** Açık şifre penceresi; `resolve` şifre verilince güncel bağlantıyla, iptalde `null` ile çağrılır. */
 type PasswordPrompt = {
   /** Her soruşta yeni: kapanıp hemen yeniden açılan pencere (28P01) baştan kurulsun. */
@@ -110,6 +137,8 @@ const newTabId = () => crypto.randomUUID();
 
 export function App() {
   const api = useApi();
+  const { preferences, update: updatePreferences } = usePreferences();
+  useTheme(preferences.tema);
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -118,9 +147,8 @@ export function App() {
   const [deleting, setDeleting] = useState<Connection | null>(null);
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderDialog>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  /** Geçici bilgi satırı (ör. "URL kopyalandı"). */
-  const [info, setInfo] = useState<string | null>(null);
+  /** Hatalar ve kısa geri bildirimler (ör. "URL kopyalandı") toast olarak gösterilir. */
+  const bildir = useBildirimler();
   /** Konsol sekmeleri; aktif sekmenin hedefi editörün hedefidir, bağlanmadan da seçilebilir. */
   const [konsol, setKonsol] = useState<ConsoleState>({ tabs: [], active: null });
   /**
@@ -137,9 +165,20 @@ export function App() {
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  /** Kısayol sayfası: `?`, paletteki "Kısayollar" ya da `openShortcuts` (durum çubuğu düğmesi). */
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
-  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); diske yazılmaz. */
-  const [navigatorOpen, setNavigatorOpen] = useState(true);
+  /** Kenar çubuğundaki gezgin açık (Ctrl/Cmd+B); Arayüz tercihlerinde saklanır. */
+  const navigatorOpen = preferences.gezgin.acik;
+  const setNavigatorOpen = useCallback(
+    (open: boolean | ((current: boolean) => boolean)) =>
+      updatePreferences((p) => ({ gezgin: { ...p.gezgin, acik: typeof open === 'function' ? open(p.gezgin.acik) : open } })),
+    [updatePreferences],
+  );
+  /** Gezgin genişliği: sürüklerken yerel, bırakınca tercihe yazılır; pencereye göre sınırlanır. */
+  const [draggedWidth, setDraggedWidth] = useState<number | null>(null);
+  const navigatorBounds = gezginSinirlari({ genislik: useWindowWidth() });
+  const navigatorWidth = bolucuDegeri(draggedWidth ?? preferences.gezgin.genislik, navigatorBounds.min, navigatorBounds.max);
   /** Bu oturumda listeden açılan Tablo sekmeleri; ilk sayfaları hemen çekilir. */
   const [autoLoadTabs, setAutoLoadTabs] = useState<ReadonlySet<string>>(new Set());
   /** Sekme başına hedef kilidi: script çalışırken ve karar beklenirken hedef değiştirilemez; neden. */
@@ -159,21 +198,27 @@ export function App() {
         e.preventDefault();
         if (!dialogOpen.current) setPaletteOpen(true);
       }
-      // Sorgu geçmişi: Ctrl/Cmd+Alt+E, yalnızca konsol görünürken. Alt ile `key` klavyeye göre değişir,
-      // `code` değişmez. Windows'ta AltGr de Ctrl+Alt gelir: AltGr+E (€) yazmaya devam etmeli.
-      if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyE' && !e.getModifierState('AltGraph')) {
+      const key = shortcutKey(e);
+      // Sorgu geçmişi, yalnızca konsol görünürken.
+      if (historyShortcut(key)) {
         if (dialogOpen.current || consoleHidden.current) return;
         e.preventDefault();
         setHistoryOpen((open) => !open);
       }
-      if (navigatorShortcut(shortcutKey(e)) && !modalOpen()) {
+      if (navigatorShortcut(key) && !modalOpen()) {
         e.preventDefault();
         setNavigatorOpen((open) => !open);
+      }
+      // `?` yazı yazılan yerde (metin alanı, editör, hücre düzenleyicisi) karakterdir; grid'in
+      // yazmaya başlama düzenleyicisi olayı zaten tüketir.
+      if (shortcutsPageShortcut(key) && !e.defaultPrevented && !typingTarget(e.target) && !modalOpen()) {
+        e.preventDefault();
+        setShortcutsOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [setNavigatorOpen]);
 
   useEffect(() => {
     let active = true;
@@ -191,7 +236,7 @@ export function App() {
       (saved): SavedTabs | null => saved,
       (err: unknown) => {
         if (active && !(err instanceof ApiError && err.status === 401)) {
-          setNotice(`Konsol sekmeleri okunamadı: ${errorMessage(err)} Bu oturumda sekmeler diske yazılmayacak.`);
+          bildir.hata(`Konsol sekmeleri okunamadı: ${errorMessage(err)} Bu oturumda sekmeler diske yazılmayacak.`);
         }
         return null;
       },
@@ -207,7 +252,13 @@ export function App() {
     return () => {
       active = false;
     };
-  }, [api]);
+  }, [api, bildir]);
+
+  // Sunucuya ulaşılamıyorsa ya da oturum geçersizse kalıcı hata toast'ı.
+  const statusError = status.kind === 'error' ? status.message : null;
+  useEffect(() => {
+    if (statusError) bildir.hata(statusError);
+  }, [statusError, bildir]);
 
   // Sekme değişiklikleri gecikmeli yazılır; değişmeyen liste yeniden yazılmaz.
   useEffect(() => {
@@ -217,7 +268,7 @@ export function App() {
     if (text === persisted.current) return;
     const write = (keepalive: boolean) => {
       persisted.current = text;
-      api.writeTabs(tabs, { keepalive }).catch((err: unknown) => setNotice(`Konsol sekmeleri kaydedilemedi: ${errorMessage(err)}`));
+      api.writeTabs(tabs, { keepalive }).catch((err: unknown) => bildir.hata(`Konsol sekmeleri kaydedilemedi: ${errorMessage(err)}`));
     };
     const id = setTimeout(() => write(false), TABS_WRITE_DELAY_MS);
     // Sayfa kapanırken bekleyen yazma kaybolmasın.
@@ -230,7 +281,7 @@ export function App() {
       clearTimeout(id);
       window.removeEventListener('pagehide', flush);
     };
-  }, [konsol, api]);
+  }, [konsol, api, bildir]);
 
   const activeTab = konsol.tabs.find((t) => t.id === konsol.active) ?? null;
   const target: Target | null = activeTab?.hedef
@@ -250,6 +301,11 @@ export function App() {
   const toggleTabWriteMode = useCallback((id: string) => setKonsol((k) => toggleWriteMode(k, id)), []);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closeHistory = useCallback(() => setHistoryOpen(false), []);
+  const toggleHistory = useCallback(() => setHistoryOpen((open) => !open), []);
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  /** Sekme başına Durum çubuğu değerleri; çubuk etkin sekmeninkini gösterir. */
+  const [tabStatuses, setTabStatuses] = useState<Readonly<Record<string, SekmeDurumu>>>({});
+  const changeTabStatus = useCallback((id: string, durum: SekmeDurumu) => setTabStatuses((d) => ({ ...d, [id]: durum })), []);
   /** Metin verilen hedefte yeni konsol sekmesinde (geçmişten açma, Tablo sekmesinden "Konsola aktar"). */
   const openConsoleWith = useCallback(
     (hedef: TabTarget | null, metin: string) => setKonsol((k) => openConsoleTab(k, newTabId(), hedef, metin)),
@@ -268,10 +324,14 @@ export function App() {
   const formOpen = editing?.kind === 'yeni' || edited !== undefined;
   consoleHidden.current = formOpen;
   const targetConnection = target ? connections?.find((c) => c.id === target.connectionId) : undefined;
+  const prodFrame = showsProdFrame({
+    baglantiFormu: formOpen,
+    iceAktarma: importOpen || importResult !== null,
+    sekme: activeTab?.tur ?? null,
+    envTag: targetConnection?.envTag,
+  });
 
   function open(next: Editing) {
-    setNotice(null);
-    setInfo(null);
     setEditing(next);
   }
 
@@ -329,11 +389,8 @@ export function App() {
   async function forgetHostKey(prompt: HostKeyPrompt) {
     const { host, port } = prompt.problem;
     const { silinen } = await api.forgetHostKey({ host, port });
-    setNotice(
-      silinen > 0
-        ? `${host} için Tezgah'taki kayıtlı host anahtarı silindi; yeniden bağlanınca yeni anahtar sorulur.`
-        : `${host} için Tezgah'ta kayıtlı host anahtarı yok.`,
-    );
+    if (silinen > 0) bildir.basari(`${host} için Tezgah'taki kayıtlı host anahtarı silindi; yeniden bağlanınca yeni anahtar sorulur.`);
+    else bildir.hata(`${host} için Tezgah'ta kayıtlı host anahtarı yok.`);
     closeHostKey(prompt, false);
   }
 
@@ -341,11 +398,9 @@ export function App() {
     try {
       const result = await api.giveSessionPassword(prompt.connection.id, { password, saveToKeychain, secret: prompt.secret });
       setConnections((list) => (list ?? []).map((c) => (c.id === result.connection.id ? result.connection : c)));
-      setNotice(
-        result.password === 'reddedildi'
-          ? `Şifre keychain'e kaydedilemedi: ${KEYCHAIN_UNREACHABLE}. Tezgah kapanana kadar bellekte tutuluyor.`
-          : null,
-      );
+      if (result.password === 'reddedildi') {
+        bildir.hata(`Şifre keychain'e kaydedilemedi: ${KEYCHAIN_UNREACHABLE}. Tezgah kapanana kadar bellekte tutuluyor.`);
+      }
       setPasswordPrompt(null);
       prompt.resolve(result.connection);
       return null;
@@ -391,7 +446,7 @@ export function App() {
       // Sunucu katalogu attı; yeniden okumak yeniden bağlanmak olurdu, istenmez.
       catalogs.drop(connection.id);
     } catch (err) {
-      setNotice(`“${connection.name}” bağlantısı kesilemedi: ${errorMessage(err)}`);
+      bildir.hata(`“${connection.name}” bağlantısı kesilemedi: ${errorMessage(err)}`);
     }
   }
 
@@ -402,7 +457,7 @@ export function App() {
       // Sunucu eski seçimle okunan katalogu attı; kullanıcının açtığı kataloglar yeni seçimle istenir.
       catalogs.drop(connection.id, { reload: updated.databaseSelection.map((d) => d.database) });
     } catch (err) {
-      setNotice(`Veritabanı seçimi kaydedilemedi: ${errorMessage(err)}`);
+      bildir.hata(`Veritabanı seçimi kaydedilemedi: ${errorMessage(err)}`);
     }
   }
 
@@ -459,6 +514,7 @@ export function App() {
   );
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
   const revealed = useCallback(() => setReveal(null), []);
   dialogOpen.current =
     folderDialog !== null ||
@@ -467,12 +523,48 @@ export function App() {
     hostKeyPrompt !== null ||
     importOpen ||
     importResult !== null;
-  const paletteCommands: PaletteCommand[] = [
-    { label: 'Yeni bağlantı', run: () => open({ kind: 'yeni' }) },
-    { label: 'Yeni klasör', run: () => setFolderDialog({ kind: 'yeni' }) },
-    { label: 'İçe aktar', run: () => setImportOpen(true) },
-    { label: 'Çalıştırma kayıtları klasörünü aç', run: () => void api.openRunHistoryFolder().catch((err: unknown) => console.error('Kayıt klasörü açılamadı', err)) },
-  ];
+  const commandActions: Record<PaletteCommandId, () => void> = {
+    calistir: () => sendScriptCommand('calistir'),
+    tumunuCalistir: () => sendScriptCommand('tumunuCalistir'),
+    dene: () => sendScriptCommand('dene'),
+    tumunuDene: () => sendScriptCommand('tumunuDene'),
+    yazmaModu: () => konsol.active && toggleTabWriteMode(konsol.active),
+    yeniKonsol: () => setKonsol((k) => openConsoleTab(k, newTabId(), activeTab?.hedef ?? null)),
+    gecmis: () => setHistoryOpen((o) => !o),
+    gezgin: () => setNavigatorOpen((o) => !o),
+    sonucAlani: () => updatePreferences((p) => ({ sonucDaraltilmis: !p.sonucDaraltilmis })),
+    'tema:sistem': () => updatePreferences({ tema: 'sistem' }),
+    'tema:acik': () => updatePreferences({ tema: 'acik' }),
+    'tema:koyu': () => updatePreferences({ tema: 'koyu' }),
+    kisayollar: () => setShortcutsOpen(true),
+    yeniBaglanti: () => open({ kind: 'yeni' }),
+    yeniKlasor: () => setFolderDialog({ kind: 'yeni' }),
+    iceAktar: () => setImportOpen(true),
+    kayitKlasoru: () => void api.openRunHistoryFolder().catch((err: unknown) => console.error('Kayıt klasörü açılamadı', err)),
+  };
+  // Palet açıkken etkin Script ekranına sorulur: düğmeleri kapalı olan komutlar paletten de çalışmaz.
+  const scriptActions = paletteOpen ? queryScriptActions() : null;
+  const paletteCommands: PaletteCommand[] = paletteCommandList({
+    scriptEngelleri: scriptActions
+      ? Object.fromEntries(Object.entries(scriptActions).flatMap(([id, s]) => (s.neden === undefined ? [] : [[id, s.neden]])))
+      : undefined,
+    sekme: activeTab?.tur ?? null,
+    hedef: targetConnection !== undefined,
+    prod: targetConnection !== undefined && isProd(targetConnection.envTag),
+    yazmaModu: activeTab?.yazmaModu ?? false,
+    calisma: targetLock,
+    tema: preferences.tema,
+    gezginAcik: navigatorOpen,
+    sonucDaraltilmis: preferences.sonucDaraltilmis,
+    konsolGizli: formOpen,
+  }).map((c) => ({
+    label: c.etiket,
+    disabled: c.pasif !== undefined,
+    hint: c.pasif,
+    checked: c.secili,
+    shortcut: c.kisayol && kisayol(c.kisayol),
+    run: commandActions[c.id],
+  }));
   const serverDatabases = Object.fromEntries(
     Object.entries(sessions).flatMap(([id, s]) => (s.durum === 'bagli' ? [[id, s.veritabanlari]] : [])),
   );
@@ -518,7 +610,7 @@ export function App() {
   const closeFolderDialog = useCallback(() => setFolderDialog(null), []);
   const cancelDelete = useCallback(() => setDeleting(null), []);
 
-  function showMenu(label: string, at: MenuPosition, items: MenuItem[]) {
+  function showMenu(label: string, at: MenuPosition, items: MenuEntry[]) {
     setMenu((prev) => ({ ...at, label, items, key: (prev?.key ?? 0) + 1 }));
   }
 
@@ -538,7 +630,7 @@ export function App() {
     });
     setSelectedId(connection.id);
     setEditing(null);
-    setNotice(password === 'reddedildi' ? `“${connection.name}” kaydedildi ama ${SAVE_DENIED}` : null);
+    if (password === 'reddedildi') bildir.hata(`“${connection.name}” kaydedildi ama ${SAVE_DENIED}`);
   }
 
   async function confirmDelete(connection: Connection) {
@@ -550,13 +642,13 @@ export function App() {
       setSession(connection.id, null);
       catalogs.drop(connection.id);
       setEditing(null);
-      setNotice(
-        result.password === 'reddedildi'
-          ? `“${connection.name}” silindi ama keychain'e erişilemediği için şifresi keychain'de kaldı (service tezgah, hesap ${connection.id}).`
-          : null,
-      );
+      if (result.password === 'reddedildi') {
+        bildir.hata(
+          `“${connection.name}” silindi ama keychain'e erişilemediği için şifresi keychain'de kaldı (service tezgah, hesap ${connection.id}).`,
+        );
+      }
     } catch (err) {
-      setNotice(`Silinemedi: ${errorMessage(err)}`);
+      bildir.hata(`Silinemedi:${errorMessage(err)}`);
     } finally {
       setDeleting(null);
     }
@@ -567,7 +659,7 @@ export function App() {
       const result = await api.updateConnection(connection.id, { ...connectionRequest(connection), folderId });
       setConnections((list) => (list ?? []).map((c) => (c.id === connection.id ? result.connection : c)));
     } catch (err) {
-      setNotice(`“${connection.name}” taşınamadı: ${errorMessage(err)}`);
+      bildir.hata(`“${connection.name}” taşınamadı: ${errorMessage(err)}`);
     }
   }
 
@@ -582,24 +674,22 @@ export function App() {
       });
       edit(connection.id);
       if (password === 'reddedildi') {
-        setNotice(
+        bildir.hata(
           `“${connection.name}” oluşturuldu ama şifre kopyalanamadı: ${KEYCHAIN_UNREACHABLE}. Şifreyi formda yeniden girin.`,
         );
       }
     } catch (err) {
-      setNotice(`Kopyalanamadı: ${errorMessage(err)}`);
+      bildir.hata(`Kopyalanamadı: ${errorMessage(err)}`);
     }
   }
 
-  /** Panoya yazar; sonuç bilgi ya da uyarı satırında (`etiket`: "URL", "Ad"). */
+  /** Panoya yazar; sonuç toast'ta (`etiket`: "URL", "Ad"). */
   async function copyToClipboard(metin: string, etiket: string) {
     try {
       await navigator.clipboard.writeText(metin);
-      setNotice(null);
-      setInfo(`${etiket} kopyalandı: ${metin}`);
+      bildir.basari(`${etiket} kopyalandı: ${metin}`);
     } catch {
-      setInfo(null);
-      setNotice(`${etiket} panoya kopyalanamadı: ${metin}`);
+      bildir.hata(`${etiket} panoya kopyalanamadı: ${metin}`);
     }
   }
 
@@ -617,6 +707,7 @@ export function App() {
     showMenu(`${connection.name} menüsü`, at, [
       {
         label: 'Yeni konsol',
+        icon: <SquareTerminal />,
         disabled: targetDatabase === null,
         onSelect: () => {
           setSelectedId(connection.id);
@@ -625,23 +716,27 @@ export function App() {
       },
       {
         label: 'Hedef yap',
+        icon: <Crosshair />,
         disabled: targetDatabase === null || targetLock !== null,
         onSelect: () => {
           setSelectedId(connection.id);
           selectTarget(connection, targetDatabase!);
         },
       },
+      MENU_SEPARATOR,
       {
         label: session?.durum === 'bagli' ? 'Yenile' : 'Bağlan',
+        icon: session?.durum === 'bagli' ? <RefreshCw /> : <Plug />,
         disabled: session?.durum === 'baglaniyor',
         onSelect: () => void connect(connection),
       },
-      { label: 'Düzenle', onSelect: () => edit(connection.id) },
-      { label: 'Kopyala', onSelect: () => void copy(connection) },
-      { label: 'Klasöre taşı ▸', submenu: targets, disabled: folders.length === 0 },
-      { label: 'URL’yi kopyala (şifresiz)', onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
-      { label: 'Bağlantıyı kes', disabled: session === undefined, onSelect: () => void disconnect(connection) },
-      { label: 'Sil', danger: true, onSelect: () => setDeleting(connection) },
+      { label: 'Düzenle', icon: <Pencil />, onSelect: () => edit(connection.id) },
+      { label: 'Kopyala', icon: <Copy />, onSelect: () => void copy(connection) },
+      { label: 'Klasöre taşı', icon: <FolderInput />, submenu: targets, disabled: folders.length === 0 },
+      { label: 'URL’yi kopyala (şifresiz)', icon: <Link />, onSelect: () => void copyToClipboard(buildConnectionUrl(connection), 'URL') },
+      MENU_SEPARATOR,
+      { label: 'Bağlantıyı kes', icon: <Unplug />, disabled: session === undefined, onSelect: () => void disconnect(connection) },
+      { label: 'Sil', icon: <Trash2 />, danger: true, onSelect: () => setDeleting(connection) },
     ]);
   }
 
@@ -654,25 +749,32 @@ export function App() {
   function databaseMenu(connection: Connection, database: string, at: MenuPosition) {
     const target = { connectionId: connection.id, database };
     showMenu(`${database} menüsü`, at, [
-      { label: 'Yeni konsol', onSelect: () => newConsole(target) },
-      { label: 'Hedef yap', disabled: targetLock !== null, onSelect: () => selectTarget(connection, database) },
-      { label: 'Adı kopyala', onSelect: () => void copyToClipboard(database, 'Ad') },
+      { label: 'Yeni konsol', icon: <SquareTerminal />, onSelect: () => newConsole(target) },
+      { label: 'Hedef yap', icon: <Crosshair />, disabled: targetLock !== null, onSelect: () => selectTarget(connection, database) },
+      MENU_SEPARATOR,
+      { label: 'Adı kopyala', icon: <Copy />, onSelect: () => void copyToClipboard(database, 'Ad') },
     ]);
   }
 
   function tableMenu(connection: Connection, database: string, schema: string, table: string, at: MenuPosition) {
     const name = `${identSql(schema)}.${identSql(table)}`;
     showMenu(`${schema}.${table} menüsü`, at, [
-      { label: 'Aç', onSelect: () => openTable(connection, database, schema, table) },
-      { label: 'Yeni konsolda SELECT', onSelect: () => newConsole({ connectionId: connection.id, database }, `SELECT * FROM ${name};`) },
-      { label: 'Adı kopyala', onSelect: () => void copyToClipboard(name, 'Ad') },
+      { label: 'Aç', icon: <Table2 />, onSelect: () => openTable(connection, database, schema, table) },
+      {
+        label: 'Yeni konsolda SELECT',
+        icon: <SquareTerminal />,
+        onSelect: () => newConsole({ connectionId: connection.id, database }, `SELECT * FROM ${name};`),
+      },
+      MENU_SEPARATOR,
+      { label: 'Adı kopyala', icon: <Copy />, onSelect: () => void copyToClipboard(name, 'Ad') },
     ]);
   }
 
   function folderMenu(folder: Folder, at: MenuPosition) {
     showMenu(`${folder.name} klasör menüsü`, at, [
-      { label: 'Yeniden adlandır', onSelect: () => setFolderDialog({ kind: 'yeniden-adlandir', folder }) },
-      { label: 'Sil', danger: true, onSelect: () => setFolderDialog({ kind: 'sil', folder }) },
+      { label: 'Yeniden adlandır', icon: <Pencil />, onSelect: () => setFolderDialog({ kind: 'yeniden-adlandir', folder }) },
+      MENU_SEPARATOR,
+      { label: 'Sil', icon: <Trash2 />, danger: true, onSelect: () => setFolderDialog({ kind: 'sil', folder }) },
     ]);
   }
 
@@ -699,74 +801,71 @@ export function App() {
       setFolders((list) => list.filter((f) => f.id !== folder.id));
       setConnections((list) => (list ?? []).map((c) => (c.folderId === folder.id ? { ...c, folderId: null } : c)));
     } catch (err) {
-      setNotice(`Klasör silinemedi: ${errorMessage(err)}`);
+      bildir.hata(`Klasör silinemedi: ${errorMessage(err)}`);
     } finally {
       setFolderDialog(null);
     }
   }
 
   return (
-    <div className={`tezgah${targetConnection && isProd(targetConnection.envTag) ? ' prod-cerceve' : ''}`}>
+    <div className={`tezgah${prodFrame ? ' prod-cerceve' : ''}`}>
       {!navigatorOpen && (
         <button
           type="button"
           className="gezgin-seridi"
           aria-label="Gezgini aç"
-          title={`Gezgini aç (${NAVIGATOR_SHORTCUT})`}
+          title={`Gezgini aç (${kisayol('gezgin')})`}
           onClick={() => setNavigatorOpen(true)}
         >
-          » Gezgin
+          <PanelLeftOpen aria-hidden="true" /> Gezgin
         </button>
       )}
       {/* Gizlenince kapanmaz: açık düğümler, yüklü şemalar ve arama korunur. */}
-      <aside className="kenar" hidden={!navigatorOpen}>
+      <aside className="kenar" hidden={!navigatorOpen} style={{ width: navigatorWidth }}>
+        <Bolucu
+          yon="dikey"
+          deger={navigatorWidth}
+          min={navigatorBounds.min}
+          max={navigatorBounds.max}
+          adim={16}
+          varsayilan={ARAYUZ_TERCIHLERI_VARSAYILAN.gezgin.genislik}
+          onDegis={setDraggedWidth}
+          onBitir={(genislik) => {
+            setDraggedWidth(null);
+            updatePreferences((p) => ({ gezgin: { ...p.gezgin, genislik } }));
+          }}
+          aria-label="Gezgin genişliği"
+        />
         <header className="kenar-baslik">
           <h1>Tezgah</h1>
-          <button
-            type="button"
-            className="ikon-dugme kisayol-dugmesi"
+          <Dugme
+            tur="sade"
+            boyut="kucuk"
+            className="kisayol-dugmesi"
             aria-label="Hızlı geçiş"
-            title={`Hızlı geçiş (${PALETTE_SHORTCUT})`}
+            title={`Hızlı geçiş (${kisayol('palet')})`}
             onClick={() => setPaletteOpen(true)}
           >
-            {PALETTE_SHORTCUT}
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="İçe aktar"
-            title="İçe aktar (.pgpass)"
-            onClick={() => setImportOpen(true)}
-          >
-            <span aria-hidden="true">⇩</span>
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="Yeni klasör"
-            title="Yeni klasör"
-            onClick={() => setFolderDialog({ kind: 'yeni' })}
-          >
-            <span aria-hidden="true">⊞</span>
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
-            aria-label="Yeni bağlantı"
-            title="Yeni bağlantı"
-            onClick={() => open({ kind: 'yeni' })}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            className="ikon-dugme"
+            {kisayol('palet')}
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="İçe aktar" title="İçe aktar (.pgpass)" onClick={() => setImportOpen(true)}>
+            <Import aria-hidden="true" />
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="Yeni klasör" title="Yeni klasör" onClick={() => setFolderDialog({ kind: 'yeni' })}>
+            <FolderPlus aria-hidden="true" />
+          </Dugme>
+          <Dugme tur="sade" ikon aria-label="Yeni bağlantı" title="Yeni bağlantı" onClick={() => open({ kind: 'yeni' })}>
+            <Plus aria-hidden="true" />
+          </Dugme>
+          <Dugme
+            tur="sade"
+            ikon
             aria-label="Gezgini gizle"
-            title={`Gezgini gizle (${NAVIGATOR_SHORTCUT})`}
+            title={`Gezgini gizle (${kisayol('gezgin')})`}
             onClick={() => setNavigatorOpen(false)}
           >
-            «
-          </button>
+            <PanelLeftClose aria-hidden="true" />
+          </Dugme>
         </header>
         <nav aria-label="Bağlantılar" className="baglantilar">
           {connections && (
@@ -799,24 +898,8 @@ export function App() {
             />
           )}
         </nav>
-        <footer className="kenar-alt">{status.kind === 'ok' && <span>v{status.version}</span>}</footer>
       </aside>
       <main className="calisma-alani">
-        {status.kind === 'error' && (
-          <p role="alert" className="uyari">
-            {status.message}
-          </p>
-        )}
-        {notice && (
-          <p role="alert" className="uyari">
-            {notice}
-          </p>
-        )}
-        {info && (
-          <p role="status" className="bilgi">
-            {info}
-          </p>
-        )}
         {formOpen && (
           <BaglantiFormu
             key={edited?.id ?? (editing?.kind === 'yeni' && editing.url ? `url-${editing.url.key}` : 'yeni')}
@@ -846,11 +929,22 @@ export function App() {
           hidden={formOpen}
           historyOpen={historyOpen}
           onCloseHistory={closeHistory}
+          onToggleHistory={toggleHistory}
+          onSekmeDurumu={changeTabStatus}
           onOpenFromHistory={openFromHistory}
           onOpenConsole={openConsoleWith}
           autoLoadTabs={autoLoadTabs}
+          sonucOrani={preferences.sonucOrani}
+          sonucDaraltilmis={preferences.sonucDaraltilmis}
+          onSonucAlani={updatePreferences}
         />
       </main>
+      <DurumCubugu
+        hedef={targetConnection && target ? { connection: targetConnection, database: target.database } : null}
+        durum={(activeTab && tabStatuses[activeTab.id]) ?? null}
+        surum={status.kind === 'ok' ? status.version : null}
+        onKisayollar={openShortcuts}
+      />
       {paletteOpen && (
         <HizliGecis
           connections={connections ?? []}
@@ -871,6 +965,7 @@ export function App() {
         />
       )}
       {menu && <Menu key={menu.key} x={menu.x} y={menu.y} label={menu.label} items={menu.items} onClose={closeMenu} />}
+      {shortcutsOpen && <KisayolSayfasi onClose={closeShortcuts} />}
       {folderDialog && folderDialog.kind !== 'sil' && (
         <KlasorAdi
           title={folderDialog.kind === 'yeni' ? 'Yeni klasör' : 'Klasörü yeniden adlandır'}
@@ -902,17 +997,15 @@ export function App() {
         />
       )}
       {hostKeyPrompt && (
-        <div className="perde">
-          <div role="dialog" aria-modal="true" aria-label="Host anahtarı" className="diyalog">
-            <HostAnahtariKutusu
-              problem={hostKeyPrompt.problem}
-              kind={hostKeyPrompt.kind}
-              onTrust={() => trustHostKey(hostKeyPrompt)}
-              onForget={() => forgetHostKey(hostKeyPrompt)}
-              onCancel={() => closeHostKey(hostKeyPrompt, false)}
-            />
-          </div>
-        </div>
+        <Diyalog baslik="Host anahtarı" onClose={() => closeHostKey(hostKeyPrompt, false)}>
+          <HostAnahtariKutusu
+            problem={hostKeyPrompt.problem}
+            kind={hostKeyPrompt.kind}
+            onTrust={() => trustHostKey(hostKeyPrompt)}
+            onForget={() => forgetHostKey(hostKeyPrompt)}
+            onCancel={() => closeHostKey(hostKeyPrompt, false)}
+          />
+        </Diyalog>
       )}
       {importOpen && (
         <IceAktarma

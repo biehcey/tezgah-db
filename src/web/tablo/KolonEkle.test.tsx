@@ -51,7 +51,7 @@ async function setup({ conn = DEV, firstPage = page() }: { conn?: Connection; fi
   await screen.findByRole('region', { name: 'public.users tablosu' });
   await user.click(t().getByRole('button', { name: 'Yükle' }));
   await within(tableTab()).findByRole('grid');
-  await user.click(t().getByRole('button', { name: '+ Kolon' }));
+  await user.click(t().getByRole('button', { name: 'Kolon' }));
   return { user, fake, runs };
 }
 
@@ -75,7 +75,7 @@ describe('+ Kolon: form ve canlı önizleme', () => {
     const { user } = await setup();
     expect(alterSql()).toBe('ALTER TABLE "public"."users" ADD COLUMN "";');
     expect(button('Uygula')).toBeDisabled();
-    expect(button('⟲ Dene')).toBeDisabled();
+    expect(button('Dene')).toBeDisabled();
 
     await user.type(nameBox(), 'son');
     expect(alterSql()).toBe('ALTER TABLE "public"."users" ADD COLUMN "son";');
@@ -108,7 +108,7 @@ describe('+ Kolon: form ve canlı önizleme', () => {
     await fill(user, nameBox(), 'son');
     await user.click(button('Vazgeç'));
     expect(t().queryByRole('region', { name: 'Kolon ekle' })).not.toBeInTheDocument();
-    await user.click(t().getByRole('button', { name: '+ Kolon' }));
+    await user.click(t().getByRole('button', { name: 'Kolon' }));
     expect(nameBox()).toHaveValue('');
   });
 });
@@ -195,7 +195,7 @@ describe('+ Kolon: Uygula, Dene, Konsola aktar', () => {
   it('Dene: Deneme modunda çalışır ve DDL şema farkını gösterir', async () => {
     const { user, runs } = await setup();
     await fillColumn(user, 'son', 'timestamptz');
-    await user.click(button('⟲ Dene'));
+    await user.click(button('Dene'));
     expect(runs.last()).toMatchObject({ deneme: true, script: 'ALTER TABLE "public"."users" ADD COLUMN "son" timestamptz;' });
     expect(runs.last().beklenenSatir).toBeUndefined();
     const kolon = (no: number, ad: string, tip: string) => ({ no, ad, tip, bos: true, varsayilan: null });
@@ -225,8 +225,10 @@ describe('+ Kolon: Uygula, Dene, Konsola aktar', () => {
     const { user } = await setup({ conn: PROD });
     await fillColumn(user, 'son', 'timestamptz');
     expect(button('Uygula')).toBeDisabled();
-    expect(button('⟲ Dene')).toBeEnabled();
-    await user.click(form().getByRole('button', { name: '🔒 Salt okunur' }));
+    expect(button('Dene')).toBeEnabled();
+    // Kilidin tek kontrolü Tablo sekmesinin başlığındadır; formda ikincisi yok.
+    expect(form().queryByRole('button', { name: 'Salt okunur' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Salt okunur' }));
     expect(button('Uygula')).toBeEnabled();
   });
 

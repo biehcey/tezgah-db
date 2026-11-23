@@ -1,8 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TabsFormatError, emptyTabs, parseTabs, type SavedTabs } from '../core/konsol-sekmeleri';
-import { writeFileAtomic } from './ayar-deposu';
+import { JsonFileError, createJsonFile } from './json-dosyasi';
 import { json, methodNotAllowed, readJson } from './http';
 
 /** Sekmeler `tezgah.json`'dan ayrı, kendi dizininde: sık değişen metin bağlantı ayarlarıyla yazılmaz. */
@@ -30,48 +29,36 @@ export interface TabStore {
 }
 
 export function createTabStore(configDir: string): TabStore {
-  const dir = join(configDir, TABS_DIR);
-  const file = join(dir, TABS_FILE);
-  let queue: Promise<unknown> = Promise.resolve();
+  const store = createJsonFile(join(configDir, TABS_DIR, TABS_FILE), { mode: 0o600 });
 
   async function read(): Promise<SavedTabs> {
-    let text: string;
+    let found: { raw: unknown } | undefined;
     try {
-      text = await readFile(file, 'utf8');
+      found = await store.read();
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return emptyTabs();
-      throw new TabsFileError(`${file} okunamadı: ${(err as Error).message}`, { cause: err });
+      if (err instanceof JsonFileError) throw new TabsFileError(err.message, { cause: err.cause });
+      throw err;
     }
-    let raw: unknown;
+    if (!found) return emptyTabs();
     try {
-      raw = JSON.parse(text);
-    } catch (err) {
-      throw new TabsFileError(`${file} çözümlenemedi: ${(err as Error).message}`, { cause: err });
-    }
-    try {
-      return parseTabs(raw);
+      return parseTabs(found.raw);
     } catch (err) {
       if (!(err instanceof TabsFormatError)) throw err;
-      throw new TabsFileError(`${file}: ${err.message}`, { newer: err.newer, cause: err });
+      throw new TabsFileError(`${store.file}: ${err.message}`, { newer: err.newer, cause: err });
     }
-  }
-
-  async function write(tabs: SavedTabs): Promise<SavedTabs> {
-    // Daha yeni bir Tezgah'ın dosyası ezilmez; bozuk ya da eski dosyanın yerine yenisi yazılır.
-    await read().catch((err: unknown) => {
-      if (err instanceof TabsFileError && err.newer) throw err;
-    });
-    await mkdir(dir, { recursive: true });
-    await writeFileAtomic(file, `${JSON.stringify(tabs, null, 2)}\n`, { mode: 0o600 });
-    return tabs;
   }
 
   return {
     read,
     write(tabs) {
-      const run = queue.then(() => write(tabs));
-      queue = run.catch(() => {});
-      return run;
+      return store.serial(async () => {
+        // Daha yeni bir Tezgah'ın dosyası ezilmez; bozuk ya da eski dosyanın yerine yenisi yazılır.
+        await read().catch((err: unknown) => {
+          if (err instanceof TabsFileError && err.newer) throw err;
+        });
+        await store.write(tabs);
+        return tabs;
+      });
     },
   };
 }

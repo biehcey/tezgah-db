@@ -3,6 +3,8 @@ import { decisionStatus, formatRemaining, type DecisionPhase, type DecisionTimer
 import type { SessionTab } from '../../core/konsol-sekmeleri';
 import { formatSummary, type RunView } from '../../core/script-calistirma';
 import { BekletmeGostergesi } from './BekletmeGostergesi';
+import { TriangleAlert } from 'lucide-react';
+import { Dugme } from '../ortak/Dugme';
 
 /**
  * Transaction'ın karar kartı: çalışırken ilerleme, karar beklenirken Commit/Rollback/Uzat ve Karar
@@ -66,17 +68,17 @@ export function KararKarti({
         <BekletmeGostergesi oturumlar={run.bekletilenler} />
         <div className="karar-dugmeleri">
           {run.commitEdilebilir && (
-            <button type="button" className="birincil" onClick={() => onRequest('commit')} disabled={pending}>
+            <Dugme tur="birincil" onClick={() => onRequest('commit')} disabled={pending}>
               Commit
-            </button>
+            </Dugme>
           )}
-          <button type="button" onClick={() => onRequest('rollback')} disabled={pending}>
+          <Dugme onClick={() => onRequest('rollback')} disabled={pending}>
             Rollback
-          </button>
+          </Dugme>
           {counting && (
-            <button type="button" onClick={() => onRequest('uzat')} disabled={pending}>
+            <Dugme onClick={() => onRequest('uzat')} disabled={pending}>
               Uzat
-            </button>
+            </Dugme>
           )}
         </div>
       </>
@@ -111,7 +113,7 @@ export function KararKarti({
       )}
       {run?.kayitUyarisi && (
         <p role="status" className="uyari kucuk">
-          ⚠ {run.kayitUyarisi}
+          <TriangleAlert aria-hidden="true" /> {run.kayitUyarisi}
         </p>
       )}
     </section>

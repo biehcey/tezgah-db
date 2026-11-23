@@ -1,5 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { Plus, SquareTerminal, Table2, X } from 'lucide-react';
 import { Onay } from '../ortak/Onay';
+import { Dugme } from '../ortak/Dugme';
+import { Rozet } from '../ortak/Rozet';
+import type { SekmeDurumu } from '../ortak/DurumCubugu';
+import { modalOpen } from '../ortak/pencere';
 import type { Connection } from '../../core/baglanti';
 import { sessionTabs, type ConsoleState, type OpenTab, type SessionTab, type TabTarget } from '../../core/konsol-sekmeleri';
 import type { HistoryEntry } from '../../core/gecmis-filtresi';
@@ -28,19 +33,26 @@ interface Props {
   catalogs: Readonly<Record<string, CatalogEntry>>;
   /** Sekme katalog istedi (ilk çalıştırma, ↻, DDL sonrası tazelendi). */
   onCatalog: (target: Target, reason: CatalogReason) => Promise<unknown>;
-  /** "hedefi değiştir ▾": hızlı geçiş paletini açar. */
+  /** "hedefi değiştir": hızlı geçiş paletini açar. */
   onChangeTarget: () => void;
   /** Konsol gizli (ör. bağlantı formu açık); sekmeler ve açık transaction'ları korunur. */
   hidden?: boolean;
-  /** Sorgu geçmişi paneli açık mı (Ctrl/Cmd+Alt+E). */
+  /** Sorgu geçmişi çekmecesi açık mı (Ctrl/Cmd+Alt+E ya da hedef başlığındaki düğme). */
   historyOpen: boolean;
   onCloseHistory: () => void;
+  onToggleHistory: () => void;
+  /** Sekmenin Durum çubuğu değerleri değişti. */
+  onSekmeDurumu: (id: string, durum: SekmeDurumu) => void;
   /** Geçmişten çift tık: kaydın metni yeni sekmede, kaydın hedefiyle. */
   onOpenFromHistory: (entry: HistoryEntry) => void;
   /** Tablo sekmesinden "Konsola aktar": metin, verilen hedefte yeni konsol sekmesinde. */
   onOpenConsole: (hedef: TabTarget | null, metin: string) => void;
   /** Bu oturumda listeden açılan Tablo sekmeleri: ilk sayfa hemen çekilir (geri gelenler "Yükle" bekler). */
   autoLoadTabs?: ReadonlySet<string>;
+  /** Arayüz tercihlerinden Sonuç alanının oranı ve daraltılmışlığı; konsol sekmeleri ortak kullanır. */
+  sonucOrani: number;
+  sonucDaraltilmis: boolean;
+  onSonucAlani: ComponentProps<typeof ScriptEkrani>['onSonucAlani'];
 }
 
 /** Sekmenin hedefi: bağlantısı hâlâ varsa bağlantı + veritabanı. */
@@ -82,9 +94,14 @@ export function Konsol({
   hidden = false,
   historyOpen,
   onCloseHistory,
+  onToggleHistory,
+  onSekmeDurumu,
   onOpenFromHistory,
   onOpenConsole,
   autoLoadTabs = new Set(),
+  sonucOrani,
+  sonucDaraltilmis,
+  onSonucAlani,
 }: Props) {
   const openSessions = new Set(Object.keys(targetLocks));
   const activeTarget = resolveTarget(state.tabs.find((t) => t.id === state.active)?.hedef ?? null, connections);
@@ -101,6 +118,7 @@ export function Konsol({
       return count === 0 ? rest : { ...rest, [id]: count };
     }),
   );
+  const durumChangers = useCallbacksById((id: string, durum: SekmeDurumu) => onSekmeDurumu(id, durum));
   const requestClose = (id: string) => ((pending[id] ?? 0) > 0 ? setClosing(id) : onClose(id));
   const closingTab = closing ? state.tabs.find((t) => t.id === closing) : undefined;
   return (
@@ -129,31 +147,33 @@ export function Konsol({
                     aria-hidden="true"
                   />
                   <span className="sekme-turu" title={tab.tur === 'tablo' ? 'Tablo' : 'Konsol'} aria-hidden="true">
-                    {tab.tur === 'tablo' ? '▦' : '›_'}
+                    {tab.tur === 'tablo' ? <Table2 /> : <SquareTerminal />}
                   </span>
                   {title}
                   {count > 0 && (
-                    <span className="rozet sayi-rozeti" aria-label={`${count} bekleyen değişiklik`}>
+                    <Rozet tur="sayi" aria-label={`${count} bekleyen değişiklik`}>
                       {count}
-                    </span>
+                    </Rozet>
                   )}
                 </button>
-                <button
-                  type="button"
-                  className="ikon-dugme sekme-kapat"
+                <Dugme
+                  tur="sade"
+                  boyut="kucuk"
+                  ikon
+                  className="sekme-kapat"
                   aria-label={`${title} sekmesini kapat`}
                   title="Sekmeyi kapat"
                   onClick={() => requestClose(tab.id)}
                 >
-                  ×
-                </button>
+                  <X aria-hidden="true" />
+                </Dugme>
               </div>
             );
           })}
         </div>
-        <button type="button" className="ikon-dugme yeni-sekme" aria-label="Yeni sekme" title="Yeni sekme" onClick={onNew}>
-          +
-        </button>
+        <Dugme tur="sade" ikon className="yeni-sekme" aria-label="Yeni sekme" title="Yeni sekme" onClick={onNew}>
+          <Plus aria-hidden="true" />
+        </Dugme>
       </div>
       <div className="konsol-govde">
         <div className="konsol-ekrani">
@@ -179,6 +199,7 @@ export function Konsol({
                   onPendingChange={pendingChangers(tab.id)}
                   onExportToConsole={(metin) => onOpenConsole(tab.hedef, metin)}
                   onCatalog={(reason) => target && void onCatalog({ connectionId: target.connection.id, database: target.database }, reason)}
+                  onDurum={durumChangers(tab.id)}
                   hidden={hidden || tab.id !== state.active}
                 />
               );
@@ -197,17 +218,24 @@ export function Konsol({
                 onToggleWriteMode={onToggleWriteMode}
                 onTargetLockChange={onTargetLockChange}
                 onChangeTarget={onChangeTarget}
+                sonucOrani={sonucOrani}
+                sonucDaraltilmis={sonucDaraltilmis}
+                onSonucAlani={onSonucAlani}
+                onDurum={durumChangers(tab.id)}
+                onHistory={onToggleHistory}
               />
             );
           })}
         </div>
         {historyOpen && (
-          <GecmisPaneli
-            connections={connections}
-            activeTarget={activeTarget && { connectionId: activeTarget.connection.id, database: activeTarget.database }}
-            onOpen={onOpenFromHistory}
-            onClose={onCloseHistory}
-          />
+          <GecmisCekmecesi onClose={onCloseHistory}>
+            <GecmisPaneli
+              connections={connections}
+              activeTarget={activeTarget && { connectionId: activeTarget.connection.id, database: activeTarget.database }}
+              onOpen={onOpenFromHistory}
+              onClose={onCloseHistory}
+            />
+          </GecmisCekmecesi>
         )}
       </div>
       {closingTab?.tur === 'tablo' && (
@@ -222,6 +250,35 @@ export function Konsol({
           onCancel={() => setClosing(null)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Sorgu geçmişi çekmecesi: konsolun sağından üste biner, editörü daraltmaz. Esc ve dışına tıklama
+ * kapatır; açan düğmeye tıklamak düğmenin kendi işidir (aç/kapat).
+ */
+function GecmisCekmecesi({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onPointer = (e: MouseEvent) => {
+      const hedef = e.target as Element;
+      if (ref.current?.contains(hedef) || hedef.closest?.('.gecmis-dugmesi, [role="dialog"], [role="menu"]')) return;
+      onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented && !modalOpen()) onClose();
+    };
+    window.addEventListener('mousedown', onPointer);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onPointer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+  return (
+    <div ref={ref} className="gecmis-cekmecesi">
+      {children}
     </div>
   );
 }
@@ -253,6 +310,11 @@ function KonsolSekmesi({
   onToggleWriteMode,
   onTargetLockChange,
   onChangeTarget,
+  sonucOrani,
+  sonucDaraltilmis,
+  onSonucAlani,
+  onDurum,
+  onHistory,
 }: {
   tab: OpenTab;
   target: ReturnType<typeof resolveTarget>;
@@ -260,7 +322,12 @@ function KonsolSekmesi({
   sessionTabs: SessionTab[];
   catalog: CatalogEntry | undefined;
   onCatalog: Props['onCatalog'];
-} & Pick<Props, 'onActivate' | 'onScriptChange' | 'onToggleWriteMode' | 'onTargetLockChange' | 'onChangeTarget'>) {
+  onDurum: (durum: SekmeDurumu) => void;
+  onHistory: () => void;
+} & Pick<
+  Props,
+  'onActivate' | 'onScriptChange' | 'onToggleWriteMode' | 'onTargetLockChange' | 'onChangeTarget' | 'sonucOrani' | 'sonucDaraltilmis' | 'onSonucAlani'
+>) {
   const { id } = tab;
   const lockChanged = useCallback((reason: string | null) => onTargetLockChange(id, reason), [id, onTargetLockChange]);
   const scriptChanged = useCallback((script: string) => onScriptChange(id, script), [id, onScriptChange]);
@@ -287,6 +354,11 @@ function KonsolSekmesi({
       onCatalog={catalogWanted}
       onGoToTab={onActivate}
       hidden={hidden}
+      sonucOrani={sonucOrani}
+      sonucDaraltilmis={sonucDaraltilmis}
+      onSonucAlani={onSonucAlani}
+      onDurum={onDurum}
+      onHistory={onHistory}
     />
   );
 }

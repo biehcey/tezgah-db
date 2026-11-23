@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import { BildirimSaglayici } from '../ortak/Bildirimler';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '../../core/katalog';
@@ -162,7 +163,7 @@ describe('Satır görünümü: Satır sekmesi', () => {
     expect(field('id')).toHaveAccessibleDescription('Birincil anahtar (PK) yüklü satırda düzenlenmez');
     expect(p().queryByRole('button', { name: 'id: NULL yap' })).not.toBeInTheDocument();
 
-    await user.click(t().getByRole('button', { name: '+ Satır' }));
+    await user.click(t().getByRole('button', { name: 'Satır' }));
     expect(panel()).toHaveTextContent('Yeni satır');
     expect(field('id')).not.toHaveAttribute('readonly');
     expect(field('ad')).toHaveAttribute('placeholder', 'DEFAULT');
@@ -176,7 +177,7 @@ describe('Satır görünümü: Satır sekmesi', () => {
     expect(panel()).toHaveTextContent('Silinecek satır düzenlenemez; önce silmeyi geri alın.');
     expect(field('ad')).toHaveAttribute('readonly');
 
-    await user.click(p().getByRole('button', { name: '↶ Geri al' }));
+    await user.click(p().getByRole('button', { name: 'Geri al' }));
     expect(t().queryByRole('region', { name: 'SQL önizlemesi' })).not.toBeInTheDocument();
     expect(field('ad')).not.toHaveAttribute('readonly');
   });
@@ -207,6 +208,7 @@ describe('Satır görünümü: konsol sonucu', () => {
       <GridOlcumu.Provider value={JSDOM_OLCUMU}>
         <SonucGovdesi etiket="Sonuç 1" kolonlar={['a']} satirlar={[['uzun\ndeğer']]} toplamSatir={1} />
       </GridOlcumu.Provider>,
+      { wrapper: BildirimSaglayici },
     );
     const grid = screen.getByRole('grid', { name: 'Sonuç 1' });
     await user.click(within(grid).getAllByRole('gridcell')[0]!);

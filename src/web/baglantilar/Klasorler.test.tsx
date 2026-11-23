@@ -203,7 +203,7 @@ describe('bağlantı menüsü', () => {
       'Bağlan',
       'Düzenle',
       'Kopyala',
-      'Klasöre taşı ▸',
+      'Klasöre taşı',
       'URL’yi kopyala (şifresiz)',
       'Bağlantıyı kes',
       'Sil',
@@ -233,7 +233,7 @@ describe('bağlantı menüsü', () => {
     fireEvent.contextMenu(await within(nav()).findByRole('button', { name: /Analitik/ }));
     await user.click(screen.getByRole('menuitem', { name: 'URL’yi kopyala (şifresiz)' }));
     expect(await navigator.clipboard.readText()).toBe('postgres://app@db.example:6432/analytics');
-    expect(await screen.findByRole('status')).toHaveTextContent('URL kopyalandı: postgres://app@db.example:6432/analytics');
+    expect(await within(screen.getByRole('region', { name: 'Bildirimler' })).findByRole('status')).toHaveTextContent('URL kopyalandı: postgres://app@db.example:6432/analytics');
   });
 });
 

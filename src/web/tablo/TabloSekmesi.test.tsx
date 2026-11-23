@@ -297,6 +297,19 @@ describe('Tablo sekmesi: WHERE ve ORDER BY', () => {
     });
   });
 
+  it('filtre boş sayfa döndürünce Durum çubuğundaki seçim özeti kalkar', async () => {
+    const { user, fake } = await setup();
+    await openUsers(user, fake);
+    const bar = () => screen.getByRole('contentinfo', { name: 'Durum çubuğu' });
+    await user.click(within(grid()).getAllByRole('gridcell')[0]!);
+    await user.keyboard('{Shift>}{ArrowDown}{/Shift}');
+    await waitFor(() => expect(within(bar()).getByLabelText('Seçim özeti')).toHaveTextContent('2 hücre'));
+    fake.tablePage = async () => page({ satirlar: [] });
+    applyBox('WHERE', 'id < 0');
+    await waitFor(() => expect(within(tableTab()).queryAllByRole('gridcell')).toHaveLength(0));
+    expect(within(bar()).queryByLabelText('Seçim özeti')).not.toBeInTheDocument();
+  });
+
   it('sonraki sayfalar uygulanan filtreyle istenir', async () => {
     const { user, fake } = await setup();
     await openUsers(user, fake);
