@@ -22,7 +22,8 @@ describe('gridCopyShortcut: grid’de TSV kopyala', () => {
   it.each<[string, Partial<ShortcutKey>, ReturnType<typeof gridCopyShortcut>]>([
     ['Ctrl+C', { key: 'c', ctrl: true }, 'tsv'],
     ['Cmd+C', { key: 'c', meta: true }, 'tsv'],
-    ['Ctrl+Shift+C başlıklı', { key: 'C', ctrl: true, shift: true }, 'baslikliTsv'],
+    ['Ctrl+Shift+C kopyalamaz (Chrome öğe incelemeye ayırır)', { key: 'C', ctrl: true, shift: true }, null],
+    ['Cmd+Shift+C kopyalamaz', { key: 'C', meta: true, shift: true }, null],
     ['Ctrl+Alt+C kopyalamaz', { key: 'c', ctrl: true, alt: true }, null],
     ['AltGr+C (Windows: Ctrl+Alt) kopyalamaz', { key: 'c', ctrl: true, alt: true, altGraph: true }, null],
     ['yalnızca AltGraph da kopyalamaz', { key: 'c', ctrl: true, altGraph: true }, null],
@@ -172,7 +173,6 @@ describe('eşleyiciler katalogla tutarlı', () => {
     ['tabloSql', (e: ShortcutKey) => tableShortcut(e), 'sql'],
     ['satirGorunumu', (e: ShortcutKey) => rowViewShortcut(e, false), 'ac'],
     ['kopyala', (e: ShortcutKey) => gridCopyShortcut(e), 'tsv'],
-    ['baslikliKopyala', (e: ShortcutKey) => gridCopyShortcut(e), 'baslikliTsv'],
     ['gezgin', (e: ShortcutKey) => navigatorShortcut(e), true],
     ['gecmis', (e: ShortcutKey) => historyShortcut(e), true],
     ['kisayollar', (e: ShortcutKey) => shortcutsPageShortcut(e), true],

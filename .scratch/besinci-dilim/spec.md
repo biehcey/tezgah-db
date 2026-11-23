@@ -132,7 +132,7 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 74. Geliştirici olarak kolon tipinin başlıkta okunur boyutta (en az 11 px) yazmasını istiyorum.
 75. Geliştirici olarak bu iyileştirmelerin hem Sonuç grid'inde hem Tablo sekmesinde geçerli olmasını istiyorum.
 76. Geliştirici olarak grid'in sağ tık menüsünde "Kopyala" altında TSV, başlıklı TSV, CSV, Markdown, JSON ve (bugünkü) INSERT seçeneklerini görmek istiyorum.
-77. Geliştirici olarak Ctrl/Cmd+C'nin bugünkü gibi başlıksız TSV kopyalamasını, Ctrl/Cmd+Shift+C'nin başlıklı TSV kopyalamasını istiyorum.
+77. Geliştirici olarak Ctrl/Cmd+C'nin bugünkü gibi başlıksız TSV kopyalamasını istiyorum; başlıklı TSV "Kopyala" alt menüsündedir. (Ctrl/Cmd+Shift+C kısayolu 0.5.1'de kaldırıldı: Chrome bu tuşu öğe incelemeye ayırır ve sayfaya iletmez.)
 78. Geliştirici olarak CSV'nin başlık satırıyla, RFC 4180'e göre tırnaklanmış olmasını; NULL'un boş alan, boş metnin `""` olmasını istiyorum, böylece ikisi ayırt edilir.
 79. Geliştirici olarak Markdown kopyasının başlık ve ayırıcı satırıyla gelmesini, hücredeki `|` ve satır sonlarının tabloyu bozmamasını, sayısal kolonların sağa yaslı (`---:`) olmasını istiyorum.
 80. Geliştirici olarak JSON kopyasının kolon adlarıyla nesnelerden oluşan bir dizi olmasını istiyorum.
@@ -242,7 +242,7 @@ Tezgah'ın güvenlik modeli ve çekirdek akışları hazır, ama günlük kullan
 - Satır hover vurgusu; seçim ve düzenlenmiş hücre renkleri token'lara bağlanır.
 - Kopyalama biçimleri için yeni saf modül (`core/grid/kopyalama.ts`): `toCsv`, `toMarkdown`, `toJson`, başlıklı TSV (`toTsvWithHeader`, `tsv.ts`'de); girdi: seçili aralığın kolon adları, tip OID'leri ve satırları (tam değerler). INSERT bugünkü gibi seçili satırların tüm kolonlarını yazar. Kurallar User Stories 78–82'deki gibidir; ayrıca Markdown'da NULL `NULL` yazılır ve satır sonları `<br>` olur, JSON'da sayı olamayan float (`NaN`, `Infinity`) metin kalır, JSON anahtarları kolon sırasını korur. Mevcut başlıksız TSV ve INSERT değişmez.
 - Seçim özeti için saf fonksiyon: `secimOzeti(degerler, tipler)` (`core/grid/secim-ozeti.ts`) → `{ hucre: number; sayisal?: { adet, toplam: string, ortalama: string } }`. Tam sayı (`oid` dahil) ve `numeric` toplamı ondalık metin aritmetiğiyle kesin hesaplanır (BigInt üzerinden ölçekli; toplam en büyük ölçekle yazılır); `float4/8` ve `money` için Number kullanılır (`money`'nin yerel biçiminde rakam, nokta ve eksi dışındakiler atılır) ve böyle bir hücre varsa toplam Number olur, 15 anlamlı basamağa yuvarlanır. Ortalama en fazla 6 kesir basamağıyla, sıfırdan uzağa yuvarlanır; sondaki sıfırlar atılır. NULL, sayı olmayan değerler (`NaN`, `Infinity`) ve tipi bilinmeyen kolonlar sayılmaz.
-- Grid sağ tık menüsünde "Kopyala" alt grubu; Ctrl/Cmd+Shift+C başlıklı TSV.
+- Grid sağ tık menüsünde "Kopyala" alt grubu. Başlıklı TSV'nin kısayolu yoktur: Ctrl/Cmd+Shift+C Chrome'da sayfaya ulaşmaz; `gridCopyShortcut` Shift'li vuruşu kopyalamaz, tuşu tarayıcıya bırakır.
 
 ### Kısayol kataloğu ve palet
 

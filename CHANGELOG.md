@@ -1,5 +1,9 @@
 # Sürüm notları
 
+## 0.5.1
+
+- Grid'de Ctrl/Cmd+Shift+C kısayolu kaldırıldı: Chrome bu tuşu öğe incelemeye (DevTools) ayırıyor ve sayfaya iletmiyor. Başlıklı TSV sağ tık → **Kopyala** alt menüsünde kalır; Ctrl/Cmd+C başlıksız TSV kopyalamaya devam eder.
+
 ## 0.5.0
 
 ### Davranış değişikliği: Ctrl/Cmd+Enter
@@ -11,7 +15,7 @@ Konsol sekmesinde **Ctrl/Cmd+Enter artık tüm script'i değil, Çalışacak ara
 - Editör: Ctrl/Cmd+F ile ara/değiştir, parantez eşleşmesi, aktif satır vurgusu; Çalışacak aralık editörde hafif bir zeminle gösterilir.
 - Sunucu bildirimleri: `RAISE NOTICE`/`WARNING` ve diğer bildirimler Sonuç alanındaki "Bildirimler (N)" sekmesinde, ifadenin satırı, seviyesi ve `DETAIL`/`HINT` ile.
 - Yerleşim: boyutlandırılabilir ve kalıcı gezgin, editörün altında boyutlandırılabilir/daraltılabilir Sonuç alanı (Sonuç sekmeleri, Log, Değişiklikler, Bildirimler), karar şeridi, en altta Durum çubuğu (hedef, transaction durumu, son çalıştırma, grid seçim özeti), Sorgu geçmişi çekmecesi.
-- Grid: sayısal kolonlar sağa yaslı, belirgin NULL, seçim özeti (sayı, toplam, ortalama); sağ tık "Kopyala" alt menüsünde TSV, başlıklı TSV, CSV, Markdown, JSON, INSERT; Ctrl/Cmd+Shift+C başlıklı TSV kopyalar.
+- Grid: sayısal kolonlar sağa yaslı, belirgin NULL, seçim özeti (sayı, toplam, ortalama); sağ tık "Kopyala" alt menüsünde TSV, başlıklı TSV, CSV, Markdown, JSON, INSERT; Ctrl/Cmd+Shift+C başlıklı TSV kopyalar (0.5.1'de kaldırıldı).
 - Keşfedilebilirlik: tek kısayol kataloğundan beslenen tooltip'ler, genişleyen Ctrl/Cmd+K paleti (konsol, görünüm, tema komutları) ve `?` ile açılan kısayol sayfası.
 - Tema: Sistem/Açık/Koyu seçimi (palette); koyu temada okunur SQL renklendirmesi; yeni tasarım token'ları, diyalog ve bildirim kutuları.
 - Arayüz tercihleri (tema, gezgin, editör/sonuç oranı) yapılandırma dizinindeki `arayuz.json`'da saklanır.
