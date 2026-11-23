@@ -195,16 +195,12 @@ describe('Sonuç grid’i: gezinme ve seçim', () => {
     expect(await navigator.clipboard.readText()).toBe('ad 2');
   });
 
-  it('Ctrl/Cmd+Shift+C seçili aralığı seçili kolonların başlığıyla TSV olarak kopyalar', async () => {
+  it('Ctrl+Shift+C kopyalamaz ve tuşu tarayıcıya bırakır (Chrome öğe incelemeye ayırır)', async () => {
     const { user } = setup();
+    await navigator.clipboard.writeText('önceki');
     await user.click(cell(0, 1));
-    await user.keyboard('{Shift>}{ArrowDown}{ArrowRight}{/Shift}');
     await user.keyboard('{Control>}{Shift>}C{/Shift}{/Control}');
-    expect(await navigator.clipboard.readText()).toBe('ad\tnot\nad 1\t\nad 2\t');
-    expect(await screen.findByRole('status')).toHaveTextContent('2 satır başlıklı TSV olarak kopyalandı');
-    await user.click(cell(3, 0));
-    await user.keyboard('{Meta>}{Shift>}C{/Shift}{/Meta}');
-    expect(await navigator.clipboard.readText()).toBe('id\n4');
+    expect(await navigator.clipboard.readText()).toBe('önceki');
   });
 });
 
@@ -233,7 +229,7 @@ describe('Sonuç grid’i: Kopyala alt menüsü', () => {
     const menu = screen.getByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual([
       'TSVCtrl+C',
-      'Başlıklı TSVCtrl+Shift+C',
+      'Başlıklı TSV',
       'CSV',
       'Markdown',
       'JSON',

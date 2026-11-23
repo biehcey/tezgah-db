@@ -32,7 +32,7 @@ import { GridOlcumu, canvasTextWidth } from './olcum';
 import { useBildirimler } from '../ortak/Bildirimler';
 
 /** "Kopyala ▸" biçimlerinden kısayolu olanlar (katalogdaki). */
-const COPY_SHORTCUTS: Partial<Record<CopyFormat, ShortcutId>> = { tsv: 'kopyala', baslikliTsv: 'baslikliKopyala' };
+const COPY_SHORTCUTS: Partial<Record<CopyFormat, ShortcutId>> = { tsv: 'kopyala' };
 
 /** Sabit satır ve başlık yüksekliği (px); satırlar ölçülmez. CSS bunları `--grid-*` olarak alır. */
 const ROW_HEIGHT = 24;

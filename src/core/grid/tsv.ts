@@ -6,7 +6,7 @@ export function toTsv(rows: readonly (readonly (string | null)[])[]): string {
   return rows.map((row) => row.map(tsvCell).join('\t')).join('\n');
 }
 
-/** Başlıklı TSV (Ctrl/Cmd+Shift+C): ilk satır kolon adları, gerisi `toTsv` kurallarıyla. */
+/** Başlıklı TSV (grid'in Kopyala alt menüsü): ilk satır kolon adları, gerisi `toTsv` kurallarıyla. */
 export function toTsvWithHeader(kolonlar: readonly string[], rows: readonly (readonly (string | null)[])[]): string {
   return toTsv([kolonlar, ...rows]);
 }

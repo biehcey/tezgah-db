@@ -25,3 +25,4 @@ Spec: [Grid okunabilirliği ve kopyalama](../spec.md#grid-okunabilirliği-ve-kop
 - Spec'teki Grid maddesi, kodun netleştirdiği kurallarla yeniden yazıldı (kolonlar seçili aralıktan; Markdown NULL `NULL`, satır sonu `<br>`; JSON'da `NaN`/`Infinity` metin, anahtar sırası korunur).
 - Ticket 14: görsel tur bu oturumda yapılamadı (tarayıcı eklentisi bağlı değildi); bu kutu açık kaldı ve [ticket 15](15-tarayicida-gorsel-tur.md)'e taşındı.
 - Ticket 15: tarayıcıda doğrulandı (hover ve seçim zemini, düzenlenen hücre turuncumsu, tip etiketi 11 px, sayısal kolonlar sağa yaslı `tabular-nums`); kutu işaretlendi. Ctrl+Shift+C sayfaya ulaşıyor (başlıklı TSV yazıldı), ama Playwright tuşu tarayıcının kendi kısayollarını atlayarak gönderdiği için gerçek Chrome'daki DevTools çakışması elle denenmeli.
+- 2026-11-23: Ctrl/Cmd+Shift+C gerçek Chrome'da DevTools'a gidiyor; kısayol 0.5.1'de kaldırıldı (ticket 15 yorumu). "Ctrl/Cmd+Shift+C başlıklı TSV" maddesi artık geçerli değil.

@@ -31,7 +31,6 @@ Windows'ta AltGr, Ctrl+Alt sayılır ve karakter yazmaz. Tablo sekmesinde kısay
 | --- | --- |
 | Ctrl/Cmd+F | Editörde ara / değiştir (F3 ya da Ctrl/Cmd+G sonraki, +Shift önceki eşleşme) |
 | Ctrl/Cmd+C | Grid seçimini TSV olarak kopyala |
-| Ctrl/Cmd+Shift+C | Grid seçimini başlıklı TSV olarak kopyala |
 | Ctrl/Cmd+K | Hızlı geçiş ve komut paleti |
 | Ctrl/Cmd+B | Gezgini göster/gizle |
 | `?` | Kısayol sayfası (bir metin alanı odakta değilken; Durum çubuğundaki **?** düğmesi de açar) |

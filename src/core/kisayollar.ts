@@ -52,7 +52,6 @@ export const SHORTCUTS = [
   { id: 'hucreDuzenle', grup: 'Grid', aciklama: 'Hücreyi düzenle (yazmaya başlamak ya da çift tık da açar)', tuslar: [chord('F2')] },
   { id: 'nullYap', grup: 'Grid', aciklama: 'NULL yap', tuslar: [chord('N', { mod: true, shift: true })] },
   { id: 'kopyala', grup: 'Grid', aciklama: 'TSV olarak kopyala', tuslar: [chord('C', MOD)] },
-  { id: 'baslikliKopyala', grup: 'Grid', aciklama: 'Başlıklı TSV olarak kopyala', tuslar: [chord('C', { mod: true, shift: true })] },
   { id: 'tumunuSec', grup: 'Grid', aciklama: 'Tümünü seç', tuslar: [chord('A', MOD)] },
   { id: 'yapistir', grup: 'Grid', aciklama: 'TSV yapıştır (düzenlenebilir grid)', tuslar: [chord('V', MOD)] },
 
@@ -153,12 +152,13 @@ export function rowViewShortcut(e: ShortcutKey, open: boolean): 'ac' | 'kapat' |
 }
 
 /**
- * Grid'de Ctrl/Cmd+C TSV, +Shift başlıklı TSV kopyalar. Alt'lı vuruş kopyalamaz: Windows'ta AltGr
- * Ctrl+Alt gelir ve bazı düzenlerde AltGr+C bir karakter yazar.
+ * Grid'de Ctrl/Cmd+C başlıksız TSV kopyalar. Alt'lı vuruş kopyalamaz: Windows'ta AltGr Ctrl+Alt
+ * gelir ve bazı düzenlerde AltGr+C bir karakter yazar. Shift'li vuruş da kopyalamaz: Chrome
+ * Ctrl/Cmd+Shift+C'yi öğe incelemeye ayırır ve sayfaya iletmez; başlıklı TSV yalnızca menüdedir.
  */
-export function gridCopyShortcut(e: ShortcutKey): 'tsv' | 'baslikliTsv' | null {
-  if (!(e.ctrl || e.meta) || e.alt || e.altGraph || e.key.toLowerCase() !== 'c') return null;
-  return e.shift ? 'baslikliTsv' : 'tsv';
+export function gridCopyShortcut(e: ShortcutKey): 'tsv' | null {
+  if (!(e.ctrl || e.meta) || e.alt || e.altGraph || e.shift || e.key.toLowerCase() !== 'c') return null;
+  return 'tsv';
 }
 
 /** Ctrl/Cmd+B: kenar çubuğundaki gezgini gizler/açar. Alt ile `key` klavyeye göre değişir; `code` değişmez. */
