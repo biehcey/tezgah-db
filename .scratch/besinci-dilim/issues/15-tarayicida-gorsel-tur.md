@@ -6,7 +6,7 @@ Spec: [Testing Decisions](../spec.md#testing-decisions), [Görsel dil ve tema](.
 
 **Blocked by:** 14
 
-**Status:** needs-triage
+**Status:** done (a23ad74)
 
 Yerel demo: embedded-postgres ile `numeric`/NULL/`jsonb` kolonlu, PK'lı bir tablo, PK'sız bir tablo ve `RAISE NOTICE`/`RAISE WARNING` (DETAIL/HINT) yapan bir fonksiyon; biri `dev`, biri `prod` etiketli iki bağlantı. Uygulama geçici bir yapılandırma dizini ve sahte keychain ile `startServer`'dan açılırsa gerçek `tezgah.json`'a ve anahtar zincirine dokunulmaz.
 
